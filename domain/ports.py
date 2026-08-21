@@ -1,5 +1,9 @@
 """口の型 — 実装は adapters に置く（依存の向きはここで折り返す）。
 
+**読み口もここに置く**（2026-08-21。SheetSource を ui/reads.py から移した——
+口の型が ui に在ったせいで、app の輪から画面の材料に触れられず、
+判定が画面の中に落ちた。層の間違いが掟破りを呼んだ形）。
+
 **置き場は集約ルートごとに1つ**（リポジトリは集約ルート単位で作る）。
 帳簿はそれらをまとめて差し出す場——1つの口に全集約を詰め込まない。
 """
@@ -180,4 +184,32 @@ class EvidenceStore(Protocol):
 
     def get(self, evidence_ref: str) -> Evidence | None:
         """読み出す — 参照で読む"""
+        ...
+
+
+class SheetSource(Protocol):
+    """枚の材料の口 — 画面と surface が読むものだけ。書く口は無い（画面は常に導出）"""
+
+    def standing_jobs(self) -> tuple[Job, ...]:
+        """立っているタスク"""
+        ...
+
+    def all_jobs(self) -> tuple[Job, ...]:
+        """すべてのタスク"""
+        ...
+
+    def enacted_definitions(self) -> tuple[Definition, ...]:
+        """有効な業務ルールたち"""
+        ...
+
+    def events_for(self, job_id: str) -> tuple[Event, ...]:
+        """そのタスクの出来事"""
+        ...
+
+    def recent_events(self, limit: int = 200) -> tuple[Event, ...]:
+        """近ごろの出来事"""
+        ...
+
+    def origin_keys(self) -> frozenset[str]:
+        """作成元の鍵たち"""
         ...

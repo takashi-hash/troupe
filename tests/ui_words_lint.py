@@ -3,8 +3,8 @@
 画面に出る術語が、用語集 §10「画面に出る語」の一覧にあるかを突き合わせる。
 無い語が画面に現れたら赤——画面で別名を作らないための機械の見張り。
 
-見るもの: ui/sheets.py の STATE_LABELS の値・action= の値、ui/gui.py の _PAGES と、
-画面に置く短い術語（絞り込みの見出し・既定の選択肢）。
+見るもの: ui/sheets.py の STATE_LABELS・SECTION_LABELS の見出し・ACTION_WORDS・action= の値、
+ui/gui.py の _PAGES と、画面に置く短い術語（絞り込みの見出し・既定の選択肢）。
 見ないもの: 出来事の名前と説明文（語ではなく文なので、人が読んで確かめる）。
 """
 
@@ -75,6 +75,28 @@ def _strings_of(path: Path) -> tuple[dict[str, list[str]], list[str]]:
     return maps, actions
 
 
+def _section_labels(path: Path, name: str) -> list[str]:
+    """見出しの語だけを取り出す——値が（見出し, 注意書き）の対のとき、前だけが語"""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.AnnAssign) and not isinstance(node, ast.Assign):
+            continue
+        target = node.target if isinstance(node, ast.AnnAssign) else node.targets[0]
+        if not isinstance(target, ast.Name) or target.id != name:
+            continue
+        if not isinstance(node.value, ast.Dict):
+            continue
+        found: list[str] = []
+        for value in node.value.values:
+            if not isinstance(value, ast.Tuple) or not value.elts:
+                continue
+            head = value.elts[0]
+            if isinstance(head, ast.Constant) and isinstance(head.value, str):
+                found.append(head.value)
+        return found
+    return []
+
+
 def _short_labels(path: Path) -> list[str]:
     """画面に置く短い術語を拾う——絞り込みの見出しと、既定の選択肢。
 
@@ -113,6 +135,14 @@ def main() -> int:
         checked += 1
         if action not in allowed:
             problems.append(f"操作の表示「{action}」が用語集 §10 に無い")
+    for label in _section_labels(ROOT / "ui" / "sheets.py", "SECTION_LABELS"):
+        checked += 1
+        if label not in allowed:
+            problems.append(f"節の見出し「{label}」が用語集 §10 に無い")
+    for word in sheets_maps.get("ACTION_WORDS", []):
+        checked += 1
+        if word not in allowed:
+            problems.append(f"操作の表示「{word}」が用語集 §10 に無い")
     for label in _short_labels(ROOT / "ui" / "gui.py"):
         checked += 1
         if label not in allowed:

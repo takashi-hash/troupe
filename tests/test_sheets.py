@@ -14,7 +14,13 @@ from domain.job import (
     Job,
     origin_key,
 )
-from ui.sheets import job_sheet, morning_count, morning_sections, outlook_sections
+from domain.alert import alerts_for
+from ui.sheets import (
+    job_sheet,
+    morning_count,
+    morning_sections,
+    outlook_sections,
+)
 
 NOW = datetime(2026, 8, 21, 9, 0, tzinfo=timezone.utc)
 
@@ -51,12 +57,12 @@ def definition_example() -> Definition:
 def test_morning_shows_due_today_but_not_future() -> None:
     """「今日」は期限が今日のものだけ——先の予定は載せない（載せると赤が埋もれる）"""
     due_today = Job(core=core_example(NOW), state=Created())
-    sections = morning_sections((due_today,), NOW, viewer="人/座長")
+    sections = morning_sections(alerts_for((due_today,), NOW, viewer="人/座長"))
     assert morning_count(sections) == 1
     assert sections[0].label.startswith("期限")
 
     due_future = Job(core=core_example(NOW + timedelta(days=5)), state=Created())
-    assert morning_sections((due_future,), NOW, viewer="人/座長") == []
+    assert morning_sections(alerts_for((due_future,), NOW, viewer="人/座長")) == []
 
 
 def test_morning_approve_button_only_for_assignee() -> None:
@@ -65,8 +71,8 @@ def test_morning_approve_button_only_for_assignee() -> None:
         core=core_example(NOW + timedelta(days=1)),
         state=Checkpoint(artifact_ref="成果物/x", position="座長の承認待ち", assignee_id="人/座長"),
     )
-    mine = morning_sections((job,), NOW, viewer="人/座長")
-    others = morning_sections((job,), NOW, viewer="人/事務")
+    mine = morning_sections(alerts_for((job,), NOW, viewer="人/座長"))
+    others = morning_sections(alerts_for((job,), NOW, viewer="人/事務"))
     assert mine[0].rows[0].action == "承認"
     assert others[0].rows[0].action is None
 

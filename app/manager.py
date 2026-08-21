@@ -1,8 +1,12 @@
 """マネージャー — 帳簿を回す機体。手を動かさない。判断もしない。
 
-輪は6つ: create（作成）・dispatch（配る）・patrol（見回る）・verify（検証する）と、
-まだ実装していない triage（気づく）・surface（並べる）。
+輪は7つ: create（作成）・dispatch（配る）・patrol（見回る）・verify（検証する）・
+triage（気づく）・confirm（確かめる）・surface（並べる）。
 どの輪も突合と日付演算だけ——LLM は無い。全部が冪等で、何度回しても同じ。
+
+**この一覧は tests/rings_lint.py が調停図と突き合わせる**——数を直して中身を直さない、
+という食い違いが実際に起きた（2026-08-21。設計は7と言い、図と表は6を描き、
+実装は別の6を持っていた）。
 """
 
 from __future__ import annotations
@@ -10,6 +14,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
+from domain.alert import Alert, alerts_for
 from domain.board import constitution_ref, gate_open
 from domain.definition import Version, current_period
 from domain.event import Event
@@ -32,7 +37,7 @@ from domain.job import (
     pass_verification,
     retry,
 )
-from domain.ports import LedgerPort
+from domain.ports import LedgerPort, SheetSource
 from domain.verification import Blocked, check
 
 
@@ -282,6 +287,18 @@ def confirm(ledger: LedgerPort, now: datetime) -> list[str]:
             ):
                 closed.append(job_id)
     return closed
+
+
+def surface(source: SheetSource, now: datetime, viewer: str) -> tuple[Alert, ...]:
+    """並べる — 食い違いを1箇所の判定で人に見せる輪（I1「抜けない」の見え方の出口）。
+
+    **帳簿に書かない唯一の輪。**出口は画面（今日の枚）で、判定は domain の1箇所から来る。
+    書かないので、抜けていても状態は進み、誰も転ばなかった——実際 2026-08-21 まで抜けていた
+    （画面が自分で判定して動いてしまっていた）。だから執行者を置いた: tests/rings_lint.py。
+
+    冪等——同じ材料なら同じ並び。同じ警告は二度出ない（警告の鍵で1件）。
+    """
+    return alerts_for(source.all_jobs(), now, viewer)
 
 
 def _artifact_ref_of(job: Job) -> str:

@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 
 from domain.definition import Definition, current_period
 from domain.event import Event
-from domain.job import AwaitingAnswer, Checkpoint, FromDefinition, Job, origin_key
+from domain.alert import Alert
+from domain.job import FromDefinition, Job, origin_key
 from domain.search import SearchCriteria, assignee_of, definition_of, matches
 
 # 表示名の正本は用語集（§4・§12）。ここは写し——画面の語 lint が §10 と突き合わせる
@@ -108,74 +109,52 @@ def _date_label(when: datetime, now: datetime) -> str:
 # ---- 今日（MorningSheet） ----
 
 
-def morning_sections(jobs: tuple[Job, ...], now: datetime, viewer: str) -> list[Section]:
-    """今日の節 — 今日あなたが対応するものだけ。先の予定は載せない"""
-    red_rows = tuple(
-        Row(
-            title=_name_of(job),
-            meta=f"期限 {job.core.deadline.date().isoformat()}",
-            kind_label="エラー",
-            job_id=job.core.job_id,
-            red=True,
-        )
-        for job in jobs
-        if job.state.kind in ("EnvironmentFailure", "ContentFailure")
-    )
-    checkpoint_rows = tuple(
-        Row(
-            title=_name_of(job),
-            meta=f"期限 {job.core.deadline.date().isoformat()} ・ {job.state.position}",
-            kind_label="承認待ち",
-            job_id=job.core.job_id,
-            action="承認" if job.state.assignee_id == viewer else None,
-        )
-        for job in jobs
-        if isinstance(job.state, Checkpoint)
-    )
-    answer_rows = tuple(
-        Row(
-            title=job.state.question,
-            meta=f"タスク: {_name_of(job)}",
-            kind_label="回答待ち",
-            job_id=job.core.job_id,
-            action="回答" if job.state.addressee_id == viewer else None,
-        )
-        for job in jobs
-        if isinstance(job.state, AwaitingAnswer)
-    )
-    listed = {row.job_id for section in (red_rows, checkpoint_rows, answer_rows) for row in section}
-    due_rows = tuple(
-        Row(
-            title=_name_of(job),
-            meta=f"期限 {job.core.deadline.date().isoformat()} ・ {STATE_LABELS.get(job.state.kind, job.state.kind)}",
-            kind_label="期限",
-            job_id=job.core.job_id,
-        )
-        for job in jobs
-        if job.core.deadline.date() <= now.date() and job.core.job_id not in listed
-    )
+SECTION_LABELS: dict[str, tuple[str, str]] = {
+    "Red": ("要対応", "解消されるまで残ります"),
+    "Checkpoint": ("承認待ち", "承認できるのは担当者だけです"),
+    "AwaitingAnswer": ("回答待ち", "判断ではなく、不足している情報の確認です"),
+    "SelfReport": ("自己申告", "証拠が無いまま完了にしました。確かめの期限が来ています"),
+    "Deadline": ("期限", "今日が期限のタスク"),
+}
+ACTION_WORDS = {"Checkpoint": "承認", "AwaitingAnswer": "回答"}
+
+
+def morning_sections(alerts: tuple[Alert, ...]) -> list[Section]:
+    """今日の節 — 警告を並べるだけ。**何が赤かはここで決めない**（判定は surface の1箇所）。
+
+    タスクを受け取らないので、判定しようにも材料が無い——型が掟の執行者。
+    """
     sections: list[Section] = []
-    if red_rows:
-        sections.append(
-            Section(f"要対応 {len(red_rows)}件", "解消されるまで残ります", red=True, rows=red_rows)
-        )
-    if checkpoint_rows:
-        sections.append(
-            Section(
-                f"承認待ち {len(checkpoint_rows)}件", "承認できるのは担当者だけです", rows=checkpoint_rows
+    for kind, (label, note) in SECTION_LABELS.items():
+        rows = tuple(
+            Row(
+                title=alert.title,
+                meta=_alert_meta(alert),
+                kind_label=label,
+                job_id=alert.job_id,
+                red=alert.kind == "Red",
+                action=ACTION_WORDS.get(alert.kind) if alert.actionable else None,
             )
+            for alert in alerts
+            if alert.kind == kind
         )
-    if answer_rows:
-        sections.append(
-            Section(
-                f"回答待ち {len(answer_rows)}件",
-                "判断ではなく、不足している情報の確認です",
-                rows=answer_rows,
+        if rows:
+            sections.append(
+                Section(f"{label} {len(rows)}件", note, red=kind == "Red", rows=rows)
             )
-        )
-    if due_rows:
-        sections.append(Section(f"期限 {len(due_rows)}件", "今日が期限のタスク", rows=due_rows))
     return sections
+
+
+def _alert_meta(alert: Alert) -> str:
+    """1行の脇に出す一言——期限と、種ごとの手がかり"""
+    parts = [f"期限 {alert.deadline.date().isoformat()}"]
+    if alert.kind == "SelfReport":
+        parts = [f"確かめの期限 {alert.detail}"]
+    elif alert.detail:
+        parts.append(alert.detail)
+    elif alert.kind == "Deadline":
+        parts.append(STATE_LABELS.get(alert.state_kind, alert.state_kind))
+    return " ・ ".join(parts)
 
 
 def morning_count(sections: list[Section]) -> int:

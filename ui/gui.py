@@ -27,7 +27,8 @@ from PySide6.QtWidgets import (
 )
 
 from domain.search import SearchCriteria
-from ui.reads import SheetSource
+from app.manager import surface
+from domain.ports import SheetSource
 from ui.sheets import (
     JobSheet,
     Row,
@@ -630,7 +631,8 @@ class MainWindow(QMainWindow):
             return
         self._stamp = stamp
 
-        morning = morning_sections(jobs, now, VIEWER)
+        # 判定は surface の1箇所から読む——画面は何が赤かを決めない（掟: Alert の出口は1本）
+        morning = morning_sections(surface(self._source, now, VIEWER))
         count = morning_count(morning)
         self._badge.setText(str(count))
         self._badge.setVisible(count > 0)

@@ -8,4 +8,5 @@ uv run python tests/glossary_lint.py
 uv run python tests/ui_words_lint.py
 uv run python tests/event_kinds_lint.py
 uv run python tests/paths_lint.py
+uv run python tests/rings_lint.py
 echo "チェック: すべて緑"
