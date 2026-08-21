@@ -1,0 +1,15 @@
+# 実行データ（帳簿そのもの。版で管理しない）
+data/
+
+# 参考にした教材の置き場（出典はリポジトリの外——書きかた 掟8）
+tmp/
+
+# 道具が作るもの
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# macOS
+.DS_Store
