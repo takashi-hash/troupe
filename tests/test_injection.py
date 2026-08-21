@@ -23,8 +23,8 @@ def ledger(tmp_path: Path) -> SqliteLedger:
 
 def custom(folder: Path, versions: int = 1) -> TomlCustom:
     """題材のフォルダを1つ書く（現場が書くデータの体）"""
-    (folder / "業務ルール").mkdir(parents=True, exist_ok=True)
-    (folder / "方針.toml").write_text(
+    (folder / "rules").mkdir(parents=True, exist_ok=True)
+    (folder / "board.toml").write_text(
         'board_id = "ボード/試し"\n\n'
         "[[constitutions]]\nnumber = 1\n"
         'purpose = "試す"\nnon_goals = "ほかはしない"\n'
@@ -40,7 +40,7 @@ def custom(folder: Path, versions: int = 1) -> TomlCustom:
             "budget_calls = 20\nbudget_seconds = 600\n"
             'source_refs = ["読み口/試し"]\nmust_contain = ["引用"]\n'
         )
-    (folder / "業務ルール" / "週次の見張り.toml").write_text(body, encoding="utf-8")
+    (folder / "rules" / "週次の見張り.toml").write_text(body, encoding="utf-8")
     return TomlCustom(folder)
 
 

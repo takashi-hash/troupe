@@ -101,7 +101,7 @@ def _inject(topic: str) -> None:
     """カスタムを注入する — 人の操作。誰が入れたかは出来事に残る"""
     touched = inject(
         SqliteLedger(DB),
-        TomlCustom(f"カスタム/{topic}"),
+        TomlCustom(f"custom/{topic}"),
         by=VIEWER,
         now=datetime.now(timezone.utc),
     )

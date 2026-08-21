@@ -1,4 +1,4 @@
-"""カスタムの口の実装 — `カスタム/<題材>/` の TOML を読む。
+"""カスタムの口の実装 — `custom/<題材>/` の TOML を読む。
 
 欄の名は英語（設定ファイルの構造は道具の慣例に従う——読みかた 掟9）。
 **中身が現場の言葉**で、土台の型（Board・Definition）への翻訳はここでやる。
@@ -15,7 +15,7 @@ from domain.job import Budget
 
 
 class TomlCustom:
-    """カスタムの口 — `カスタム/運転/` のような1つの題材のフォルダを読む"""
+    """カスタムの口 — `custom/運転/` のような1つの題材のフォルダを読む"""
 
     def __init__(self, folder: str | Path) -> None:
         self._folder = Path(folder)
@@ -25,7 +25,7 @@ class TomlCustom:
         return self._board(), self._definitions()
 
     def _board(self) -> Board:
-        data = _read(self._folder / "方針.toml")
+        data = _read(self._folder / "board.toml")
         constitutions = _rows(data, "constitutions")
         return Board(
             board_id=str(data["board_id"]),
@@ -43,7 +43,7 @@ class TomlCustom:
 
     def _definitions(self) -> tuple[Definition, ...]:
         found: list[Definition] = []
-        for path in sorted((self._folder / "業務ルール").glob("*.toml")):
+        for path in sorted((self._folder / "rules").glob("*.toml")):
             data = _read(path)
             found.append(
                 Definition(
