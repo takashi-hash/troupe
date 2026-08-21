@@ -150,6 +150,11 @@ class LedgerPort(Protocol):
 class LlmPort(Protocol):
     """LLMの口 — 実装は adapters（Ollama）。domain は LLM の中身を知らない"""
 
+    @property
+    def name(self) -> str:
+        """LLMの名 — 能力申告が名乗る model_name の実態。申告と突き合わせる相手"""
+        ...
+
     def chat(self, prompt: str) -> str:
         """話しかける — LLM に問いを渡して応答を受け取る"""
         ...
@@ -200,6 +205,10 @@ class SheetSource(Protocol):
 
     def enacted_definitions(self) -> tuple[Definition, ...]:
         """有効な業務ルールたち"""
+        ...
+
+    def all_definitions(self) -> tuple[Definition, ...]:
+        """すべての業務ルール"""
         ...
 
     def events_for(self, job_id: str) -> tuple[Event, ...]:

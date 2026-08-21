@@ -11,6 +11,11 @@ from __future__ import annotations
 class StubLlm:
     """渡されたプロンプトの「やること」を写して返すだけの口"""
 
+    @property
+    def name(self) -> str:
+        """LLMの名 — 仮物であることを名乗る（本物のふりをしない）"""
+        return "stub"
+
     def chat(self, prompt: str) -> str:
         """話しかける — 指示を写し、まだ本物でないことを名乗る"""
         instruction = _section(prompt, "# やること")

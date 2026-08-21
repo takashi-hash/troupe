@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 from datetime import datetime, timezone
+from typing import Mapping
 
 from adapters.sqlite_ledger import SqliteLedger
 from adapters.stub_llm import StubLlm
@@ -24,24 +25,54 @@ from app.manager import confirm, create, dispatch, patrol, triage, verify
 from app.worker import work
 from domain.event import Event
 from domain.participant import CapabilityDeclaration, Participant, announce
+from domain.ports import LlmPort, SourcePort
 from ui.gui import VIEWER, run
 
 DB = "data/ledger.db"
 TOPIC = "運転"  # いまの題材（custom/<題材>/）
 
 
-def _worker() -> Participant:
-    declared = CapabilityDeclaration(
-        model_name="stub",
-        sensitivity_ok=False,
-        accepts=("週次バックアップ確認",),
-        reachable_ports=("読み口/バックアップ先",),
+# 機体が名乗る中身——**人が書く**。実態から作ってはいけない（作ると照合が空回りする）
+DECLARED = CapabilityDeclaration(
+    model_name="stub",
+    sensitivity_ok=False,
+    accepts=("週次の依存の棚卸し", "週次の検査の見張り", "週次の設計と実装の突合"),
+    reachable_ports=("読み口/依存の一覧", "読み口/検査の結果", "読み口/設計文書"),
+)
+
+
+def _worker(ledger: SqliteLedger, llm: LlmPort, sources: Mapping[str, SourcePort]) -> Participant:
+    """働き手を名乗らせて、帳簿に載せる。
+
+    **申告は人が書き、実態は実物から取る**（教訓8——申告と実態のずれが最大の事故源）。
+    2026-08-21 まで、実在しない業務ルールと口を申告し、その同じ文字列を「実態」として
+    渡していた。申告と申告を突き合わせても照合にならない。
+    いま実態として渡すのは、本当に読める源の鍵と、本当に居る LLM の名。
+
+    名簿に載せるところまでが名乗り——載せないと、誰が働いているかを帳簿が知らない。
+    """
+    named = announce(
+        Participant(participant_id="機体/w-01", kind="Agent", capability=DECLARED),
+        frozenset({llm.name}),
+        frozenset(sources),
     )
-    participant = Participant(participant_id="機体/w-01", kind="Agent", capability=declared)
-    return announce(participant, frozenset({"stub"}), frozenset({"読み口/バックアップ先"}))
+    if ledger.participants.get(named.participant_id) is None:  # 冪等——二度は載せない
+        ledger.participants.put(
+            named,
+            [
+                Event(
+                    kind="Announced",
+                    at=datetime.now(timezone.utc),
+                    payload={"participant": named.participant_id, "model": named.capability.model_name},
+                )
+            ],
+        )
+    return named
 
 
-def _turn(ledger: SqliteLedger, worker: Participant) -> None:
+def _turn(
+    ledger: SqliteLedger, worker: Participant, llm: LlmPort, sources: Mapping[str, SourcePort]
+) -> None:
     """1周 — マネージャーの輪と働き手を順に回す。全部が冪等なので、何度回しても同じ。
 
     1つの輪の失敗で他の輪を止めない。落ちた事実は帳簿に落とす（標準エラー出力に消さない）。
@@ -52,7 +83,7 @@ def _turn(ledger: SqliteLedger, worker: Participant) -> None:
         ("dispatch", lambda: dispatch(ledger, now)),
         ("patrol", lambda: patrol(ledger, now)),
         ("triage", lambda: triage(ledger, now)),
-        ("work", lambda: work(ledger, StubLlm(), worker, now, sources_of(f"custom/{TOPIC}"))),
+        ("work", lambda: work(ledger, llm, worker, now, sources)),
         ("verify", lambda: verify(ledger, now, assignee_id=VIEWER)),
         ("confirm", lambda: confirm(ledger, now)),
     )
@@ -84,9 +115,11 @@ def _record_ring_failure(
 def _loop() -> None:
     # 帳簿の接続はスレッドごとに持つ（1接続＝1参加者——設計/8_保存 §2）
     ledger = SqliteLedger(DB)
-    worker = _worker()
+    llm = StubLlm()
+    sources = sources_of(f"custom/{TOPIC}")
+    worker = _worker(ledger, llm, sources)
     while True:
-        _turn(ledger, worker)  # 輪ごとに捕まえているので、ここでは落ちない
+        _turn(ledger, worker, llm, sources)  # 輪ごとに捕まえているので、ここでは落ちない
         time.sleep(3)
 
 

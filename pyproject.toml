@@ -16,7 +16,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.pyright]
-include = ["domain", "app", "adapters", "ui", "tests"]
+include = ["domain", "app", "adapters", "ui", "tests", "main.py"]
 strict = ["domain", "app"]
 reportUnnecessaryTypeIgnoreComment = "error"
 pythonVersion = "3.12"

@@ -10,7 +10,7 @@ import pytest
 
 from adapters.sqlite_ledger import SqliteLedger
 from app.actions import record_approval
-from app.manager import confirm, create, dispatch, patrol, triage, verify
+from app.manager import confirm, create, dispatch, patrol, triage, verify, surface
 from app.worker import work
 from domain.board import Board, Constitution, freeze
 from domain.definition import Definition, Version
@@ -263,6 +263,10 @@ class BrokenLlm:
     def __init__(self) -> None:
         self.calls = 0
 
+    @property
+    def name(self) -> str:
+        return "broken"
+
     def chat(self, prompt: str) -> str:
         self.calls += 1
         raise ConnectionError("LLM に繋がらない")
@@ -423,3 +427,45 @@ def test_confirm_waits_for_evidence(ledger: SqliteLedger) -> None:
     assert confirm(ledger, NOW) == []
     got = ledger.jobs.get(job_id)
     assert got is not None and got[0].state.kind == "Confirmed"
+
+
+def test_verify_refuses_a_job_it_cannot_judge(ledger: SqliteLedger) -> None:
+    """裁く版が引けないタスクは合格にしない——空の基準で通すと、承認まで飛ばしてしまう。
+
+    これがすり抜けを作る道: version が引けないと must_contain は空、checkpoint_position も
+    None になり、検証中→承認済みへ一直線に進む。型はこの道を禁じられない（承認が要るかを
+    知っているのは状態ではなく版だから）。**帳簿は道具より長生きする**ので、コードの守りだけ
+    では足りない——ここでは業務ルールの行が無い帳簿（復元・移行のあと）を作って確かめる。
+    """
+    seed(ledger)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
+    (job_id,) = [j.core.job_id for j in ledger.all_jobs()]
+    ledger.connection.execute("DELETE FROM definitions")  # 帳簿から業務ルールが消えた
+    assert verify(ledger, NOW, ASSIGNEE) == []
+    got = ledger.jobs.get(job_id)
+    assert got is not None and got[0].state.kind == "Verifying"  # 止まったまま、surface が赤で並べる
+
+
+def test_surface_judges_by_the_birth_version_not_by_what_is_enacted(
+    ledger: SqliteLedger,
+) -> None:
+    """有効でない業務ルールから生まれたタスクでも、版は引ける——**生まれた版で裁かれる**。
+
+    有効なものだけで引くと、有効化を解いた業務ルールのタスクが一斉に
+    「版が引けない」赤になる（狼少年を作る）。
+
+    有効化を解く道はまだ無い（出来事の種が無い——ドメインモデル §11 未決#11）ので、
+    ここでは帳簿に直接その形を書いて確かめる。帳簿は道具より長生きするので、
+    「いまのコードが書かない形」も帳簿には現れうる。
+    """
+    seed(ledger)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
+    known = ledger.definitions.get("週次の検査の見張り")
+    assert known is not None
+    ledger.connection.execute(
+        "UPDATE definitions SET state=? WHERE id=?",
+        (known.model_copy(update={"enacted": None}).model_dump_json(), known.name),
+    )
+    assert ledger.enacted_definitions() == ()
+    assert len(ledger.all_definitions()) == 1
+    assert surface(ledger, NOW, ASSIGNEE) == ()  # 赤くならない

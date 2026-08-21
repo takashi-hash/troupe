@@ -9,10 +9,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Mapping
 
 from pydantic import BaseModel, ConfigDict
 
+from domain.definition import Version
 from domain.job import (
     AwaitingAnswer,
     Checkpoint,
@@ -50,13 +51,24 @@ def alert_key(kind: AlertKind, job_id: str) -> str:
     return f"{kind}/{job_id}"
 
 
-def alerts_for(jobs: tuple[Job, ...], now: datetime, viewer: str) -> tuple[Alert, ...]:
+def alerts_for(
+    jobs: tuple[Job, ...],
+    now: datetime,
+    viewer: str,
+    versions: Mapping[str, Version | None],
+    approvals: Mapping[str, int],
+) -> tuple[Alert, ...]:
     """警告を判定する — 今日その人の目と判断が要るものだけを選ぶ。
+
+    版と承認の数を**必ず受け取る**——状態だけでは見えない「すり抜け」があるから
+    （下の表の最初の2行）。渡さずに判定できてしまうと、その2行は静かに消える。
 
     出す・出さないの根拠（全部「人が今できることがあるか」で決まる）:
 
     | 状態 | 出すか | なぜ |
     |---|---|---|
+    | 承認を飛ばして先へ進んだ | 要対応（赤） | **型では塞げない**——このタスクに承認が要るかは状態でなく版が知っている |
+    | 裁く版が引けない | 要対応（赤） | 受け入れ基準が空のまま合格にできてしまう。何を基準に通したか言えない |
     | 内容エラー | 要対応（赤） | 再試行が尽きた・成果の質。人の判断が要る |
     | 環境エラー | **出さない** | 再試行の最中。人が今できることが無い |
     | 承認待ち | 承認待ち | 判断は人間——担当の本人だけが押せる |
@@ -67,13 +79,16 @@ def alerts_for(jobs: tuple[Job, ...], now: datetime, viewer: str) -> tuple[Alert
     """
     found: dict[str, Alert] = {}
     for job in jobs:
-        alert = _alert_of(job, now, viewer)
+        job_id = job.core.job_id
+        alert = _alert_of(job, now, viewer, versions.get(job_id), approvals.get(job_id, 0))
         if alert is not None:
             found.setdefault(alert.key, alert)  # 同じ鍵は1件だけ（冪等）
     return tuple(sorted(found.values(), key=lambda a: (_ORDER.index(a.kind), a.deadline)))
 
 
-def _alert_of(job: Job, now: datetime, viewer: str) -> Alert | None:
+def _alert_of(
+    job: Job, now: datetime, viewer: str, version: Version | None, approvals: int
+) -> Alert | None:
     """1つのタスクに出る警告（強い順に1つだけ）。出すものが無ければ None"""
     state = job.state
     title, deadline, job_id = _title_of(job), job.core.deadline, job.core.job_id
@@ -90,6 +105,9 @@ def _alert_of(job: Job, now: datetime, viewer: str) -> Alert | None:
             actionable=actionable,
         )
 
+    slipped = _slipped_through(job, version, approvals)
+    if slipped is not None:
+        return _made("Red", slipped)  # 完了していても出す——事故は済んだことにしない
     if isinstance(state, ContentFailure):
         return _made("Red", state.reason)
     if isinstance(state, Checkpoint):
@@ -106,6 +124,35 @@ def _alert_of(job: Job, now: datetime, viewer: str) -> Alert | None:
         return None  # 再試行の最中。人が今できることが無い
     if deadline.date() <= now.date():
         return _made("Deadline")
+    return None
+
+
+# 承認待ちを通り過ぎた先の状態——ここに居るなら、承認は済んでいるはず
+_PAST_CHECKPOINT = (
+    "Confirmed",
+    "ApplyAttempt",
+    "Applied",
+    "ClosedWithEvidence",
+    "ClosedBySelfReport",
+)
+
+
+def _slipped_through(job: Job, version: Version | None, approvals: int) -> str | None:
+    """すり抜けを見つける — 型が塞げない穴を、結果として見張る。
+
+    型が禁じるのは「承認待ち→承認済み」の無承認だけ。**承認待ちを丸ごと飛ばす道**
+    （検証中→承認済み）は禁じられない——承認が要る業務ルールかどうかは、
+    状態ではなく版が知っているから。即時の守りが在ることは、結果の見張りを要らなくしない。
+    """
+    state_kind = job.state.kind
+    if state_kind != "Verifying" and state_kind not in _PAST_CHECKPOINT:
+        return None
+    if isinstance(job.core.origin, FromDefinition) and version is None:
+        return "このタスクを裁く業務ルールの版が帳簿から引けない"
+    if state_kind == "Verifying":
+        return None  # まだ通っていない
+    if version is not None and version.checkpoint_position and approvals == 0:
+        return "承認が要る業務ルールなのに、承認の記録が無いまま先へ進んでいる"
     return None
 
 

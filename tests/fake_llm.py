@@ -10,6 +10,10 @@ class FakeLlm:
         self._replies = list(replies)
         self.prompts: list[str] = []
 
+    @property
+    def name(self) -> str:
+        return "fake"
+
     def chat(self, prompt: str) -> str:
         self.prompts.append(prompt)
         return self._replies.pop(0) if self._replies else ""

@@ -377,6 +377,16 @@ class SqliteLedger:
         """有効な業務ルールたち（画面の予定が読む）"""
         return self.definitions.enacted()
 
+    def all_definitions(self) -> tuple[Definition, ...]:
+        """すべての業務ルール — 有効でないものも含む。
+
+        タスクは**生まれた版で裁かれる**ので、いま有効かどうかは関係がない。
+        surface はこれで版を引く（有効なものだけで引くと、有効化を解いた業務ルールの
+        タスクが全部「版が引けない」赤になってしまう）。
+        """
+        rows = self._con.execute("SELECT state FROM definitions ORDER BY id").fetchall()
+        return tuple(Definition.model_validate_json(row[0]) for row in rows)
+
     def events_for(self, job_id: str) -> tuple[Event, ...]:
         """そのタスクの出来事 — 古い順に"""
         rows = self._con.execute(

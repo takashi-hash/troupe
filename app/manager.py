@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 
 from domain.alert import Alert, alerts_for
 from domain.board import constitution_ref, gate_open
-from domain.definition import Version, current_period
+from domain.definition import Definition, Version, current_period
 from domain.event import Event
 from domain.evidence import needs_evidence
 from domain.job import (
@@ -151,6 +151,8 @@ def verify(ledger: LedgerPort, now: datetime, assignee_id: str) -> list[str]:
             continue
         artifact = ledger.artifacts.get(state.artifact_ref)
         version = version_of(ledger, job)
+        if version is None and isinstance(job.core.origin, FromDefinition):
+            continue  # 裁く版が引けない——空の基準で合格にしない。surface が赤で並べる
         result = check(artifact.body if artifact else "", version.must_contain if version else ())
         if isinstance(result, Blocked):
             if ledger.jobs.put(
@@ -297,8 +299,32 @@ def surface(source: SheetSource, now: datetime, viewer: str) -> tuple[Alert, ...
     （画面が自分で判定して動いてしまっていた）。だから執行者を置いた: tests/rings_lint.py。
 
     冪等——同じ材料なら同じ並び。同じ警告は二度出ない（警告の鍵で1件）。
+
+    版と承認の数まで集めるのは、**状態だけでは見えないすり抜けがある**から。
+    いまはタスクごとに出来事を引く。件数が増えて遅いと**実測**できたら、
+    数え上げを帳簿の側へ移す（消す前に測る・足す前に測る）。
     """
-    return alerts_for(source.all_jobs(), now, viewer)
+    jobs = source.all_jobs()
+    definitions = source.all_definitions()  # 生まれた版で裁く——有効かどうかは関係がない
+    versions = {job.core.job_id: _version_by_origin(job, definitions) for job in jobs}
+    approvals = {
+        job.core.job_id: sum(
+            1 for event in source.events_for(job.core.job_id) if event.kind == "CheckpointApproved"
+        )
+        for job in jobs
+    }
+    return alerts_for(jobs, now, viewer, versions, approvals)
+
+
+def _version_by_origin(job: Job, definitions: tuple[Definition, ...]) -> Version | None:
+    """そのタスクを裁く版（引けなければ None——それ自体が surface の赤になる）"""
+    origin = job.core.origin
+    if not isinstance(origin, FromDefinition):
+        return None
+    found = next((d for d in definitions if d.name == origin.definition_name), None)
+    if found is None:
+        return None
+    return next((v for v in found.versions if v.number == origin.version), None)
 
 
 def _artifact_ref_of(job: Job) -> str:
