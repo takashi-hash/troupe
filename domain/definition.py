@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from domain.job import Budget
+from domain.job import Budget, FromDefinition, Origin
 
 _frozen = ConfigDict(frozen=True, extra="forbid")
 
@@ -113,3 +113,14 @@ def artifact_slot(name: str, period: str) -> str:
 def acceptance_ref(name: str, number: int) -> str:
     """受け入れ基準の参照 — 業務ルールの版の受け入れ基準を指す"""
     return f"{definition_ref(name, number)}#受け入れ基準"
+
+
+def version_for(definition: Definition | None, origin: Origin) -> Version | None:
+    """版を読む — そのタスクを裁く版。**タスクは生まれた版で裁かれる**。
+
+    引けなければ None——業務ルールが帳簿に無いか、作成元が業務ルール発ではない。
+    引けないこと自体が事故の目印になる（警告の判定が赤で並べる）。
+    """
+    if definition is None or not isinstance(origin, FromDefinition):
+        return None
+    return next((v for v in definition.versions if v.number == origin.version), None)

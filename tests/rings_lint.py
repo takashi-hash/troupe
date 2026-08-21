@@ -29,7 +29,9 @@ DIAGRAM = ROOT / "設計" / "5_出来事" / "調停図.md"
 MANAGER = ROOT / "app" / "manager.py"
 
 # 輪ではない公開の関数（理由を1行で言えるものだけ）
-HELPERS = {"version_of": "輪ではなく、輪が使う引き"}
+# 輪ではない公開の関数（理由を1行で言えるものだけ）。
+# 空なのが正しい——輪の置き場には輪だけを置く（2026-08-21、段A4 で空にした）
+HELPERS: dict[str, str] = {}
 
 
 def declared() -> list[str]:

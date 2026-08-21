@@ -1,9 +1,10 @@
-"""注入 — カスタムのデータ（方針と業務ルール）を帳簿へ入れる。
+"""人の操作 — 画面と手元から来る、人間だけの行為。
 
-**人の操作**。自動では走らせない——凍結も有効化も人だけの行為だから、
-その人がこの操作を走らせたことが、そのまま人の判断になる（誰が、は出来事に残る）。
+**ここが「人に何ができるか」の一覧**。判断は人間（公理）なので、この置き場に
+在るものだけが人の意思で動く。輪（app/manager.py）は誰も呼ばなくても回るが、
+ここは人が押したときだけ動く——それが唯一の違いで、そのために置き場を分けている。
 
-冪等: 2度走らせても同じ。版は積むだけなので、増えた版だけを積む。
+ここを通る操作は必ず出来事に残り、誰がいつ押したかが辿れる。
 """
 
 from __future__ import annotations
@@ -13,7 +14,25 @@ from datetime import datetime
 from domain.board import Board, freeze
 from domain.definition import Definition, enact
 from domain.event import Event
+from domain.job import CannotApprove, approve
 from domain.ports import CustomPort, LedgerPort
+
+
+def record_approval(ledger: LedgerPort, job_id: str, by: str, now: datetime) -> bool:
+    """承認を記録する — 人が押した承認を帳簿に書き込む。担当した人でなければ偽"""
+    got = ledger.jobs.get(job_id)
+    if got is None:
+        return False
+    job, rev = got
+    try:
+        approved = approve(job, by=by, at=now)
+    except CannotApprove:
+        return False
+    return ledger.jobs.put(
+        approved,
+        rev,
+        [Event(kind="CheckpointApproved", at=now, job_id=job_id, payload={"by": by})],
+    )
 
 
 def inject(ledger: LedgerPort, custom: CustomPort, by: str, now: datetime) -> list[str]:

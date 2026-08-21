@@ -19,8 +19,8 @@ from adapters.sqlite_ledger import SqliteLedger
 from adapters.stub_llm import StubLlm
 from adapters.sources import sources_of
 from adapters.toml_custom import TomlCustom
-from app.injection import inject
-from app.actions import record_approval
+from app.human import inject
+from app.human import record_approval
 from app.manager import confirm, create, dispatch, patrol, triage, verify
 from app.worker import work
 from domain.event import Event

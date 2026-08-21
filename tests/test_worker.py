@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from adapters.sqlite_ledger import SqliteLedger
-from app.actions import record_approval
+from app.human import record_approval
 from app.manager import confirm, create, dispatch, patrol, triage, verify, surface
 from app.worker import work
 from domain.board import Board, Constitution, freeze

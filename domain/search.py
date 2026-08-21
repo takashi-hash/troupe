@@ -20,7 +20,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict
 
-from domain.job import AwaitingAnswer, Checkpoint, FromDefinition, Job, Running
+from domain.job import Job, assignee_of, definition_of, period_of
 
 
 class SearchCriteria(BaseModel):
@@ -33,30 +33,6 @@ class SearchCriteria(BaseModel):
     assignee: str = ""  # 担当
     deadline_from: date | None = None
     deadline_to: date | None = None
-
-
-def assignee_of(job: Job) -> str:
-    """担当を読む — そのタスクを承認する人、または札を持っている者。居なければ空"""
-    state = job.state
-    if isinstance(state, Checkpoint):
-        return state.assignee_id
-    if isinstance(state, AwaitingAnswer):
-        return state.addressee_id
-    if isinstance(state, Running):
-        return state.lease.holder
-    return ""
-
-
-def definition_of(job: Job) -> str:
-    """業務ルールを読む — 作成元が業務ルールなら、その名。指示発なら空"""
-    origin = job.core.origin
-    return origin.definition_name if isinstance(origin, FromDefinition) else ""
-
-
-def period_of(job: Job) -> str:
-    """対象期間を読む — 作成元が持つ。指示発なら空"""
-    origin = job.core.origin
-    return origin.period if isinstance(origin, FromDefinition) else ""
 
 
 def matches(job: Job, criteria: SearchCriteria, body: str = "") -> bool:

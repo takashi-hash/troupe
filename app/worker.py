@@ -13,10 +13,11 @@ from datetime import datetime
 
 from domain.artifact import Artifact
 from domain.board import Board
-from domain.definition import Version, parse_definition_ref
+from domain.definition import Version, parse_definition_ref, version_for
 from domain.event import Event
 from domain.evidence import Reading, evidence_for, needs_evidence
 from domain.job import (
+    definition_of,
     Briefing,
     CannotTake,
     ContentFailure,
@@ -225,10 +226,8 @@ def _fall(
 
 
 def _version_of(ledger: LedgerPort, job: Job) -> Version | None:
-    """版を読む — タスクが生まれた版（作成元が版を持つ）"""
-    from app.manager import version_of
-
-    return version_of(ledger, job)
+    """版を読む — タスクが生まれた版（引くのはドメインの規則）"""
+    return version_for(ledger.definitions.get(definition_of(job)), job.core.origin)
 
 
 def _read_sources(

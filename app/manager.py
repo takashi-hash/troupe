@@ -16,14 +16,12 @@ from datetime import datetime, timedelta
 
 from domain.alert import Alert, alerts_for
 from domain.board import constitution_ref, gate_open
-from domain.definition import Definition, Version, current_period
+from domain.definition import current_period, version_for
 from domain.event import Event
 from domain.evidence import needs_evidence
 from domain.job import (
     CannotClose,
     EnvironmentFailure,
-    Core,
-    Created,
     FromDefinition,
     Job,
     Ready,
@@ -32,7 +30,9 @@ from domain.job import (
     briefing_for,
     close,
     expire,
+    definition_of,
     escalate,
+    new_job,
     origin_key,
     pass_verification,
     retry,
@@ -57,16 +57,13 @@ def create(ledger: LedgerPort, now: datetime) -> list[str]:
         key = origin_key(origin)
         if key is None or ledger.jobs.find_by_origin(key) is not None:
             continue  # 既に作成済み——冪等
-        job = Job(
-            core=Core(
-                job_id=f"タスク-{uuid.uuid4().hex[:12]}",  # ID に意味を持たせない
-                origin=origin,
-                board_id=definition.board_id,
-                ready_at=now,
-                deadline=now + timedelta(days=version.deadline_days),
-                budget=version.budget,
-            ),
-            state=Created(),
+        job = new_job(  # 採番はここ（立てた者が振る）。形はドメインが決める
+            job_id=f"タスク-{uuid.uuid4().hex[:12]}",  # ID に意味を持たせない
+            origin=origin,
+            board_id=definition.board_id,
+            now=now,
+            deadline_days=version.deadline_days,
+            budget=version.budget,
         )
         if ledger.jobs.put(
             job,
@@ -150,7 +147,7 @@ def verify(ledger: LedgerPort, now: datetime, assignee_id: str) -> list[str]:
         if not isinstance(state, Verifying):
             continue
         artifact = ledger.artifacts.get(state.artifact_ref)
-        version = version_of(ledger, job)
+        version = version_for(ledger.definitions.get(definition_of(job)), job.core.origin)
         if version is None and isinstance(job.core.origin, FromDefinition):
             continue  # 裁く版が引けない——空の基準で合格にしない。surface が赤で並べる
         result = check(artifact.body if artifact else "", version.must_contain if version else ())
@@ -184,17 +181,6 @@ def verify(ledger: LedgerPort, now: datetime, assignee_id: str) -> list[str]:
         ):
             moved.append(job_id)
     return moved
-
-
-def version_of(ledger: LedgerPort, job: Job) -> Version | None:
-    """版を読む — タスクは生まれた版で裁かれる（作成元が版を持つ）"""
-    origin = job.core.origin
-    if not isinstance(origin, FromDefinition):
-        return None
-    definition = ledger.definitions.get(origin.definition_name)
-    if definition is None:
-        return None
-    return next((v for v in definition.versions if v.number == origin.version), None)
 
 
 def triage(ledger: LedgerPort, now: datetime) -> list[str]:
@@ -257,7 +243,7 @@ def confirm(ledger: LedgerPort, now: datetime) -> list[str]:
             if got is None:
                 continue
             job, rev = got
-            version = version_of(ledger, job)
+            version = version_for(ledger.definitions.get(definition_of(job)), job.core.origin)
             needs_apply = version.needs_apply if version else False
             source_refs = version.source_refs if version else ()
             evidence_ref = None
@@ -306,7 +292,11 @@ def surface(source: SheetSource, now: datetime, viewer: str) -> tuple[Alert, ...
     """
     jobs = source.all_jobs()
     definitions = source.all_definitions()  # 生まれた版で裁く——有効かどうかは関係がない
-    versions = {job.core.job_id: _version_by_origin(job, definitions) for job in jobs}
+    by_name = {d.name: d for d in definitions}
+    versions = {
+        job.core.job_id: version_for(by_name.get(definition_of(job)), job.core.origin)
+        for job in jobs
+    }
     approvals = {
         job.core.job_id: sum(
             1 for event in source.events_for(job.core.job_id) if event.kind == "CheckpointApproved"
@@ -314,17 +304,6 @@ def surface(source: SheetSource, now: datetime, viewer: str) -> tuple[Alert, ...
         for job in jobs
     }
     return alerts_for(jobs, now, viewer, versions, approvals)
-
-
-def _version_by_origin(job: Job, definitions: tuple[Definition, ...]) -> Version | None:
-    """そのタスクを裁く版（引けなければ None——それ自体が surface の赤になる）"""
-    origin = job.core.origin
-    if not isinstance(origin, FromDefinition):
-        return None
-    found = next((d for d in definitions if d.name == origin.definition_name), None)
-    if found is None:
-        return None
-    return next((v for v in found.versions if v.number == origin.version), None)
 
 
 def _artifact_ref_of(job: Job) -> str:

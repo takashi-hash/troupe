@@ -574,3 +574,60 @@ def close(
     if recheck_deadline is None:
         raise CannotClose("証拠が無いなら、確かめの期限が要る（自己申告）")
     return Job(core=job.core, state=ClosedBySelfReport(recheck_deadline=recheck_deadline))
+
+
+# ---- 仕立て（Factory）——新しい1件が満たすべき形。集約境界図 §6 の表がそのまま ----
+
+
+def new_job(
+    job_id: str,
+    origin: Origin,
+    board_id: str,
+    now: datetime,
+    deadline_days: int,
+    budget: Budget,
+) -> Job:
+    """タスクを仕立てる — 新しい1件の形を1箇所で決める。
+
+    **採番は立てた者、形はドメイン**——id は受け取る（誰が立てたかは手順の側の話）。
+    期限は**作成した時刻 ＋ 版の日数**。使用上限は版の写しで、参照ではない
+    （後から版が変わっても、このタスクは生まれた版の量で裁かれる）。
+    """
+    return Job(
+        core=Core(
+            job_id=job_id,
+            origin=origin,
+            board_id=board_id,
+            ready_at=now,
+            deadline=now + timedelta(days=deadline_days),
+            budget=budget,
+        ),
+        state=Created(),
+    )
+
+
+# ---- Job の引き（主語が Job のもの。使い道ではなく主語で置く） ----
+
+
+def assignee_of(job: Job) -> str:
+    """担当を読む — そのタスクを承認する人、または札を持っている者。居なければ空"""
+    state = job.state
+    if isinstance(state, Checkpoint):
+        return state.assignee_id
+    if isinstance(state, AwaitingAnswer):
+        return state.addressee_id
+    if isinstance(state, Running):
+        return state.lease.holder
+    return ""
+
+
+def definition_of(job: Job) -> str:
+    """業務ルールを読む — 作成元が業務ルールなら、その名。指示発なら空"""
+    origin = job.core.origin
+    return origin.definition_name if isinstance(origin, FromDefinition) else ""
+
+
+def period_of(job: Job) -> str:
+    """対象期間を読む — 作成元が持つ。指示発なら空"""
+    origin = job.core.origin
+    return origin.period if isinstance(origin, FromDefinition) else ""

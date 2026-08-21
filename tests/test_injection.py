@@ -10,7 +10,7 @@ import pytest
 
 from adapters.sqlite_ledger import SqliteLedger
 from adapters.toml_custom import TomlCustom
-from app.injection import inject
+from app.human import inject
 
 NOW = datetime(2026, 8, 21, 9, 0, tzinfo=timezone.utc)
 BY = "人/座長"

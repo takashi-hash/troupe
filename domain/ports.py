@@ -93,7 +93,7 @@ class ArtifactStore(Protocol):
         ...
 
 
-class EventLog(Protocol):
+class EventStore(Protocol):
     """出来事の置き場 — 積むだけの列。書き換えも削除も無い"""
 
     def append(self, events: Sequence[Event]) -> None:
@@ -137,7 +137,7 @@ class LedgerPort(Protocol):
         ...
 
     @property
-    def events(self) -> EventLog:
+    def events(self) -> EventStore:
         """出来事たち — 出来事の置き場"""
         ...
 
