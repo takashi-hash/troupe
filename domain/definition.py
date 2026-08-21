@@ -33,6 +33,7 @@ class Version(BaseModel):
     max_retries: int = 3  # 最大再試行——再試行の規則はポリシー（業務ルールが決める）
     must_contain: tuple[str, ...] = ()  # 必ず含む語——受け入れ基準の決定的な部分（チェックが見る）
     checkpoint_position: str | None = None  # 承認待ちの位置。無ければ承認済みへ直行
+    needs_apply: bool = False  # 適用が要るか。要らなければ承認済みから直に完了へ
 
 
 class Definition(BaseModel):

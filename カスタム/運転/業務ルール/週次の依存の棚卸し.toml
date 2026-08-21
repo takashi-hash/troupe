@@ -1,0 +1,16 @@
+name = "週次の依存の棚卸し"
+board_id = "ボード/運転"
+
+[[versions]]
+number = 1
+instruction = "依存の一覧を読み、古びたものと上げてよいものを分ける"
+acceptance = "依存の名と現在の版が引用されている"
+cadence = "weekly"
+deadline_days = 3
+budget_calls = 20
+budget_seconds = 600
+max_retries = 2
+source_refs = ["読み口/依存の一覧"]
+must_contain = ["依存"]
+checkpoint_position = "座長の承認"
+needs_apply = false

@@ -1,0 +1,16 @@
+name = "週次の設計と実装の突合"
+board_id = "ボード/運転"
+
+[[versions]]
+number = 1
+instruction = "設計文書と実装を突き合わせ、食い違いを並べる"
+acceptance = "食い違いが件数と場所つきで書かれている"
+cadence = "weekly"
+deadline_days = 3
+budget_calls = 20
+budget_seconds = 600
+max_retries = 2
+source_refs = ["読み口/設計文書"]
+must_contain = ["設計"]
+checkpoint_position = "座長の承認"
+needs_apply = false

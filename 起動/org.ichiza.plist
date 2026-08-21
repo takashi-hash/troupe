@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  一座の起動 — I8「動き続ける。起動も自律の一部」の執行者。
+  この宣言ファイルをリポジトリに含めるまでが実装（宣言に執行者がいなければ実装ではない）。
+
+  入れる:  cp 起動/org.ichiza.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/org.ichiza.plist
+  外す:    launchctl unload ~/Library/LaunchAgents/org.ichiza.plist
+  ※ WorkingDirectory と uv の場所は、入れる前に自分の機体に合わせて直すこと。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>org.ichiza</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/uv</string>
+    <string>run</string>
+    <string>python</string>
+    <string>main.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/hashimototakashi/Ichiza</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardErrorPath</key>
+  <string>/tmp/ichiza.err.log</string>
+  <key>StandardOutPath</key>
+  <string>/tmp/ichiza.out.log</string>
+</dict>
+</plist>

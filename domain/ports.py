@@ -143,3 +143,15 @@ class LlmPort(Protocol):
     def chat(self, prompt: str) -> str:
         """話しかける — LLM に問いを渡して応答を受け取る"""
         ...
+
+
+class CustomPort(Protocol):
+    """カスタムの口 — 現場のデータ（方針と業務ルール）を読む。
+
+    土台はカスタムの**中身**を1行も知らない——読むのは方針と業務ルールという**型**だけ。
+    次の現場は、注入するデータの差し替えで済む。
+    """
+
+    def load(self) -> tuple[Board, tuple[Definition, ...]]:
+        """読み込む — 注入するデータをまとめて読む。凍結も有効化もされていない形で返す"""
+        ...

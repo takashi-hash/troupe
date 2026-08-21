@@ -1,5 +1,8 @@
 """組み立ての根 — 全層を束ねる唯一の場所。
 
+  uv run python main.py            画面を開く（輪と働き手も回る）
+  uv run python main.py inject 運転  カスタムを注入する（人の操作。自動では走らない）
+
 マネージャーの輪と働き手を周期で回し、画面を開く。
 どちらも帳簿越しにしか触れ合わない（誰も直接話さない）。
 """
@@ -13,6 +16,8 @@ from datetime import datetime, timezone
 
 from adapters.sqlite_ledger import SqliteLedger
 from adapters.stub_llm import StubLlm
+from adapters.toml_custom import TomlCustom
+from app.injection import inject
 from app.actions import record_approval
 from app.manager import create, dispatch, patrol, triage, verify
 from app.worker import work
@@ -92,6 +97,20 @@ def _act(action: str, job_id: str) -> str | None:
     return "承認できませんでした（担当ではないか、もう承認済みです）"
 
 
+def _inject(topic: str) -> None:
+    """カスタムを注入する — 人の操作。誰が入れたかは出来事に残る"""
+    touched = inject(
+        SqliteLedger(DB),
+        TomlCustom(f"カスタム/{topic}"),
+        by=VIEWER,
+        now=datetime.now(timezone.utc),
+    )
+    print(f"注入しました: {'、'.join(touched)}" if touched else "変わりはありません")
+
+
 if __name__ == "__main__":
+    if len(sys.argv) >= 3 and sys.argv[1] == "inject":
+        _inject(sys.argv[2])
+        sys.exit(0)
     threading.Thread(target=_loop, daemon=True).start()
     sys.exit(run(SqliteLedger(DB), _act))
