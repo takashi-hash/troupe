@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from adapters.sqlite_ledger import SqliteLedger
+from adapters.sqlite_ledger import SqliteLedger, StaleLedger
 from domain.event import Event, EventKind
 from domain.job import (
     Briefing,
@@ -146,10 +146,15 @@ def test_illegal_transition_is_rejected(ledger: SqliteLedger) -> None:
 
 
 def test_type_guard_on_load(ledger: SqliteLedger) -> None:
-    """DB の state を直接壊しても、読み出しの model_validate が弾く——禁止状態は保存にも効く"""
+    """DB の state を直接壊しても、戻すときの型が弾く——禁止状態は保存にも効く。
+
+    2026-08-21（段C）から、外に出るのは `StaleLedger`——「いまの型で読めない」と
+    名乗って止まる。元の悲鳴は原因として繋がっているので、追える。
+    """
     job = job_example()
     ledger.jobs.put(job, expected_rev=0, events=[event("JobCreated", job.core.job_id)])
     broken = '{"core": null, "state": {"kind": "Applied", "artifact_ref": "x"}}'
     ledger._con.execute("UPDATE jobs SET state=? WHERE id=?", (broken, job.core.job_id))
-    with pytest.raises(ValidationError):
+    with pytest.raises(StaleLedger) as caught:
         ledger.jobs.get(job.core.job_id)
+    assert isinstance(caught.value.__cause__, ValidationError)

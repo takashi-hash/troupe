@@ -15,7 +15,9 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Iterator, Sequence, TypeVar
+
+from pydantic import BaseModel, ValidationError
 
 from domain.artifact import Artifact
 from domain.board import Board, board_required_events
@@ -77,6 +79,37 @@ BEGIN SELECT RAISE(ABORT, 'append only'); END;"""
     return "\n".join(parts)
 
 
+_M = TypeVar("_M", bound=BaseModel)
+
+# 帳簿の形の番号。**型を変えたら上げる**
+SCHEMA_VERSION = 1
+
+
+class StaleLedger(Exception):
+    """帳簿の形が古い — いまの型では読めない。
+
+    古い帳簿は捨ててよい（注入し直せばボードと業務ルールは戻る）。
+    だめなのは**黙って壊れる**こと——気づくのが古い帳簿を開いた日になり、
+    そのとき何が起きたのか分からない。だからここで大きな声で止める。
+    """
+
+
+def reconstitute(model: type[_M], raw: str) -> _M:
+    """帳簿から戻す — **生成ではない**。新しい1件の規則（仕立て）はここに1つも無い。
+
+    戻すときに今の業務の規則を効かせると、きのう書いた行をきょうの規則で弾くことになる。
+    ここが効かせるのは**型の形だけ**で、形が合わなければ古い帳簿——読めないと名乗って止まる
+    （黙って落ちない。古い帳簿は捨てて入れ直してよい）。
+    """
+    try:
+        return model.model_validate_json(raw)
+    except ValidationError as broken:
+        raise StaleLedger(
+            f"{model.__name__} の行がいまの型で読めない——"
+            "帳簿を消して `python main.py inject <題材>` で入れ直す"
+        ) from broken
+
+
 class _Lost(Exception):
     """楽観ロックの負け（内部用）"""
 
@@ -111,7 +144,7 @@ class _Jobs(_Base):
         row = self._con.execute("SELECT state, rev FROM jobs WHERE id=?", (job_id,)).fetchone()
         if row is None:
             return None
-        return Job.model_validate_json(row[0]), int(row[1])
+        return reconstitute(Job, row[0]), int(row[1])
 
     def put(self, job: Job, expected_rev: int, events: Sequence[Event]) -> bool:
         """書き込む — 遷移の門と楽観ロックを通す。負けたら偽"""
@@ -172,7 +205,7 @@ class _Definitions(_Base):
     def get(self, name: str) -> Definition | None:
         """読み出す — 名で1件"""
         row = self._con.execute("SELECT state FROM definitions WHERE id=?", (name,)).fetchone()
-        return None if row is None else Definition.model_validate_json(row[0])
+        return None if row is None else reconstitute(Definition, row[0])
 
     def put(self, definition: Definition, events: Sequence[Event]) -> None:
         """書き込む — 業務ルールの門つき"""
@@ -194,7 +227,7 @@ class _Definitions(_Base):
     def enacted(self) -> tuple[Definition, ...]:
         """有効なものたち — 有効な業務ルールの一覧"""
         rows = self._con.execute("SELECT state FROM definitions ORDER BY id").fetchall()
-        loaded = (Definition.model_validate_json(row[0]) for row in rows)
+        loaded = (reconstitute(Definition, row[0]) for row in rows)
         return tuple(d for d in loaded if d.enacted is not None)
 
 
@@ -204,7 +237,7 @@ class _Boards(_Base):
     def get(self, board_id: str) -> Board | None:
         """読み出す — id で1件"""
         row = self._con.execute("SELECT state FROM boards WHERE id=?", (board_id,)).fetchone()
-        return None if row is None else Board.model_validate_json(row[0])
+        return None if row is None else reconstitute(Board, row[0])
 
     def put(self, board: Board, events: Sequence[Event]) -> None:
         """書き込む — ボードの門つき"""
@@ -232,7 +265,7 @@ class _Participants(_Base):
         row = self._con.execute(
             "SELECT state FROM participants WHERE id=?", (participant_id,)
         ).fetchone()
-        return None if row is None else Participant.model_validate_json(row[0])
+        return None if row is None else reconstitute(Participant, row[0])
 
     def put(self, participant: Participant, events: Sequence[Event]) -> None:
         """書き込む — 登録と照合の結果を帳簿へ"""
@@ -265,7 +298,7 @@ class _Artifacts(_Base):
             "ORDER BY seq DESC LIMIT 1",
             (artifact_ref,),
         ).fetchone()
-        return None if row is None else Artifact.model_validate_json(row[0])
+        return None if row is None else reconstitute(Artifact, row[0])
 
 
 class _Evidences(_Base):
@@ -286,7 +319,7 @@ class _Evidences(_Base):
             "ORDER BY seq DESC LIMIT 1",
             (evidence_ref,),
         ).fetchone()
-        return None if row is None else Evidence.model_validate_json(row[0])
+        return None if row is None else reconstitute(Evidence, row[0])
 
 
 class _Events(_Base):
@@ -316,6 +349,7 @@ class SqliteLedger:
         self._con.execute("PRAGMA busy_timeout=5000;")
         self._con.execute("PRAGMA foreign_keys=ON;")
         self._con.executescript(_schema())
+        self._check_schema_version()
         self.jobs = _Jobs(self)
         self.definitions = _Definitions(self)
         self.boards = _Boards(self)
@@ -323,6 +357,18 @@ class SqliteLedger:
         self.artifacts = _Artifacts(self)
         self.events = _Events(self)
         self.evidences = _Evidences(self)
+
+    def _check_schema_version(self) -> None:
+        """帳簿の形の番号を確かめる。空なら刻み、違えば大きな声で止める"""
+        row = self._con.execute("SELECT version FROM schema_version").fetchone()
+        if row is None:
+            self._con.execute("INSERT INTO schema_version(version) VALUES(?)", (SCHEMA_VERSION,))
+            return
+        if int(row[0]) != SCHEMA_VERSION:
+            raise StaleLedger(
+                f"帳簿の形が {row[0]}、いまの型は {SCHEMA_VERSION}。"
+                "この帳簿は読めない——消して `python main.py inject <題材>` で入れ直す"
+            )
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -362,7 +408,7 @@ class SqliteLedger:
             "SELECT state FROM jobs WHERE json_extract(state, '$.state.kind') "
             "NOT IN ('ClosedWithEvidence','ClosedBySelfReport') ORDER BY id"
         ).fetchall()
-        return tuple(Job.model_validate_json(row[0]) for row in rows)
+        return tuple(reconstitute(Job, row[0]) for row in rows)
 
     def all_jobs(self) -> tuple[Job, ...]:
         """すべてのタスク — 完了も含めた帳簿の全タスク（検索が読む）。
@@ -371,7 +417,7 @@ class SqliteLedger:
         絞り込みを SQL 側へ移す（消す前に測る・足す前に測る）。
         """
         rows = self._con.execute("SELECT state FROM jobs ORDER BY id").fetchall()
-        return tuple(Job.model_validate_json(row[0]) for row in rows)
+        return tuple(reconstitute(Job, row[0]) for row in rows)
 
     def enacted_definitions(self) -> tuple[Definition, ...]:
         """有効な業務ルールたち（画面の予定が読む）"""
@@ -385,7 +431,7 @@ class SqliteLedger:
         タスクが全部「版が引けない」赤になってしまう）。
         """
         rows = self._con.execute("SELECT state FROM definitions ORDER BY id").fetchall()
-        return tuple(Definition.model_validate_json(row[0]) for row in rows)
+        return tuple(reconstitute(Definition, row[0]) for row in rows)
 
     def events_for(self, job_id: str) -> tuple[Event, ...]:
         """そのタスクの出来事 — 古い順に"""
