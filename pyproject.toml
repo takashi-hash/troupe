@@ -1,0 +1,30 @@
+[project]
+name = "ichiza"
+version = "0.1.0"
+description = "Ichiza（一座）— 自律する仕事場"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "pyside6>=6.11.2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pyright>=1.1.380", "import-linter>=2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.pyright]
+include = ["domain", "app", "adapters", "ui", "tests"]
+strict = ["domain", "app"]
+reportUnnecessaryTypeIgnoreComment = "error"
+pythonVersion = "3.12"
+
+[tool.importlinter]
+root_packages = ["domain", "app", "adapters", "ui"]
+
+[[tool.importlinter.contracts]]
+name = "依存は内向きのみ"
+type = "layers"
+layers = ["ui | adapters", "app", "domain"]
