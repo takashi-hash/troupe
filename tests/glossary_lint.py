@@ -1,6 +1,6 @@
 """対訳 lint — 用語集 §11 の執行者（設計/7_配置/層割当て表.md §4 の5）。
 
-domain/ と app/ について確かめる:
+全層について確かめる:
   1. 和名の識別子が現れたら赤（コードの識別子は英語——読みかた 掟9）
   2. 公開の型・関数の名前が用語集 §11 の対訳に未登録なら赤（勝手訳の禁止）
   3. 登録済みの型・関数の docstring に、対応する設計の語が無ければ赤（grep の錨）
@@ -15,7 +15,32 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GLOSSARY = ROOT / "設計" / "1_言葉" / "用語集.md"
-LAYERS = ["domain", "app"]
+LAYERS = ["domain", "app", "adapters", "ui"]
+
+# 道具を持つ層。ここでだけ、下の TOOL_NAMES を名乗れる
+TOOL_LAYERS = ("adapters", "ui")
+
+# 道具の構造の名——ドメインの語ではないので登録しない（掟9 の3つ目の線）。
+# 足すときは「これはドメインの語か、道具の構造か」を右の1行で言えること。
+# domain/ と app/ には道具が無いので、この抜け道はそこでは効かない
+TOOL_NAMES = {
+    "SqliteLedger": "SQLite という道具＋役割",
+    "TomlCustom": "TOML という道具＋役割",
+    "StubLlm": "仮物という役割",
+    "connection": "SQLite の接続",
+    "write": "トランザクションという道具の慣例",
+    "MainWindow": "Qt の窓",
+    "Page": "Qt の頁",
+    "SearchPage": "Qt の頁",
+    "JobSheetPage": "Qt の頁",
+    "Card": "Qt の部品",
+    "FilterBar": "Qt の部品",
+    "Row": "画面の行という入れ物",
+    "Section": "画面の節という入れ物",
+    "populate": "Qt の部品に中身を入れる",
+    "mouseReleaseEvent": "Qt が決めた名（override）",
+    "run": "起動という道具の慣例",
+}
 
 
 def load_mapping() -> dict[str, str]:
@@ -60,6 +85,8 @@ def main() -> int:
                     names.append((node.target.id, node.lineno, None))
 
                 for name, lineno, defn in names:
+                    if layer in TOOL_LAYERS and name in TOOL_NAMES:
+                        continue  # 道具の構造の名（登録しない）
                     if not name.isascii():
                         problems.append(f"{where}:{lineno} {name} — 和名の識別子。英語にする（訳は用語集 §11 へ）")
                         continue
@@ -78,7 +105,10 @@ def main() -> int:
         for p in problems:
             print(f"  赤 {p}")
         return 1
-    print(f"対訳 lint: 緑（domain と app の識別子は英語で、{len(mapping)} 語の対訳と一致）")
+    print(
+        f"対訳 lint: 緑（全層の識別子は英語で、{len(mapping)} 語の対訳と一致。"
+        f"道具の構造 {len(TOOL_NAMES)} 個は登録しない）"
+    )
     return 0
 
 

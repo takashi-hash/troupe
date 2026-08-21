@@ -342,7 +342,7 @@ class SqliteLedger:
             self._con.execute("COMMIT")
 
     def insert_events(self, events: Sequence[Event]) -> None:
-        """出来事を書き込みの中で積む（呼び出し側が書きトランザクションを握っている前提）"""
+        """出来事を積む — 書き込みの中で（呼び出し側が書きトランザクションを握っている前提）"""
         for event in events:
             self._con.execute(
                 "INSERT INTO events(at, kind, job_id, payload) VALUES(?,?,?,?)",
@@ -357,7 +357,7 @@ class SqliteLedger:
     # ---- 参照専用の読み（画面の材料。書かない） ----
 
     def standing_jobs(self) -> tuple[Job, ...]:
-        """作成済みで、まだ完了していないタスクたち"""
+        """立っているタスク — 作成済みで、まだ完了していないタスクたち"""
         rows = self._con.execute(
             "SELECT state FROM jobs WHERE json_extract(state, '$.state.kind') "
             "NOT IN ('ClosedWithEvidence','ClosedBySelfReport') ORDER BY id"
@@ -378,21 +378,21 @@ class SqliteLedger:
         return self.definitions.enacted()
 
     def events_for(self, job_id: str) -> tuple[Event, ...]:
-        """1つのタスクの出来事を古い順に"""
+        """そのタスクの出来事 — 古い順に"""
         rows = self._con.execute(
             "SELECT at, kind, job_id, payload FROM events WHERE job_id=? ORDER BY seq", (job_id,)
         ).fetchall()
         return tuple(self._load_event(row) for row in rows)
 
     def recent_events(self, limit: int = 200) -> tuple[Event, ...]:
-        """近ごろの出来事を新しい順に"""
+        """近ごろの出来事 — 新しい順に"""
         rows = self._con.execute(
             "SELECT at, kind, job_id, payload FROM events ORDER BY seq DESC LIMIT ?", (limit,)
         ).fetchall()
         return tuple(self._load_event(row) for row in rows)
 
     def origin_keys(self) -> frozenset[str]:
-        """作成済みのタスクの作成元の鍵たち（画面が予定を導くのに使う）"""
+        """作成元の鍵たち — 作成済みのタスクの分（画面が予定を導くのに使う）"""
         rows = self._con.execute(
             "SELECT origin_key FROM jobs WHERE origin_key IS NOT NULL"
         ).fetchall()

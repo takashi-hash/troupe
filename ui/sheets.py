@@ -109,7 +109,7 @@ def _date_label(when: datetime, now: datetime) -> str:
 
 
 def morning_sections(jobs: tuple[Job, ...], now: datetime, viewer: str) -> list[Section]:
-    """今日 — 今日あなたが対応するものだけ。先の予定は載せない"""
+    """今日の節 — 今日あなたが対応するものだけ。先の予定は載せない"""
     red_rows = tuple(
         Row(
             title=_name_of(job),
@@ -179,6 +179,7 @@ def morning_sections(jobs: tuple[Job, ...], now: datetime, viewer: str) -> list[
 
 
 def morning_count(sections: list[Section]) -> int:
+    """今日の件数 — 今日の枚に出ている行の数（見出しの脇に出す）"""
     return sum(len(section.rows) for section in sections)
 
 
@@ -198,7 +199,7 @@ def outlook_sections(
     now: datetime,
     criteria: SearchCriteria | None = None,
 ) -> list[Section]:
-    """予定 — 実線は作成済みのタスク。点線は業務ルールから予測される、まだ作成されていないタスク。
+    """予定の節 — 実線は作成済みのタスク。点線は業務ルールから予測される、まだ作成されていないタスク。
 
     絞り込みは検索と同じキー（枚ごとに別の絞り方を作らない）。
     """
@@ -253,7 +254,7 @@ def history_sections(
     criteria: SearchCriteria | None = None,
     jobs_by_id: dict[str, Job] | None = None,
 ) -> list[Section]:
-    """履歴 — これまでの操作と結果。どの行からも詳細へ辿れる。
+    """履歴の節 — これまでの操作と結果。どの行からも詳細へ辿れる。
 
     絞り込みは検索と同じキー——タスクの欄で絞るので、そのタスクの出来事だけが残る。
     """
@@ -298,6 +299,7 @@ class JobSheet:
 
 
 def job_sheet(job: Job, events: tuple[Event, ...]) -> JobSheet:
+    """詳細を作る — 1つのタスクの、誰が・いつ・何を・どうしたを組み立てる"""
     origin = job.core.origin
     if isinstance(origin, FromDefinition):
         origin_text = f"業務ルール「{origin.definition_name}」v{origin.version} / {origin.period}"
@@ -340,7 +342,7 @@ def job_sheet(job: Job, events: tuple[Event, ...]) -> JobSheet:
 
 
 def search_options(jobs: tuple[Job, ...]) -> tuple[list[str], list[str], list[str]]:
-    """絞り込みの選択肢を導く — 手書きの一覧にしない（名指しの一覧より、宣言から導く）。
+    """検索の選択肢を導く（予定と履歴の絞り込みも同じキー）— 手書きの一覧にしない（名指しの一覧より、宣言から導く）。
 
     状態は状態モデルから、業務ルールと担当は帳簿のタスクから。
     新しい状態や業務ルールが増えたら、選択肢が勝手に追いつく。
@@ -362,7 +364,7 @@ def state_kind_of_label(label: str) -> str:
 def search_sections(
     jobs: tuple[Job, ...], criteria: SearchCriteria, bodies: dict[str, str]
 ) -> list[Section]:
-    """検索 — 完了も含めたすべてのタスクから、条件に合うものを並べる"""
+    """検索の節 — 完了も含めたすべてのタスクから、条件に合うものを並べる"""
     found = [
         job for job in jobs if matches(job, criteria, bodies.get(job.core.job_id, ""))
     ]

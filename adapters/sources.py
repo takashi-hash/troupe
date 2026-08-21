@@ -50,7 +50,7 @@ class CommandSource:
 
 
 def sources_of(folder: str | Path) -> dict[str, FileSource | CommandSource]:
-    """対応表を読む — カスタムのデータから、源の参照と読み方の対を作る"""
+    """源の対応表を読む — カスタムのデータから、源の参照と読み方の対を作る"""
     path = Path(folder) / "sources.toml"
     if not path.exists():
         return {}
