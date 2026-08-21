@@ -1,6 +1,6 @@
 # Ichiza（一座）— Worker と LlmPort（app＋adapters）
 
-**版**: v1.4（2026-08-21。v1.4: 実行ループに「源を読む」（漏れ）と証拠の作り方。v1.3: v1.3: 落ちたときの作法（例外は帳簿に落とす）。v1.2: v1.2: 使用上限の執行者を働き手に置いた。v1.1: v1.1: §5「AI の磨きは業務ごと」を追加）
+**版**: v1.5（2026-08-21。v1.5: 源の読み方は土台、対応表はカスタム。v1.4: v1.4: 実行ループに「源を読む」（漏れ）と証拠の作り方。v1.3: v1.3: 落ちたときの作法（例外は帳簿に落とす）。v1.2: v1.2: 使用上限の執行者を働き手に置いた。v1.1: v1.1: §5「AI の磨きは業務ごと」を追加）
 **状態**: **有効になった**（2026-08-21、人が有効化した）
 
 AI エージェントの性能はこのプロジェクトの生命線。この紙が決めるのは **①Worker の実行ループ ②プロンプトの構造 ③LlmPort と MCP ④評価（性能をどう測り、どう上げるか）**。世間で LLMOps と呼ばれるものの大半（プロンプト管理・トレース・予算・監視）は既にモデルの中（Definition の Version・Event・Budget・MorningSheet）——ここでは残りだけを設計する。
@@ -52,6 +52,8 @@ announce（照合。Board の言葉と CapabilityDeclaration）
 
 - `LlmPort.chat(messages, tools) → 応答（本文 or Tool 呼び）`。実装は Ollama。モデル名は CapabilityDeclaration から
 - Tool 呼びは **MCP** に翻訳する。繋いでよいサーバは CapabilityDeclaration の「手の届く範囲」の一覧——**一覧に無いサーバへは物理的に接続しない**（Tool は Reversible に限る。Irreversible は WritePort＝Apply の二相）
+- **源の読み方の型は土台**（ファイル・コマンド）、**どの源をどう読むかの対応表はカスタム**
+  （`custom/<題材>/sources.toml`）——土台は「検査の結果」が何かを知らない
 - LlmPort の**偽物**（決まった応答を返す実装）を tests 用に最初から作る——Worker ループのテストは LLM 無しで回す
 - **仮の実装も adapters に置く**（`adapters/stub_llm.py`）。組み立ての根に口の実装を置かない——
   本物（Ollama）に差し替えるとき、触るのは adapters の1ファイルだけになる

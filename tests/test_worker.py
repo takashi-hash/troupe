@@ -10,17 +10,18 @@ import pytest
 
 from adapters.sqlite_ledger import SqliteLedger
 from app.actions import record_approval
-from app.manager import create, dispatch, patrol, triage, verify
+from app.manager import confirm, create, dispatch, patrol, triage, verify
 from app.worker import work
 from domain.board import Board, Constitution, freeze
 from domain.definition import Definition, Version
 from domain.event import Event
-from domain.job import Budget, CannotTake, Ready, Verifying, take
+from domain.job import Budget, CannotTake, Job, Ready, Verifying, take
 from domain.verification import Blocked, Passed, check
 from domain.participant import CapabilityDeclaration, MismatchedDeclaration, Participant, announce
-from tests.fake_llm import FakeLlm
+from tests.fake_llm import BrokenSource, FakeLlm, FakeSource
 
 NOW = datetime(2026, 8, 21, 9, 0, tzinfo=timezone.utc)
+SOURCES = {"読み口/検査の結果": FakeSource()}
 ASSIGNEE = "人/座長"
 GOOD_BODY = "検査は緑でした（2026-08-21 実施・72件）。"
 
@@ -46,6 +47,7 @@ def seed(
     must=("2026-",),
     budget: Budget = Budget(calls=20, seconds=600),
     max_retries: int = 3,
+    needs_apply: bool = False,
 ) -> None:
     definition = Definition(
         name="週次の検査の見張り",
@@ -62,6 +64,7 @@ def seed(
                 source_refs=("読み口/検査の結果",),
                 must_contain=must,
                 checkpoint_position=checkpoint,
+                needs_apply=needs_apply,
             ),
         ),
         enacted=1,
@@ -112,13 +115,13 @@ def test_announce_marks_verified() -> None:
 def test_unverified_cannot_take(ledger: SqliteLedger) -> None:
     """照合を通っていない参加者は着手できない"""
     seed(ledger)
-    assert work(ledger, FakeLlm(GOOD_BODY), worker(verified=False), NOW) is None
+    assert work(ledger, FakeLlm(GOOD_BODY), worker(verified=False), NOW, SOURCES) is None
 
 
 def test_out_of_reach_source_cannot_be_taken(ledger: SqliteLedger) -> None:
     """手が届かない源を指すタスクは着手できない"""
     seed(ledger)
-    assert work(ledger, FakeLlm(GOOD_BODY), worker(ports=("読み口/別のもの",)), NOW) is None
+    assert work(ledger, FakeLlm(GOOD_BODY), worker(ports=("読み口/別のもの",)), NOW, SOURCES) is None
 
 
 def test_sensitive_briefing_needs_declared_capability(ledger: SqliteLedger) -> None:
@@ -145,7 +148,7 @@ def test_work_takes_and_submits(ledger: SqliteLedger) -> None:
     """働くと、札を取り、成果物を置いて検証中まで進む"""
     seed(ledger)
     llm = FakeLlm(GOOD_BODY)
-    job_id = work(ledger, llm, worker(), NOW)
+    job_id = work(ledger, llm, worker(), NOW, SOURCES)
     assert job_id is not None
     got = ledger.jobs.get(job_id)
     assert got is not None
@@ -160,11 +163,11 @@ def test_prompt_is_pure(ledger: SqliteLedger) -> None:
     """同じ作業情報からは同じプロンプト（純粋関数）"""
     seed(ledger)
     first = FakeLlm(GOOD_BODY)
-    work(ledger, first, worker(), NOW)
+    work(ledger, first, worker(), NOW, SOURCES)
     ledger2 = SqliteLedger(":memory:")
     seed(ledger2)
     second = FakeLlm(GOOD_BODY)
-    work(ledger2, second, worker(), NOW)
+    work(ledger2, second, worker(), NOW, SOURCES)
     assert first.prompts[0] == second.prompts[0]
 
 
@@ -178,7 +181,7 @@ def test_check_blocks_missing_words() -> None:
 def test_verify_sends_to_checkpoint(ledger: SqliteLedger) -> None:
     """チェックが通り、承認待ちの位置があれば承認待ちへ"""
     seed(ledger)
-    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
     (job_id,) = verify(ledger, NOW, ASSIGNEE)
     got = ledger.jobs.get(job_id)
     assert got is not None
@@ -190,7 +193,7 @@ def test_verify_sends_to_checkpoint(ledger: SqliteLedger) -> None:
 def test_verify_without_checkpoint_goes_confirmed(ledger: SqliteLedger) -> None:
     """承認待ちの位置が無ければ承認済みへ直行する"""
     seed(ledger, checkpoint=None)
-    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
     (job_id,) = verify(ledger, NOW, ASSIGNEE)
     got = ledger.jobs.get(job_id)
     assert got is not None and got[0].state.kind == "Confirmed"
@@ -199,7 +202,7 @@ def test_verify_without_checkpoint_goes_confirmed(ledger: SqliteLedger) -> None:
 def test_blocked_artifact_returns_to_ready(ledger: SqliteLedger) -> None:
     """チェックが止めたら未着手へ戻り、理由が出来事に残る"""
     seed(ledger)
-    work(ledger, FakeLlm("日付を書き忘れました"), worker(), NOW)
+    work(ledger, FakeLlm("日付を書き忘れました"), worker(), NOW, SOURCES)
     (job_id,) = verify(ledger, NOW, ASSIGNEE)
     got = ledger.jobs.get(job_id)
     assert got is not None and got[0].state.kind == "Ready"
@@ -227,7 +230,7 @@ def test_patrol_returns_expired_lease(ledger: SqliteLedger) -> None:
 def test_approve_only_by_assignee(ledger: SqliteLedger) -> None:
     """承認できるのは担当した人だけ——押した事実は出来事に残る（I2）"""
     seed(ledger)
-    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
     (job_id,) = verify(ledger, NOW, ASSIGNEE)
     assert record_approval(ledger, job_id, by="人/事務", now=NOW) is False
     assert record_approval(ledger, job_id, by=ASSIGNEE, now=NOW) is True
@@ -243,7 +246,7 @@ def test_budget_stops_the_worker(ledger: SqliteLedger) -> None:
     """使用上限を使い切っていたら LLM を呼ばずに内容エラーへ落とす（自動で使い続けない）"""
     seed(ledger, budget=Budget(calls=0, seconds=600))
     llm = FakeLlm(GOOD_BODY)
-    job_id = work(ledger, llm, worker(), NOW)
+    job_id = work(ledger, llm, worker(), NOW, SOURCES)
     assert job_id is not None
     assert llm.prompts == []  # 一度も話しかけていない
     got = ledger.jobs.get(job_id)
@@ -268,7 +271,7 @@ class BrokenLlm:
 def test_worker_falls_into_environment_failure(ledger: SqliteLedger) -> None:
     """LLM が落ちても例外は外へ逃げず、環境エラーとして帳簿に残る（握りつぶさない）"""
     seed(ledger)
-    job_id = work(ledger, BrokenLlm(), worker(), NOW)
+    job_id = work(ledger, BrokenLlm(), worker(), NOW, SOURCES)
     assert job_id is not None
     got = ledger.jobs.get(job_id)
     assert got is not None
@@ -286,7 +289,7 @@ def test_triage_retries_then_gives_up(ledger: SqliteLedger) -> None:
     seed(ledger, max_retries=2)
     broken = BrokenLlm()
     for _ in range(5):  # 何周回しても、いつか止まる
-        work(ledger, broken, worker(), NOW)
+        work(ledger, broken, worker(), NOW, SOURCES)
         triage(ledger, NOW)
     (job_id,) = ledger.jobs.find_by_state("ContentFailure")
     got = ledger.jobs.get(job_id)
@@ -302,7 +305,7 @@ def test_triage_retries_then_gives_up(ledger: SqliteLedger) -> None:
 def test_environment_failure_keeps_briefing(ledger: SqliteLedger) -> None:
     """環境エラーは作業情報を持って帰る——だから未着手へ戻れる"""
     seed(ledger)
-    job_id = work(ledger, BrokenLlm(), worker(), NOW)
+    job_id = work(ledger, BrokenLlm(), worker(), NOW, SOURCES)
     assert job_id is not None
     triage(ledger, NOW)
     got = ledger.jobs.get(job_id)
@@ -310,3 +313,113 @@ def test_environment_failure_keeps_briefing(ledger: SqliteLedger) -> None:
     state = got[0].state
     assert isinstance(state, Ready)
     assert state.briefing.definition_ref == "業務ルール/週次の検査の見張り/1"
+
+
+# ---- 源を読む・証拠・完了（段4） ----
+
+
+def test_worker_reads_sources_into_the_prompt(ledger: SqliteLedger) -> None:
+    """働き手は源を読み、読んだ中身を材料としてプロンプトに入れる"""
+    seed(ledger)
+    source = FakeSource("検査は緑でした（72件）")
+    llm = FakeLlm(GOOD_BODY)
+    work(ledger, llm, worker(), NOW, {"読み口/検査の結果": source})
+    assert source.reads == 1
+    assert "源から読んだもの" in llm.prompts[0]
+    assert "72件" in llm.prompts[0]
+
+
+def test_unreadable_source_falls_into_environment_failure(ledger: SqliteLedger) -> None:
+    """源が読めなければ環境エラー——例外を外へ逃がさない（握りつぶさない）"""
+    seed(ledger)
+    job_id = work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, {"読み口/検査の結果": BrokenSource()})
+    assert job_id is not None
+    got = ledger.jobs.get(job_id)
+    assert got is not None and got[0].state.kind == "EnvironmentFailure"
+    assert "源が読めない" in getattr(got[0].state, "reason")
+
+
+def test_unconnected_source_falls_into_environment_failure(ledger: SqliteLedger) -> None:
+    """読み口が繋がっていなければ環境エラー——黙って読まずに進まない"""
+    seed(ledger)
+    job_id = work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, {})
+    assert job_id is not None
+    got = ledger.jobs.get(job_id)
+    assert got is not None and got[0].state.kind == "EnvironmentFailure"
+
+
+def test_evidence_is_placed_with_quote_and_fingerprint(ledger: SqliteLedger) -> None:
+    """証拠は引用と指紋を持つ——何をどこから読んだかが残る（I5）"""
+    seed(ledger)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
+    evidence = ledger.evidences.get("証拠/成果物/週次の検査の見張り/2026-W34")
+    assert evidence is not None
+    assert evidence.readings[0].source_ref == "読み口/検査の結果"
+    assert "72件" in evidence.readings[0].quote
+    assert len(evidence.fingerprint) == 16
+
+
+def test_confirm_closes_with_evidence(ledger: SqliteLedger) -> None:
+    """確かめる輪が、証拠を照合してタスクを完了にする（閉じるのはマネージャー）"""
+    seed(ledger)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
+    (job_id,) = verify(ledger, NOW, ASSIGNEE)
+    record_approval(ledger, job_id, by=ASSIGNEE, now=NOW)
+    assert confirm(ledger, NOW) == [job_id]
+    got = ledger.jobs.get(job_id)
+    assert got is not None and got[0].state.kind == "ClosedWithEvidence"
+    rows = ledger._con.execute("SELECT COUNT(*) FROM events WHERE kind='JobClosed'").fetchone()
+    assert rows[0] == 1
+
+
+def test_apply_cannot_be_skipped(ledger: SqliteLedger) -> None:
+    """適用が要る業務ルールのタスクは、承認済みから直には閉じられない"""
+    seed(ledger, needs_apply=True)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
+    (job_id,) = verify(ledger, NOW, ASSIGNEE)
+    record_approval(ledger, job_id, by=ASSIGNEE, now=NOW)
+    assert confirm(ledger, NOW) == []  # 閉じない
+    got = ledger.jobs.get(job_id)
+    assert got is not None and got[0].state.kind == "Confirmed"
+
+
+def test_close_without_evidence_needs_a_recheck_deadline() -> None:
+    """読み口の無いタスクは自己申告＋確かめの期限でしか閉じられない"""
+    from domain.job import CannotClose, close
+
+    job = job_at_confirmed()
+    with pytest.raises(CannotClose):
+        close(job, evidence_ref=None, needs_apply=False, recheck_deadline=None)
+    closed = close(job, None, False, recheck_deadline=NOW + timedelta(days=7))
+    assert closed.state.kind == "ClosedBySelfReport"
+
+
+def job_at_confirmed() -> Job:
+    """承認済みのタスクを1つ作る（閉じる門を確かめるため）"""
+    from domain.job import Confirmed, Core, FromDefinition
+
+    return Job(
+        core=Core(
+            job_id="タスク-x",
+            origin=FromDefinition(definition_name="週次の検査の見張り", version=1, period="2026-W34"),
+            board_id="ボード/運転",
+            ready_at=NOW,
+            deadline=NOW + timedelta(days=3),
+            budget=Budget(calls=20, seconds=600),
+        ),
+        state=Confirmed(artifact_ref="成果物/x"),
+    )
+
+
+def test_confirm_waits_for_evidence(ledger: SqliteLedger) -> None:
+    """証拠がまだ無ければ閉じない——人の報告は待たない（証拠で閉じる）"""
+    seed(ledger)
+    work(ledger, FakeLlm(GOOD_BODY), worker(), NOW, SOURCES)
+    (job_id,) = verify(ledger, NOW, ASSIGNEE)
+    record_approval(ledger, job_id, by=ASSIGNEE, now=NOW)
+    ledger._con.execute("DELETE FROM evidences") if False else None
+    # 証拠を消す（積むだけの列なので、消せるのはテストの中の抜け道だけ）
+    ledger._con.executescript("DROP TRIGGER evidences_no_delete; DELETE FROM evidences;")
+    assert confirm(ledger, NOW) == []
+    got = ledger.jobs.get(job_id)
+    assert got is not None and got[0].state.kind == "Confirmed"

@@ -12,7 +12,12 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from typing import TYPE_CHECKING
+
 from domain.participant import Participant
+
+if TYPE_CHECKING:
+    from domain.definition import Version
 from domain.verification import Blocked, CheckResult, Passed, Returned, ReviewResult, check
 
 __all__ = ["Blocked", "CheckResult", "Passed", "Returned", "ReviewResult", "check"]  # 検証の2層は domain/verification.py が正本
@@ -331,6 +336,8 @@ _TRANSITIONS: dict[tuple[str | None, str], frozenset[str]] = {
     ("Confirmed", "ApplyAttempt"): frozenset({"ApplyAttempted"}),
     ("ApplyAttempt", "Applied"): frozenset({"JobApplied"}),
     ("ApplyAttempt", "Confirmed"): frozenset({"JobConfirmed"}),
+    ("Confirmed", "ClosedWithEvidence"): frozenset({"JobClosed"}),
+    ("Confirmed", "ClosedBySelfReport"): frozenset({"JobClosed"}),
     ("Applied", "ClosedWithEvidence"): frozenset({"JobClosed"}),
     ("Applied", "ClosedBySelfReport"): frozenset({"JobClosed"}),
 }
@@ -513,3 +520,57 @@ def retry(job: Job) -> Job:
 def escalate(job: Job, reason: str) -> Job:
     """人へ上げる — 再試行が尽きたタスクを内容エラーにして人に見せる"""
     return Job(core=job.core, state=ContentFailure(reason=reason))
+
+
+def briefing_for(
+    definition_name: str,
+    version: "Version",
+    period: str,
+    board_constitution_ref: str,
+    sensitive: bool = False,
+) -> Briefing:
+    """作業情報を詰める — 業務ルールとボードから、参照だけの作業情報を組み立てる。
+
+    参照の形式はドメインが持つ（外で文字列を組み立てない）。重い中身は持たず、
+    すべて参照で指す——「作業情報の無いタスクは配れない」を機械判定にするため。
+    """
+    from domain.definition import acceptance_ref, artifact_slot, definition_ref
+
+    return Briefing(
+        definition_ref=definition_ref(definition_name, version.number),
+        source_refs=version.source_refs,
+        material_refs=(),
+        artifact_slot=artifact_slot(definition_name, period),
+        acceptance_ref=acceptance_ref(definition_name, version.number),
+        budget=version.budget,
+        constitution_ref=board_constitution_ref,
+        sensitive=sensitive,
+    )
+
+
+class CannotClose(Exception):
+    """閉じられない — 適用が要るのに飛ばした、証拠が無いなど、完了にできないとき"""
+
+
+def close(
+    job: Job,
+    evidence_ref: str | None,
+    needs_apply: bool,
+    recheck_deadline: datetime | None = None,
+) -> Job:
+    """閉じる — 証拠で完了にする（人の報告に頼らない）。
+
+    ・適用が要る業務ルールなら、承認済みから直には閉じられない（適用を飛ばせない）
+    ・証拠があれば証拠で閉じる。無ければ自己申告＋確かめの期限
+    """
+    state = job.state
+    if isinstance(state, Confirmed):
+        if needs_apply:
+            raise CannotClose("適用が要る業務ルールのタスクは、適用を飛ばして閉じられない")
+    elif not isinstance(state, Applied):
+        raise IllegalTransition("承認済みか反映済みでないタスクは閉じられない")
+    if evidence_ref is not None:
+        return Job(core=job.core, state=ClosedWithEvidence(evidence_ref=evidence_ref))
+    if recheck_deadline is None:
+        raise CannotClose("証拠が無いなら、確かめの期限が要る（自己申告）")
+    return Job(core=job.core, state=ClosedBySelfReport(recheck_deadline=recheck_deadline))

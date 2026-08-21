@@ -58,3 +58,15 @@ def board_required_events(old: Board | None, new: Board) -> frozenset[str]:
     if old_frozen != new.frozen:
         required.add("ConstitutionFrozen" if new.frozen is not None else "ConstitutionUnfrozen")
     return frozenset(required)
+
+
+def gate_open(board: Board) -> bool:
+    """関門が開いているか — 方針が人に凍結されるまで、下流のタスクは配られない（不変条件）"""
+    return board.frozen is not None
+
+
+def constitution_ref(board: Board) -> str:
+    """方針の参照 — 凍結された方針を指す。参照の形式はドメインが持つ（外で組み立てない）"""
+    if board.frozen is None:
+        raise CannotFreeze(f"{board.board_id}: 凍結されていない方針は参照できない")
+    return f"{board.board_id}/方針/{board.frozen}"

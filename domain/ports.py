@@ -12,6 +12,7 @@ from domain.artifact import Artifact
 from domain.board import Board
 from domain.definition import Definition
 from domain.event import Event
+from domain.evidence import Evidence
 from domain.job import Job
 from domain.participant import Participant
 
@@ -136,6 +137,11 @@ class LedgerPort(Protocol):
         """出来事たち — 出来事の置き場"""
         ...
 
+    @property
+    def evidences(self) -> EvidenceStore:
+        """証拠たち — 証拠の置き場"""
+        ...
+
 
 class LlmPort(Protocol):
     """LLMの口 — 実装は adapters（Ollama）。domain は LLM の中身を知らない"""
@@ -154,4 +160,24 @@ class CustomPort(Protocol):
 
     def load(self) -> tuple[Board, tuple[Definition, ...]]:
         """読み込む — 注入するデータをまとめて読む。凍結も有効化もされていない形で返す"""
+        ...
+
+
+class SourcePort(Protocol):
+    """源の口 — 読むだけ。1つ落ちても他は回る（書き口とは別物として隔離）"""
+
+    def read(self) -> str:
+        """源を読む — 読んだ中身を返す。読めなければ例外（働き手が環境エラーに落とす）"""
+        ...
+
+
+class EvidenceStore(Protocol):
+    """証拠の置き場 — 積むだけ。置かれたら不変"""
+
+    def append(self, evidence: Evidence) -> None:
+        """積む — 証拠を帳簿に置く"""
+        ...
+
+    def get(self, evidence_ref: str) -> Evidence | None:
+        """読み出す — 参照で読む"""
         ...

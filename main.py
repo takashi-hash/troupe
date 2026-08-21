@@ -16,16 +16,18 @@ from datetime import datetime, timezone
 
 from adapters.sqlite_ledger import SqliteLedger
 from adapters.stub_llm import StubLlm
+from adapters.sources import sources_of
 from adapters.toml_custom import TomlCustom
 from app.injection import inject
 from app.actions import record_approval
-from app.manager import create, dispatch, patrol, triage, verify
+from app.manager import confirm, create, dispatch, patrol, triage, verify
 from app.worker import work
 from domain.event import Event
 from domain.participant import CapabilityDeclaration, Participant, announce
 from ui.gui import VIEWER, run
 
 DB = "data/ledger.db"
+TOPIC = "運転"  # いまの題材（custom/<題材>/）
 
 
 def _worker() -> Participant:
@@ -50,8 +52,9 @@ def _turn(ledger: SqliteLedger, worker: Participant) -> None:
         ("dispatch", lambda: dispatch(ledger, now)),
         ("patrol", lambda: patrol(ledger, now)),
         ("triage", lambda: triage(ledger, now)),
-        ("work", lambda: work(ledger, StubLlm(), worker, now)),
+        ("work", lambda: work(ledger, StubLlm(), worker, now, sources_of(f"custom/{TOPIC}"))),
         ("verify", lambda: verify(ledger, now, assignee_id=VIEWER)),
+        ("confirm", lambda: confirm(ledger, now)),
     )
     for name, ring in rings:
         try:

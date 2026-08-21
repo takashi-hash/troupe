@@ -21,6 +21,7 @@ from domain.artifact import Artifact
 from domain.board import Board, board_required_events
 from domain.definition import Definition, definition_required_events
 from domain.event import Event
+from domain.evidence import Evidence
 from domain.job import IllegalTransition, Job, MissingEvent, origin_key, required_events
 from domain.participant import Participant
 
@@ -65,6 +66,10 @@ BEFORE {verb} ON {table}
 BEGIN SELECT RAISE(ABORT, 'append only'); END;"""
             )
     parts.append("CREATE INDEX IF NOT EXISTS events_by_job ON events(job_id, seq);")
+    parts.append(
+        "CREATE INDEX IF NOT EXISTS evidences_by_ref "
+        "ON evidences(json_extract(payload, '$.evidence_ref'), seq);"
+    )
     parts.append(
         "CREATE INDEX IF NOT EXISTS artifacts_by_ref "
         "ON artifacts(json_extract(payload, '$.artifact_ref'), seq);"
@@ -263,6 +268,27 @@ class _Artifacts(_Base):
         return None if row is None else Artifact.model_validate_json(row[0])
 
 
+class _Evidences(_Base):
+    """証拠の置き場 — 積むだけ。置かれたら不変"""
+
+    def append(self, evidence: Evidence) -> None:
+        """積む — 証拠を帳簿に置く"""
+        with self._write():
+            self._con.execute(
+                "INSERT INTO evidences(at, kind, job_id, payload) VALUES(?,'Evidence',?,?)",
+                (evidence.at.isoformat(), evidence.job_id, evidence.model_dump_json()),
+            )
+
+    def get(self, evidence_ref: str) -> Evidence | None:
+        """読み出す — 参照で読む"""
+        row = self._con.execute(
+            "SELECT payload FROM evidences WHERE json_extract(payload, '$.evidence_ref')=? "
+            "ORDER BY seq DESC LIMIT 1",
+            (evidence_ref,),
+        ).fetchone()
+        return None if row is None else Evidence.model_validate_json(row[0])
+
+
 class _Events(_Base):
     """出来事の置き場 — 積むだけの列"""
 
@@ -296,6 +322,7 @@ class SqliteLedger:
         self.participants = _Participants(self)
         self.artifacts = _Artifacts(self)
         self.events = _Events(self)
+        self.evidences = _Evidences(self)
 
     @property
     def connection(self) -> sqlite3.Connection:

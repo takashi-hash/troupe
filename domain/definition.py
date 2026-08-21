@@ -103,3 +103,13 @@ def parse_definition_ref(ref: str) -> tuple[str, int]:
     """参照を読む — 業務ルールの参照から名と版を取り出す"""
     _, name, number = ref.split("/")
     return name, int(number)
+
+
+def artifact_slot(name: str, period: str) -> str:
+    """成果物の置き場 — 業務ルールの名と対象期間から決まる。参照の形式はドメインが持つ"""
+    return f"成果物/{name}/{period}"
+
+
+def acceptance_ref(name: str, number: int) -> str:
+    """受け入れ基準の参照 — 業務ルールの版の受け入れ基準を指す"""
+    return f"{definition_ref(name, number)}#受け入れ基準"

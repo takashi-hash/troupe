@@ -8,12 +8,14 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from datetime import datetime
 
 from domain.artifact import Artifact
 from domain.board import Board
 from domain.definition import Version, parse_definition_ref
 from domain.event import Event
+from domain.evidence import Reading, evidence_for, needs_evidence
 from domain.job import (
     Briefing,
     CannotTake,
@@ -28,7 +30,7 @@ from domain.job import (
     take,
 )
 from domain.participant import Participant
-from domain.ports import LedgerPort, LlmPort
+from domain.ports import LedgerPort, LlmPort, SourcePort
 
 FRAME_PROMPT = """あなたは一座の働き手です。次の作法で仕事をします。
 
@@ -39,8 +41,13 @@ FRAME_PROMPT = """あなたは一座の働き手です。次の作法で仕事�
 """
 
 
-def build_prompt(board: Board, version: Version, briefing: Briefing) -> str:
-    """プロンプトを組み立てる — 枠プロンプトと業務の指示から。同じ作業情報からは必ず同じ文（純粋関数）"""
+def build_prompt(
+    board: Board,
+    version: Version,
+    briefing: Briefing,
+    readings: tuple[Reading, ...] = (),
+) -> str:
+    """プロンプトを組み立てる — 枠プロンプトと業務の指示と源から。同じ材料からは必ず同じ文（純粋関数）"""
     constitution = board.constitutions[board.frozen - 1] if board.frozen else None
     words = constitution.vocabulary if constitution else ""
     purpose = constitution.purpose if constitution else ""
@@ -53,11 +60,19 @@ def build_prompt(board: Board, version: Version, briefing: Briefing) -> str:
             f"# 受け入れ基準\n{version.acceptance}",
             f"# 読むべき源\n{'、'.join(briefing.source_refs) or '（なし）'}",
             f"# 使用上限\n{briefing.budget.calls}回・{briefing.budget.seconds}秒",
+            "# 源から読んだもの\n"
+            + ("\n\n".join(f"## {r.source_ref}\n{r.quote}" for r in readings) or "（なし）"),
         ]
     )
 
 
-def work(ledger: LedgerPort, llm: LlmPort, participant: Participant, now: datetime) -> str | None:
+def work(
+    ledger: LedgerPort,
+    llm: LlmPort,
+    participant: Participant,
+    now: datetime,
+    sources: Mapping[str, SourcePort] | None = None,
+) -> str | None:
     """働く — 未着手のタスクを1件着手し、成果物を出すまで進める1周。取れなければ None"""
     for job_id in ledger.jobs.find_by_state("Ready"):
         got = ledger.jobs.get(job_id)
@@ -84,12 +99,19 @@ def work(ledger: LedgerPort, llm: LlmPort, participant: Participant, now: dateti
             ],
         ):
             continue  # 札の取り合いに負けた
-        return _run(ledger, llm, running, rev + 1, now)
+        return _run(ledger, llm, running, rev + 1, now, sources or {})
     return None
 
 
-def _run(ledger: LedgerPort, llm: LlmPort, job: Job, rev: int, now: datetime) -> str | None:
-    """実行 — 使用上限を見張りながらプロンプトを投げ、成果物を置いて提出する"""
+def _run(
+    ledger: LedgerPort,
+    llm: LlmPort,
+    job: Job,
+    rev: int,
+    now: datetime,
+    sources: Mapping[str, SourcePort],
+) -> str | None:
+    """実行 — 源を読み、使用上限を見張りながらプロンプトを投げ、成果物と証拠を置いて提出する"""
     state = job.state
     if not isinstance(state, Running):
         return None
@@ -114,9 +136,24 @@ def _run(ledger: LedgerPort, llm: LlmPort, job: Job, rev: int, now: datetime) ->
             )
         ]
     )
+    try:
+        readings = _read_sources(briefing.source_refs, sources, now)
+    except Exception as error:  # 源が読めない——環境エラー（握りつぶさない）
+        return _fall(ledger, job, state, rev, now, f"源が読めない: {error}")
+    if readings:
+        ledger.events.append(
+            [
+                Event(
+                    kind="ProgressLogged",
+                    at=now,
+                    job_id=job.core.job_id,
+                    payload={"note": f"源を{len(readings)}件読んだ"},
+                )
+            ]
+        )
     started = time.monotonic()
     try:
-        body = llm.chat(build_prompt(board, version, briefing))
+        body = llm.chat(build_prompt(board, version, briefing, readings))
     except Exception as error:  # 例外を外へ逃がさない——帳簿に落とす（握りつぶさない）
         return _fall(ledger, job, state, rev, now, f"{type(error).__name__}: {error}")
     used = spend(job, calls=1, seconds=int(time.monotonic() - started))
@@ -127,6 +164,10 @@ def _run(ledger: LedgerPort, llm: LlmPort, job: Job, rev: int, now: datetime) ->
         artifact_ref=briefing.artifact_slot, job_id=job.core.job_id, body=body, at=now
     )
     ledger.artifacts.append(artifact)
+    if needs_evidence(briefing.source_refs):
+        ledger.evidences.append(
+            evidence_for(job.core.job_id, artifact.artifact_ref, readings, now)
+        )
     if not ledger.jobs.put(
         submit(used, artifact.artifact_ref),
         rev,
@@ -188,3 +229,16 @@ def _version_of(ledger: LedgerPort, job: Job) -> Version | None:
     from app.manager import version_of
 
     return version_of(ledger, job)
+
+
+def _read_sources(
+    source_refs: tuple[str, ...], sources: Mapping[str, SourcePort], now: datetime
+) -> tuple[Reading, ...]:
+    """源を読む — 作業情報が指す源を順に読む。読めなければ例外（環境エラーになる）"""
+    readings: list[Reading] = []
+    for ref in source_refs:
+        port = sources.get(ref)
+        if port is None:
+            raise LookupError(f"{ref} の読み口が繋がっていない")
+        readings.append(Reading(source_ref=ref, quote=port.read(), at=now))
+    return tuple(readings)

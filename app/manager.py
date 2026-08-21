@@ -10,10 +10,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta
 
-from domain.definition import Version, current_period, definition_ref
+from domain.board import constitution_ref, gate_open
+from domain.definition import Version, current_period
 from domain.event import Event
+from domain.evidence import needs_evidence
 from domain.job import (
-    Briefing,
+    CannotClose,
     EnvironmentFailure,
     Core,
     Created,
@@ -22,6 +24,8 @@ from domain.job import (
     Ready,
     Verifying,
     block,
+    briefing_for,
+    close,
     expire,
     escalate,
     origin_key,
@@ -83,8 +87,8 @@ def dispatch(ledger: LedgerPort, now: datetime) -> list[str]:
             continue
         job, rev = got
         board = ledger.boards.get(job.core.board_id)
-        if board is None or board.frozen is None:
-            continue  # 関門は閉じている
+        if board is None or not gate_open(board):
+            continue  # 関門は閉じている（判定はドメインの仕様）
         origin = job.core.origin
         if not isinstance(origin, FromDefinition):
             continue  # 指示発の作業情報は受付の仕事（後の段）
@@ -92,17 +96,14 @@ def dispatch(ledger: LedgerPort, now: datetime) -> list[str]:
         if definition is None:
             continue
         version = next(v for v in definition.versions if v.number == origin.version)
-        ref = definition_ref(definition.name, version.number)
-        briefing = Briefing(
-            definition_ref=ref,
-            source_refs=version.source_refs,
-            material_refs=(),
-            artifact_slot=f"成果物/{definition.name}/{origin.period}",
-            acceptance_ref=f"{ref}#受け入れ基準",
-            budget=version.budget,
-            constitution_ref=f"{board.board_id}/方針/{board.frozen}",
+        ready = Job(
+            core=job.core,
+            state=Ready(
+                briefing=briefing_for(
+                    definition.name, version, origin.period, constitution_ref(board)
+                )
+            ),
         )
-        ready = Job(core=job.core, state=Ready(briefing=briefing))
         if ledger.jobs.put(
             ready, expected_rev=rev, events=[Event(kind="JobDispatched", at=now, job_id=job_id)]
         ):
@@ -233,3 +234,56 @@ def triage(ledger: LedgerPort, now: datetime) -> list[str]:
         if done:
             handled.append(job_id)
     return handled
+
+
+def confirm(ledger: LedgerPort, now: datetime) -> list[str]:
+    """確かめる — 証拠を照合して完了へ送る輪。
+
+    **タスクを閉じるのは働き手でも人でもなく、証拠を照合したマネージャー**。
+    証拠で閉じる（人の報告に頼らない）が形になる場所。
+    適用が要る業務ルールのタスクは、ここでは閉じない——閉じる門が拒む。
+    """
+    closed: list[str] = []
+    for kind in ("Confirmed", "Applied"):
+        for job_id in ledger.jobs.find_by_state(kind):
+            got = ledger.jobs.get(job_id)
+            if got is None:
+                continue
+            job, rev = got
+            version = version_of(ledger, job)
+            needs_apply = version.needs_apply if version else False
+            source_refs = version.source_refs if version else ()
+            evidence_ref = None
+            if needs_evidence(source_refs):
+                found = ledger.evidences.get(f"証拠/{_artifact_ref_of(job)}")
+                if found is None:
+                    continue  # 証拠がまだ無い。人の報告は待たない——次の周でまた見る
+                evidence_ref = found.evidence_ref
+            try:
+                done = close(
+                    job,
+                    evidence_ref,
+                    needs_apply,
+                    recheck_deadline=now + timedelta(days=7),
+                )
+            except CannotClose:
+                continue  # 適用が要るのに飛ばそうとした——閉じない
+            if ledger.jobs.put(
+                done,
+                rev,
+                [
+                    Event(
+                        kind="JobClosed",
+                        at=now,
+                        job_id=job_id,
+                        payload={"evidence": evidence_ref or "自己申告"},
+                    )
+                ],
+            ):
+                closed.append(job_id)
+    return closed
+
+
+def _artifact_ref_of(job: Job) -> str:
+    """そのタスクの成果物の参照（承認済み・反映済みが持っている）"""
+    return str(getattr(job.state, "artifact_ref", ""))
