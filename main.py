@@ -49,7 +49,7 @@ def _worker(ledger: SqliteLedger, llm: LlmPort, sources: Mapping[str, SourcePort
     渡していた。申告と申告を突き合わせても照合にならない。
     いま実態として渡すのは、本当に読める源の鍵と、本当に居る LLM の名。
 
-    名簿に載せるところまでが名乗り——載せないと、誰が働いているかを帳簿が知らない。
+    帳簿に載せるところまでが名乗り——載せないと、誰が働いているかを帳簿が知らない。
     """
     named = announce(
         Participant(participant_id="機体/w-01", kind="Agent", capability=DECLARED),

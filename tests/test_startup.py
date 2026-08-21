@@ -5,7 +5,9 @@
 という照合が置かれていた（申告と申告の突き合わせ——照合になっていない）。
 """
 
+import tomllib
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -35,7 +37,7 @@ def ledger(tmp_path) -> SqliteLedger:
 
 
 def test_announcing_puts_the_worker_on_the_roster(ledger: SqliteLedger) -> None:
-    """名乗ると名簿に載る——載せないと、誰が働いているかを帳簿が知らない"""
+    """名乗ると Participant が帳簿に載る——載せないと、誰が働いているかを帳簿が知らない"""
     worker = main._worker(ledger, StubLlm(), sources_of(f"custom/{TOPIC}"))
     assert worker.verified is True
     assert ledger.participants.get(worker.participant_id) is not None
@@ -43,7 +45,7 @@ def test_announcing_puts_the_worker_on_the_roster(ledger: SqliteLedger) -> None:
 
 
 def test_announcing_twice_adds_one_entry(ledger: SqliteLedger) -> None:
-    """二度名乗っても名簿は1件（起動し直しが怖くない——I8 の土台）"""
+    """二度名乗っても Participant は1件（起動し直しが怖くない——I8 の土台）"""
     sources = sources_of(f"custom/{TOPIC}")
     main._worker(ledger, StubLlm(), sources)
     main._worker(ledger, StubLlm(), sources)
@@ -86,3 +88,17 @@ def test_the_turn_survives_a_ring_that_falls(ledger: SqliteLedger) -> None:
     failures = [e for e in ledger.recent_events() if e.kind == "FailureOccurred"]
     assert failures and failures[0].payload["輪"] == "create"
     assert worker.verified is True
+
+
+def test_the_declaration_names_only_rules_that_exist() -> None:
+    """申告できるのは、本当に在る業務ルールだけ——名の捏造がそもそもの事故だった。
+
+    等号ではなく含む関係で見る: 機体が2つになれば、業務ルールを分け合ってよい。
+    禁じたいのは**実在しない名を申告すること**であって、全部を受けないことではない。
+    """
+    real = {
+        tomllib.loads(path.read_text(encoding="utf-8"))["name"]
+        for path in Path(f"custom/{TOPIC}/rules").glob("*.toml")
+    }
+    assert real, "題材に業務ルールが1つも無い"
+    assert set(main.DECLARED.accepts) <= real, set(main.DECLARED.accepts) - real

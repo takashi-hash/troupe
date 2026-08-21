@@ -106,7 +106,7 @@ def parse_definition_ref(ref: str) -> tuple[str, int]:
 
 
 def artifact_slot(name: str, period: str) -> str:
-    """成果物の置き場 — 業務ルールの名と対象期間から決まる。参照の形式はドメインが持つ"""
+    """成果物の枠 — 業務ルールの名と対象期間から決まる。参照の形式はドメインが持つ"""
     return f"成果物/{name}/{period}"
 
 

@@ -1,6 +1,7 @@
 """対訳 lint — 用語集 §11 の執行者（設計/7_配置/層割当て表.md §4 の5）。
 
 全層について確かめる:
+  0. 用語集そのものが**1語1識別子の全単射**か（両向き。片向きしか見ていなかった）
   1. 和名の識別子が現れたら赤（コードの識別子は英語——読みかた 掟9）
   2. 公開の型・関数の名前が用語集 §11 の対訳に未登録なら赤（勝手訳の禁止）
   3. 登録済みの型・関数の docstring に、対応する設計の語が無ければ赤（grep の錨）
@@ -44,8 +45,9 @@ TOOL_NAMES = {
 
 
 def load_mapping() -> dict[str, str]:
-    """全ての表から 識別子 → 語 を読む——行の最後の欄が英語の識別子なら対訳とみなす"""
+    """全ての表から 識別子 → 語 を読む。**1語1識別子の全単射**を両向きに確かめる"""
     mapping: dict[str, str] = {}
+    seen: dict[str, str] = {}
     for line in GLOSSARY.read_text(encoding="utf-8").splitlines():
         row = line.strip()
         if not row.startswith("|"):
@@ -59,6 +61,13 @@ def load_mapping() -> dict[str, str]:
         if ident in mapping and mapping[ident] != term:
             print(f"対訳が二重: {ident} が「{mapping[ident]}」と「{term}」の両方に割当")
             sys.exit(1)
+        # 逆向きも見る——**1語1識別子の全単射**（2026-08-21 まで片方向しか見ておらず、
+        # 「予定」が Outlook と Prospect に、「成果物の置き場」が ArtifactStore と
+        # artifact_slot に割り当たっていた。同義語ゼロが2箇所で破れていた）
+        if term in seen and seen[term] != ident:
+            print(f"語が二重: 「{term}」が {seen[term]} と {ident} の両方に割当——1語1識別子")
+            sys.exit(1)
+        seen[term] = ident
         mapping[ident] = term
     return mapping
 

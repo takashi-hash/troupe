@@ -163,7 +163,7 @@ def test_strong_alerts_come_first() -> None:
     assert order == ["Red", "Checkpoint", "Deadline"]
 
 
-# ---- すり抜け（型では塞げない穴の、結果の見張り） ----
+# ---- CheckpointBypassed（承認が飛ばされた。型では塞げない穴の、結果の見張り） ----
 
 
 def test_bypassed_checkpoint_is_red() -> None:
@@ -202,6 +202,6 @@ def test_unreadable_version_is_red() -> None:
 
 
 def test_job_still_being_verified_is_not_yet_a_bypass() -> None:
-    """検証中はまだ通っていない——承認が無くても、それはすり抜けではない"""
+    """検証中はまだ通っていない——承認が無くても、それは承認が飛ばされたことにはならない"""
     job = job_with(Verifying(briefing=briefing_example(), artifact_ref="成果物/x"))
     assert judged((job,), versions={job.core.job_id: version_example(checkpoint="座長の承認")}) == ()

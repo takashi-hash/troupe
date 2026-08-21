@@ -432,7 +432,7 @@ def test_confirm_waits_for_evidence(ledger: SqliteLedger) -> None:
 def test_verify_refuses_a_job_it_cannot_judge(ledger: SqliteLedger) -> None:
     """裁く版が引けないタスクは合格にしない——空の基準で通すと、承認まで飛ばしてしまう。
 
-    これがすり抜けを作る道: version が引けないと must_contain は空、checkpoint_position も
+    これが CheckpointBypassed を作る道: version が引けないと must_contain は空、checkpoint_position も
     None になり、検証中→承認済みへ一直線に進む。型はこの道を禁じられない（承認が要るかを
     知っているのは状態ではなく版だから）。**帳簿は道具より長生きする**ので、コードの守りだけ
     では足りない——ここでは業務ルールの行が無い帳簿（復元・移行のあと）を作って確かめる。
