@@ -166,12 +166,13 @@ def main() -> None:
     p.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
     p.add_argument("--model", default="qwen3")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("window")
     sub.add_parser("tick")
     a = sub.add_parser("agent")
     a.add_argument("--name", default="一号")
     t = sub.add_parser("today")
     t.add_argument("--viewer", required=True)
+    w = sub.add_parser("window")
+    w.add_argument("--viewer", required=True)
     ra = sub.add_parser("rule-add")
     ra.add_argument("--name", required=True)
     ra.add_argument("--by", required=True)
@@ -189,15 +190,31 @@ def main() -> None:
     act.add_argument("--text", default="", help="差し戻し・打ち切りの理由／回答の中身")
     args = p.parse_args()
 
-    if args.cmd == "window":
-        # Qt は窓のときだけ読み込む——5分ごとの脈に起動コストを載せない。
-        # 窓は帳簿を開かない（真っ白の段。中身が入る段で読みの口だけ渡す）。
-        from ui.shell import run
-
-        raise SystemExit(run())
-
     (args.root / "data").mkdir(exist_ok=True)
     za = Ichiza(args.root, args.model)
+
+    if args.cmd == "window":
+        # Qt は窓のときだけ読み込む——5分ごとの脈に起動コストを載せない。
+        # 窓には「読む」「押す」の2つの手だけを注ぐ——画面は手の中身を知らない。
+        from ui.shell import run
+
+        def 読む() -> tuple[object, ...]:
+            return gather_today(za.today, za.clock, args.viewer)
+
+        def 押す(what: str, id: str, text: str) -> str | None:
+            if what == "answer":
+                断り = answer(za.jobs, za.questions, za.clock, id, args.viewer, text)
+            elif what == "approve":
+                断り = approve(za.jobs, za.clock, id, args.viewer)
+            elif what == "send_back":
+                断り = send_back(za.jobs, za.clock, id, args.viewer, text)
+            elif what == "abandon":
+                断り = abandon(za.jobs, za.clock, id, args.viewer, text)
+            else:
+                return f"知らない操作です: {what}"
+            return None if 断り is None else 断り.reason
+
+        raise SystemExit(run(読む, 押す))  # type: ignore[arg-type]
 
     if args.cmd == "tick":
         _tick(za)

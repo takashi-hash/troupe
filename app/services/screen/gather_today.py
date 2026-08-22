@@ -15,6 +15,7 @@ from app.ports.clock_port import ClockPort
 from app.ports.today_reader import TodayReader
 from app.dto.today_row import TodayRow
 from domain.services.allowed import allowed
+from domain.aggregates.job.life import STATE_WORDS
 from domain.services.judge_today import judge_today
 from domain.value_objects.job.today_material import TodayMaterial
 from domain.value_objects.people.human import Human
@@ -41,6 +42,15 @@ def gather_today(today: TodayReader, clock: ClockPort, viewer: str) -> tuple[Tod
     return tuple(rows)
 
 
+#: 識別子 → 用語集の語。**画面に出るのは用語集の語そのまま**（人に見えるもの §5）。
+_状態の語 = {ident: word for word, ident in STATE_WORDS.items()}
+
+
+def _日時(iso: str) -> str:
+    """期日の畳み——分まで。見せかたの話で、正本（ISO）は帳簿に残っている。"""
+    return iso[:16].replace("T", " ")
+
+
 def _to_row(material: TodayMaterial, actions: tuple[str, ...]) -> TodayRow:
     """材料（domain の値）を今日の行（文字と ID）へ。本文をそのまま載せる——縮めない。"""
     return TodayRow(
@@ -49,10 +59,10 @@ def _to_row(material: TodayMaterial, actions: tuple[str, ...]) -> TodayRow:
         born_version=material.born_version,
         period=material.period.text if material.period is not None else None,
         request_head=material.request_head,
-        state_name=material.state_name,
-        due=material.due.at.isoformat(),
+        state_name=_状態の語[material.state_name],
+        due=_日時(material.due.at.isoformat()),
         assignee_name=material.assignee_name,
-        recheck_at=material.recheck_at.isoformat() if material.recheck_at is not None else None,
+        recheck_at=_日時(material.recheck_at.isoformat()) if material.recheck_at is not None else None,
         result_body=material.result_body,
         evidence_quote=material.evidence_quote,
         question_body=material.question_body,

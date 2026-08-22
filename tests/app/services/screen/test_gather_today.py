@@ -36,7 +36,7 @@ def test_承認待ちは承認すると差し戻すつきで出る() -> None:
     行 = gather_today(読みの偽物(make_material()), 固定時計(), viewer=座長.name)
     assert len(行) == 1
     assert 行[0].id == "J-0001"
-    assert 行[0].state_name == "AwaitingApproval"
+    assert 行[0].state_name == "承認待ち"  # 画面に出るのは用語集の語そのまま
     assert 行[0].actions == ("approve", "send_back")
     assert 行[0].result_body == "2026-W34 の依存の一覧"
 
