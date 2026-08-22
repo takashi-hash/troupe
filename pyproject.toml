@@ -26,6 +26,12 @@ name = "依存は内向きのみ"
 type = "layers"
 layers = ["ui", "adapters", "app", "domain"]
 
+# 集約の境界。フォルダで見え、ここで破れなくなる。
+[[tool.importlinter.contracts]]
+name = "業務ルールは仕事を知らない（集約の境界）"
+type = "layers"
+layers = ["domain.job", "domain.rule", "domain.shared"]
+
 [[tool.importlinter.contracts]]
 name = "domain は外の道具を知らない"
 type = "forbidden"

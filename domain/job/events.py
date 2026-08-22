@@ -1,9 +1,9 @@
-"""ドメインイベント。
+"""仕事の集約のドメインイベント。
 
 設計: 設計/仕事が回る筋道.md §5（正本）。
 **過去形。観察だけ。判断を含まない。積むだけ。**
 
-すべての出来事が「いつ・誰が」を持つ（`Event` の共通）。
+共通の「いつ・誰が」は `domain.shared.Event` が1度だけ持つ。
 各クラスは**それに足して残るもの**だけを書く——共通を書き分けると、どこかで落ちる。
 """
 
@@ -12,28 +12,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from domain.values import (
-    Actor,
-    Assessment,
-    Assignee,
-    Human,
-    Owner,
-    Period,
-    RuleName,
-    Value,
-)
-
-
-class Event(Value):
-    """出来事の共通 — いつ・誰が。
-
-    `at` はいまを引数で受け取る（domain に時計は置けない）。
-    `by` は起こす者（人・AI・時計）。担当とは別。
-    """
-
-    at: datetime
-    by: Actor
-
+from domain.job.values import Assessment
+from domain.rule.values import RuleName
+from domain.shared import Assignee, Event, Human, Owner, Period
 
 class JobRequested(Event):
     """仕事が頼まれた — 誰が・何を。"""
@@ -193,24 +174,8 @@ class AssessmentWritten(Event):
     assessment: Assessment
 
 
-class RuleVersionAdded(Event):
-    """版が足された — どの版か。"""
-
-    name: Literal["RuleVersionAdded"] = "RuleVersionAdded"
-    rule: RuleName
-    version: int
-
-
-class RuleActivated(Event):
-    """業務ルールが有効になった — 誰が・どの版か。**人が主語。**"""
-
-    name: Literal["RuleActivated"] = "RuleActivated"
-    rule: RuleName
-    version: int
-    activated_by: Human
-
-
 #: 遷移表の外で刻んでよい出来事は、この3つだけ（設計 §6）。
 OUTSIDE_TRANSITIONS: frozenset[str] = frozenset(
     {"DueDatePassed", "SpentIncreased", "AssessmentWritten"}
 )
+

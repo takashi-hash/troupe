@@ -21,36 +21,38 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # (どのファイル, 何という義務を, どう壊すか)
 BREAKS: list[tuple[str, str, str, str]] = [
-    ("domain/values.py", "空でない（共通）", 'if not text.strip():', "if False:"),
-    ("domain/values.py", "仕事の識別子の前後の空白", "if self.text != self.text.strip():", "if False:"),
-    ("domain/values.py", "受け持ちの人は人だけ", "person: Human", "person: Human | Agent"),
-    ("domain/values.py", "期日は起点より後", "if self.at <= self.start:", "if False:"),
-    ("domain/values.py", "確かめ期日は期日より後", "if self.at <= self.after:", "if False:"),
-    ("domain/values.py", "使用上限は1以上", "if self.calls < 1 or self.seconds < 1:", "if False:"),
-    ("domain/values.py", "使った量は0以上", "if self.calls < 0 or self.seconds < 0:", "if False:"),
-    ("domain/values.py", "対象期間の形", "if not (_MONTHLY.match(self.text) or _WEEKLY.match(self.text)):", "if False:"),
-    ("domain/values.py", "必ず含む語は空でない", "if not self.must_contain or any(not w.strip() for w in self.must_contain):", "if False:"),
-    ("domain/values.py", "差し込みを開く", 'w.replace(PERIOD_SLOT, period.text)', "w"),
-    ("domain/values.py", "作成元は版の番号で分かれる", 'f"rule:{rule.text}:v{version}:{period.text}"', 'f"rule:{rule.text}:{period.text}"'),
-    ("domain/values.py", "確かめ期日は送るたびに進む", "at=self.at + cycle.span", "at=self.at"),
-    ("domain/values.py", "上限で止まる", "self.calls <= budget.calls and self.seconds <= budget.seconds", "True"),
-    ("domain/values.py", "版の番号は1以上", "if self.number < 1:", "if False:"),
-    ("domain/values.py", "日数は1以上", "if self.days < 1:", "if False:"),
-    ("domain/values.py", "書き換えられない", 'frozen=True', 'frozen=False'),
-    ("domain/values.py", "知らない欄を拒む", 'extra="forbid"', 'extra="ignore"'),
+    ("domain/shared.py", "空でない（共通）", 'if not text.strip():', "if False:"),
+    ("domain/job/values.py", "仕事の識別子の前後の空白", "if self.text != self.text.strip():", "if False:"),
+    ("domain/shared.py", "受け持ちの人は人だけ", "person: Human", "person: Human | Agent"),
+    ("domain/job/values.py", "期日は起点より後", "if self.at <= self.start:", "if False:"),
+    ("domain/job/values.py", "確かめ期日は期日より後", "if self.at <= self.after:", "if False:"),
+    ("domain/rule/values.py", "使用上限は1以上", "if self.calls < 1 or self.seconds < 1:", "if False:"),
+    ("domain/job/values.py", "使った量は0以上", "if self.calls < 0 or self.seconds < 0:", "if False:"),
+    ("domain/shared.py", "対象期間の形", "if not (_MONTHLY.match(self.text) or _WEEKLY.match(self.text)):", "if False:"),
+    ("domain/rule/values.py", "必ず含む語は空でない", "if not self.must_contain or any(not w.strip() for w in self.must_contain):", "if False:"),
+    ("domain/rule/values.py", "差し込みを開く", 'w.replace(PERIOD_SLOT, period.text)', "w"),
+    ("domain/job/values.py", "作成元は版の番号で分かれる", 'f"rule:{rule.text}:v{version}:{period.text}"', 'f"rule:{rule.text}:{period.text}"'),
+    ("domain/job/values.py", "確かめ期日は送るたびに進む", "at=self.at + cycle.span", "at=self.at"),
+    ("domain/job/values.py", "上限で止まる", "self.calls <= budget.calls and self.seconds <= budget.seconds", "True"),
+    ("domain/rule/values.py", "版の番号は1以上", "if self.number < 1:", "if False:"),
+    ("domain/rule/values.py", "日数は1以上", "if self.days < 1:", "if False:"),
+    ("domain/shared.py", "書き換えられない", 'frozen=True', 'frozen=False'),
+    ("domain/shared.py", "知らない欄を拒む", 'extra="forbid"', 'extra="ignore"'),
     # 禁止状態（型が作らせない）
-    ("domain/lifecycle.py", "実行中は担当を必ず持つ", "    assignee: Assignee\n\n\nclass AwaitingAnswer", "    assignee: Assignee | None = None\n\n\nclass AwaitingAnswer"),
-    ("domain/lifecycle.py", "承認済みは承認を必ず持つ", "    approval: Approval\n\n\nclass Failed", "    approval: Approval | None = None\n\n\nclass Failed"),
-    ("domain/lifecycle.py", "承認待ちの担当は受け持ちの人", "    assignee: Owner", "    assignee: Owner | Agent"),
-    ("domain/lifecycle.py", "着手できるは承認を持てない", 'name: Literal["Ready"] = "Ready"', 'name: Literal["Ready"] = "Ready"\n    approval: Approval | None = None'),
-    ("domain/lifecycle.py", "打ち切りは理由を必ず持つ", "    by: Human\n    reason: str", "    by: Human\n    reason: str = \"\""),
+    ("domain/job/lifecycle.py", "実行中は担当を必ず持つ", "    assignee: Assignee\n\n\nclass AwaitingAnswer", "    assignee: Assignee | None = None\n\n\nclass AwaitingAnswer"),
+    ("domain/job/lifecycle.py", "承認済みは承認を必ず持つ", "    approval: Approval\n\n\nclass Failed", "    approval: Approval | None = None\n\n\nclass Failed"),
+    ("domain/job/lifecycle.py", "承認待ちの担当は受け持ちの人", "    assignee: Owner", "    assignee: Owner | Agent"),
+    ("domain/job/lifecycle.py", "着手できるは承認を持てない", 'name: Literal["Ready"] = "Ready"', 'name: Literal["Ready"] = "Ready"\n    approval: Approval | None = None'),
+    ("domain/job/lifecycle.py", "打ち切りは理由を必ず持つ", "    by: Human\n    reason: str", "    by: Human\n    reason: str = \"\""),
     # 突合（設計の表と実物が一致しているか）— **コード側を壊す**
-    ("domain/lifecycle.py", "遷移表から1行落とす", '("Cleared", "Finished", "confirm", ("JobFinished",), "時計"),', ""),
-    ("domain/lifecycle.py", "遷移の出来事を差し替える", '("AwaitingApproval", "Cleared", "approve", ("Approved",), "人")', '("AwaitingApproval", "Cleared", "approve", ("JobFinished",), "人")'),
-    ("domain/lifecycle.py", "人しか起こせない操作を AI に渡す", '    "承認": "approve",\n', ""),
-    ("domain/lifecycle.py", "人しか起こせない操作を1つ増やす", '    "打ち切り": "abandon",\n', '    "打ち切り": "abandon",\n    "着手": "start",\n'),
-    ("domain/events.py", "出来事を1つ落とす", "class RecheckDatePushed(Event):", "class _RecheckDatePushed(Event):"),
-    ("domain/events.py", "遷移表の外に4つ目を許す", '{"DueDatePassed", "SpentIncreased", "AssessmentWritten"}', '{"DueDatePassed", "SpentIncreased", "AssessmentWritten", "JobFinished"}'),
+    ("domain/job/lifecycle.py", "遷移表から1行落とす", '("Cleared", "Finished", "confirm", ("JobFinished",), "時計"),', ""),
+    ("domain/job/lifecycle.py", "遷移の出来事を差し替える", '("AwaitingApproval", "Cleared", "approve", ("Approved",), "人")', '("AwaitingApproval", "Cleared", "approve", ("JobFinished",), "人")'),
+    ("domain/job/lifecycle.py", "人しか起こせない操作を AI に渡す", '    "承認": "approve",\n', ""),
+    ("domain/job/lifecycle.py", "人しか起こせない操作を1つ増やす", '    "打ち切り": "abandon",\n', '    "打ち切り": "abandon",\n    "着手": "start",\n'),
+    ("domain/job/events.py", "出来事を1つ落とす", "class RecheckDatePushed(Event):", "class _RecheckDatePushed(Event):"),
+    ("domain/job/events.py", "遷移表の外に4つ目を許す", '{"DueDatePassed", "SpentIncreased", "AssessmentWritten"}', '{"DueDatePassed", "SpentIncreased", "AssessmentWritten", "JobFinished"}'),
+    # 集約の境界（業務ルールが仕事を知ってしまう）
+    ("domain/rule/values.py", "集約の境界を破る", "from domain.shared import Cycle, Owner, Period, Value, not_blank", "from domain.job.values import JobId  # noqa\nfrom domain.shared import Cycle, Owner, Period, Value, not_blank"),
     # 突合が**設計を読んでいる**ことの証明——設計の .md を壊すと赤になるか
     ("設計/仕事とは何か.md", "設計の遷移表を1行変える", "| 承認待ち | 承認済み | 承認する `approve` | `Approved` | **人**（受け持ちの人） |", "| 承認待ち | 承認済み | 承認する `approve` | `Approved` | 時計 |"),
     ("設計/仕事とは何か.md", "設計の状態を1つ消す", "| **打ち切られた** `Abandoned` |", "| 打ち切られた |"),
@@ -65,7 +67,12 @@ ENV = os.environ | {"PYTHONDONTWRITEBYTECODE": "1"}
 
 
 def _pytest() -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(["uv", "run", "pytest", "-q"], cwd=ROOT, capture_output=True, env=ENV)
+    """試験と、依存の契約（集約の境界と層）を両方見る。"""
+    for cmd in (["uv", "run", "pytest", "-q"], ["uv", "run", "lint-imports"]):
+        run = subprocess.run(cmd, cwd=ROOT, capture_output=True, env=ENV)
+        if run.returncode != 0:
+            return run
+    return run
 
 
 def main() -> int:

@@ -13,7 +13,8 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from domain.values import Approval, Assignee, Human, Owner, RecheckDate, Value
+from domain.job.values import Approval, RecheckDate
+from domain.shared import Assignee, Human, Owner, Value
 
 # ── 状態（設計 §6）──────────────────────────────────────
 
