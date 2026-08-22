@@ -16,7 +16,7 @@ def test_読んで_差し戻して_対で書く() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(AwaitingApproval(assignee=Owner(person=座長)), result_at="result://1")
     帳簿.jobs[仕事.id] = 仕事
-    断り = send_back(帳簿, 固定時計(), 仕事.id, SendBack(by=座長, reason="根拠が古い"))
+    断り = send_back(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason="根拠が古い")
     assert 断り is None
     次 = 帳簿.jobs[仕事.id]
     assert isinstance(次.state, Ready)
@@ -28,7 +28,7 @@ def test_失敗したからも戻せる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Failed(fallen="源が読めなかった"), spent=Spent(calls=3, seconds=40), retried=2)
     帳簿.jobs[仕事.id] = 仕事
-    断り = send_back(帳簿, 固定時計(), 仕事.id, SendBack(by=座長, reason="もう一度"))
+    断り = send_back(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason="もう一度")
     assert 断り is None and isinstance(帳簿.jobs[仕事.id].state, Ready)
 
 
@@ -37,11 +37,11 @@ def test_4つのどれでもなければ断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Ready())
     帳簿.jobs[仕事.id] = 仕事
-    断り = send_back(帳簿, 固定時計(), 仕事.id, SendBack(by=座長, reason="戻して"))
+    断り = send_back(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason="戻して")
     assert 断り is not None and "差し戻せる姿" in 断り.reason
     assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events
 
 
 def test_無い仕事は断りに変わる() -> None:
-    断り = send_back(帳簿の偽物(), 固定時計(), JobId(text="J-9999"), SendBack(by=座長, reason="戻して"))
+    断り = send_back(帳簿の偽物(), 固定時計(), "J-9999", by=座長.name, reason="戻して")
     assert 断り is not None

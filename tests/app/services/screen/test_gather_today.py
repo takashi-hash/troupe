@@ -33,7 +33,7 @@ class 読みの偽物:
 
 def test_承認待ちは承認すると差し戻すつきで出る() -> None:
     """週Aの火09:02。材料 → 仕様 → 行 の順に詰め替わる。"""
-    行 = gather_today(読みの偽物(make_material()), 固定時計(), viewer=座長)
+    行 = gather_today(読みの偽物(make_material()), 固定時計(), viewer=座長.name)
     assert len(行) == 1
     assert 行[0].id == "J-0001"
     assert 行[0].state_name == "AwaitingApproval"
@@ -46,7 +46,7 @@ def test_答え待ちは答えるつきで出る() -> None:
     材料 = make_material(
         state_name="AwaitingAnswer", question_body="源の場所は変わりましたか", result_body=None
     )
-    行 = gather_today(読みの偽物(材料), 月曜の時計(), viewer=座長)
+    行 = gather_today(読みの偽物(材料), 月曜の時計(), viewer=座長.name)
     assert len(行) == 1
     assert 行[0].actions == ("answer",)
     assert 行[0].question_body == "源の場所は変わりましたか"
@@ -55,16 +55,16 @@ def test_答え待ちは答えるつきで出る() -> None:
 def test_AIが実行中で見立ての無い仕事は出ない() -> None:
     """人がいまできることが無い——押せることが空の行は返さない。"""
     材料 = make_material(state_name="InProgress", assignee_name=None)
-    assert gather_today(読みの偽物(材料), 固定時計(), viewer=座長) == ()
+    assert gather_today(読みの偽物(材料), 固定時計(), viewer=座長.name) == ()
 
 
 def test_終わった仕事は出ない() -> None:
     材料 = make_material(state_name="Finished", assignee_name=None)
-    assert gather_today(読みの偽物(材料), 固定時計(), viewer=座長) == ()
+    assert gather_today(読みの偽物(材料), 固定時計(), viewer=座長.name) == ()
 
 
 def test_帳簿に何も書かれない() -> None:
     """画面が始めるものは帳簿に書かない——Repository も Store も呼ばない。"""
     偽物 = 読みの偽物(make_material(), make_material(state_name="InProgress", assignee_name=None))
-    gather_today(偽物, 固定時計(), viewer=座長)
+    gather_today(偽物, 固定時計(), viewer=座長.name)
     assert not 偽物.writes

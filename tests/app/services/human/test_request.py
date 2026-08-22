@@ -1,25 +1,38 @@
-"""頼む（app）の壊しかた。設計/仕事が回る筋道.md §1・§3・人に見えるもの §3。"""
+"""頼む（app）の壊しかた。設計/仕事が回る筋道.md §1・§3・人に見えるもの §3。
+
+**画面から渡るのは文字だけ**——依頼の中身も版の欄も、人が書いた文字から app が値に組む。
+"""
 
 from __future__ import annotations
 
+from app.dto.version_form import VersionForm
 from app.services.human.request import request
 from domain.aggregates.job.life import Created
 from domain.events.job.job_created import JobCreated
 from domain.events.job.job_requested import JobRequested
-from domain.value_objects.job.request import Request
-from domain.value_objects.rule.criteria import AcceptanceCriteria
-from tests.aggregates.job.conftest import make_copied, 座長
-from tests.app.services.conftest import 固定時計, 帳簿の偽物, 連番の識別子, いま
+from tests.aggregates.job.conftest import 座長
+from tests.app.services.conftest import 固定時計, 帳簿の偽物, 連番の識別子
 
 
-def _依頼() -> Request:
-    return Request(by=座長, at=いま, body="今週の依存も棚卸しして")
+def _欄() -> VersionForm:
+    return VersionForm(
+        instruction="依存の一覧を取り更新が来ているものを挙げる",
+        source="file:custom/deps.txt",
+        required_terms=("2026-W34",),
+        description="一覧の日付が今週のものである",
+        cycle="weekly",
+        days=3,
+        budget_calls=20,
+        budget_seconds=600,
+        owner=座長.name,
+        max_retries=20,
+    )
 
 
 def test_振って_作って_出来事2つを対で書く() -> None:
     """頼む＝`JobRequested`＋`JobCreated`——1つの遷移で出来事が2つ、対のまま書かれる。"""
     帳簿 = 帳簿の偽物()
-    断り = request(帳簿, 連番の識別子(), 固定時計(), _依頼(), make_copied())
+    断り = request(帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="今週の依存も棚卸しして", form=_欄())
     assert 断り is None
     assert len(帳簿.jobs) == 1
     仕事 = next(iter(帳簿.jobs.values()))
@@ -31,7 +44,7 @@ def test_振って_作って_出来事2つを対で書く() -> None:
 def test_識別子はIdPortが振る() -> None:
     帳簿 = 帳簿の偽物()
     識別子 = 連番の識別子()
-    request(帳簿, 識別子, 固定時計(), _依頼(), make_copied())
+    request(帳簿, 識別子, 固定時計(), by=座長.name, body="今週の依存も棚卸しして", form=_欄())
     assert 識別子.count == 2  # 仕事の識別子と依頼の識別子——立てた者が振る
     assert next(iter(帳簿.jobs)).text == "ID-0001"
 
@@ -39,7 +52,15 @@ def test_識別子はIdPortが振る() -> None:
 def test_開かれていない差し込みは断りに変わる() -> None:
     """依頼発の基準に差し込みは書けない——義務が拒み、エラーではなく断りが返る。"""
     帳簿 = 帳簿の偽物()
-    束 = make_copied(criteria=AcceptanceCriteria(required_terms=("{対象期間}",)))
-    断り = request(帳簿, 連番の識別子(), 固定時計(), _依頼(), 束)
+    欄 = _欄().model_copy(update={"required_terms": ("{対象期間}",)})
+    断り = request(帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="棚卸しして", form=欄)
     assert 断り is not None
+    assert not 帳簿.jobs and not 帳簿.events
+
+
+def test_欄が足りなければ断りに変わる() -> None:
+    """依頼発は題材の初期値が無い——書かなかった欄は発明されず、断りが返る。"""
+    帳簿 = 帳簿の偽物()
+    断り = request(帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="棚卸しして", form=VersionForm())
+    assert 断り is not None and "欄が足りません" in 断り.reason
     assert not 帳簿.jobs and not 帳簿.events

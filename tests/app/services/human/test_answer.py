@@ -22,11 +22,10 @@ def test_読んで_回答を積んで_着手できるへ_対で書く() -> None:
     在りか = 置き場.put_question(質問)
     仕事 = make_job(AwaitingAnswer(assignee=一号, question_at=在りか))
     帳簿.jobs[仕事.id] = 仕事
-    回答 = Answer(by=座長, body="prod の鍵を使ってください")
-    断り = answer(帳簿, 置き場, 固定時計(), 仕事.id, 回答)
+    断り = answer(帳簿, 置き場, 固定時計(), 仕事.id.text, by=座長.name, body="prod の鍵を使ってください")
     assert 断り is None
     assert isinstance(帳簿.jobs[仕事.id].state, Ready)
-    assert 置き場.get(在りか) == (質問, 回答)  # 回答は質問の在りかへ紐づく
+    assert 置き場.get(在りか) == (質問, Answer(by=座長, body="prod の鍵を使ってください"))  # 回答は質問の在りかへ紐づく
     assert len(帳簿.events) == 1
 
 
@@ -36,7 +35,7 @@ def test_答え待ちでなければ断りに変わる_回答も積まれない(
     置き場 = 質問置き場の偽物()
     仕事 = make_job(Ready())
     帳簿.jobs[仕事.id] = 仕事
-    断り = answer(帳簿, 置き場, 固定時計(), 仕事.id, Answer(by=座長, body="答えです"))
+    断り = answer(帳簿, 置き場, 固定時計(), 仕事.id.text, by=座長.name, body="答えです")
     assert 断り is not None and "答えを待っていません" in 断り.reason
     assert not 置き場.answers and not 帳簿.events
     assert 帳簿.jobs[仕事.id] == 仕事
@@ -44,6 +43,6 @@ def test_答え待ちでなければ断りに変わる_回答も積まれない(
 
 def test_無い仕事は断りに変わる() -> None:
     断り = answer(
-        帳簿の偽物(), 質問置き場の偽物(), 固定時計(), JobId(text="J-9999"), Answer(by=座長, body="答えです")
+        帳簿の偽物(), 質問置き場の偽物(), 固定時計(), "J-9999", by=座長.name, body="答えです"
     )
     assert 断り is not None

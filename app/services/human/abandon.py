@@ -19,16 +19,24 @@ from domain.value_objects.people.human import Human
 
 
 def abandon(
-    jobs: JobRepository, clock: ClockPort, id: JobId, by: Human, reason: str
+    jobs: JobRepository, clock: ClockPort, id: str, by: str, reason: str
 ) -> Refusal | None:
-    """通れば None。断られたら理由。エラーは投げない——一生に傷をつけない。"""
-    job = jobs.load(id)
+    """通れば None。断られたら理由。エラーは投げない——一生に傷をつけない。
+
+    **画面から渡るのは文字だけ**（設計 §1）——ui は domain を知らないので、
+値に組むのはここ。組めない文字は断りに変わる。
+    """
+    try:
+        鍵, 人 = JobId(text=id), Human(name=by)
+    except ValueError as なぜ:
+        return Refusal(reason=str(なぜ))
+    job = jobs.load(鍵)
     if job is None:
         return Refusal(reason="その仕事はもうありません")
     if not isinstance(job.state, (InProgress, Failed)):
         return Refusal(reason="いまは打ち切れる姿ではありません（もう誰かが動かしました）")
     try:
-        next_job, event = 打ち切り.abandon(job, by=by, reason=reason, now=clock.now())
+        next_job, event = 打ち切り.abandon(job, by=人, reason=reason, now=clock.now())
     except ValueError as なぜ:
         return Refusal(reason=str(なぜ))
     jobs.save(next_job, (event,))

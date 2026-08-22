@@ -22,7 +22,7 @@ def _帳簿と仕事() -> tuple[帳簿の偽物, Job[Any]]:
 
 def test_読んで_承認して_対で書く() -> None:
     帳簿, 仕事 = _帳簿と仕事()
-    断り = approve(帳簿, 固定時計(), 仕事.id, by=座長)
+    断り = approve(帳簿, 固定時計(), 仕事.id.text, by=座長.name)
     assert 断り is None
     assert isinstance(帳簿.jobs[仕事.id].state, Cleared)
     assert len(帳簿.events) == 1
@@ -33,14 +33,14 @@ def test_承認待ちでなければ断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Ready())
     帳簿.jobs[仕事.id] = 仕事
-    断り = approve(帳簿, 固定時計(), 仕事.id, by=座長)
+    断り = approve(帳簿, 固定時計(), 仕事.id.text, by=座長.name)
     assert 断り is not None and "承認を待っていません" in 断り.reason
     assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events
 
 
 def test_受け持ちの人でなければ断りに変わる() -> None:
     帳簿, 仕事 = _帳簿と仕事()
-    断り = approve(帳簿, 固定時計(), 仕事.id, by=Human(name="別の人"))
+    断り = approve(帳簿, 固定時計(), 仕事.id.text, by="別の人")
     assert 断り is not None and "受け持ちの人" in 断り.reason
     assert not 帳簿.events
 
@@ -48,5 +48,5 @@ def test_受け持ちの人でなければ断りに変わる() -> None:
 def test_無い仕事は断りに変わる() -> None:
     from domain.value_objects.job.job_id import JobId
 
-    断り = approve(帳簿の偽物(), 固定時計(), JobId(text="J-9999"), by=座長)
+    断り = approve(帳簿の偽物(), 固定時計(), "J-9999", by=座長.name)
     assert 断り is not None

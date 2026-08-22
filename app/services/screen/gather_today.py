@@ -18,14 +18,23 @@ from domain.services.allowed import allowed
 from domain.services.judge_today import judge_today
 from domain.value_objects.job.today_material import TodayMaterial
 from domain.value_objects.people.human import Human
+from pydantic import ValidationError
 
 
-def gather_today(today: TodayReader, clock: ClockPort, viewer: Human) -> tuple[TodayRow, ...]:
-    """いまこの人の目と判断が要るものを、今日の行にして返す。読むだけ——帳簿に書かない。"""
+def gather_today(today: TodayReader, clock: ClockPort, viewer: str) -> tuple[TodayRow, ...]:
+    """いまこの人の目と判断が要るものを、今日の行にして返す。読むだけ——帳簿に書かない。
+
+    **画面から渡るのは文字だけ**——見ている人も名で受け、ここで値に組む。
+    名が組めなければ空を返す（誰でもない人に押せるものは無い）。
+    """
+    try:
+        人 = Human(name=viewer)
+    except ValidationError:
+        return ()
     now = clock.now()
     rows: list[TodayRow] = []
     for material in today.read_all():
-        actions = allowed(material, viewer, now)
+        actions = allowed(material, 人, now)
         if not judge_today(material, actions, now):
             continue
         rows.append(_to_row(material, actions))

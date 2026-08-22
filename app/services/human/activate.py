@@ -19,14 +19,22 @@ from domain.value_objects.rule.rule_name import RuleName
 
 
 def activate(
-    rules: RuleRepository, clock: ClockPort, name: RuleName, version: int, by: Human
+    rules: RuleRepository, clock: ClockPort, name: str, version: int, by: str
 ) -> Refusal | None:
-    """通れば None。断られたら理由。エラーは投げない——版の列に傷をつけない。"""
-    rule = rules.load(name)
+    """通れば None。断られたら理由。エラーは投げない——版の列に傷をつけない。
+
+    **画面から渡るのは文字だけ**（設計 §1）——ui は domain を知らないので、
+値に組むのはここ。組めない文字は断りに変わる。
+    """
+    try:
+        鍵, 人 = RuleName(text=name), Human(name=by)
+    except ValueError as なぜ:
+        return Refusal(reason=str(なぜ))
+    rule = rules.load(鍵)
     if rule is None:
         return Refusal(reason="その業務ルールはありません")
     try:
-        next_rule, event = 有効化.activate(rule, version, by=by, now=clock.now())
+        next_rule, event = 有効化.activate(rule, version, by=人, now=clock.now())
     except ValueError as なぜ:
         return Refusal(reason=str(なぜ))
     rules.save(next_rule, (event,))

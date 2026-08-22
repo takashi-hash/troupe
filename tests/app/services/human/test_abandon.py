@@ -16,7 +16,7 @@ def test_読んで_打ち切って_対で書く() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(InProgress(assignee=一号))
     帳簿.jobs[仕事.id] = 仕事
-    断り = abandon(帳簿, 固定時計(), 仕事.id, by=座長, reason="源が消えた")
+    断り = abandon(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason="源が消えた")
     assert 断り is None
     assert isinstance(帳簿.jobs[仕事.id].state, Abandoned)
     assert len(帳簿.events) == 1
@@ -26,7 +26,7 @@ def test_失敗したからも打ち切れる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Failed(fallen="やり直しが尽きた"))
     帳簿.jobs[仕事.id] = 仕事
-    assert abandon(帳簿, 固定時計(), 仕事.id, by=座長, reason="追えない") is None
+    assert abandon(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason="追えない") is None
     assert isinstance(帳簿.jobs[仕事.id].state, Abandoned)
 
 
@@ -35,7 +35,7 @@ def test_実行中でも失敗したでもなければ断りに変わる() -> No
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Ready())
     帳簿.jobs[仕事.id] = 仕事
-    断り = abandon(帳簿, 固定時計(), 仕事.id, by=座長, reason="やめたい")
+    断り = abandon(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason="やめたい")
     assert 断り is not None and "打ち切れる姿" in 断り.reason
     assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events
 
@@ -45,10 +45,10 @@ def test_理由が空なら断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(InProgress(assignee=一号))
     帳簿.jobs[仕事.id] = 仕事
-    断り = abandon(帳簿, 固定時計(), 仕事.id, by=座長, reason=" ")
+    断り = abandon(帳簿, 固定時計(), 仕事.id.text, by=座長.name, reason=" ")
     assert 断り is not None and not 帳簿.events
 
 
 def test_無い仕事は断りに変わる() -> None:
-    断り = abandon(帳簿の偽物(), 固定時計(), JobId(text="J-9999"), by=座長, reason="追えない")
+    断り = abandon(帳簿の偽物(), 固定時計(), "J-9999", by=座長.name, reason="追えない")
     assert 断り is not None
