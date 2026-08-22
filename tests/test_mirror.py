@@ -40,9 +40,13 @@ def test_見張る層の1ファイルに_tests_の鏡がある() -> None:
 def test_tests_の鏡に実物がある() -> None:
     """親を亡くしたテストは、消えた概念の亡霊。"""
     実物 = {_mirror(rel) for rel in _watched()}
+    # adapters と ui は鏡の外——実装は統合の試験（tests/adapters・週A）が見る
+    鏡の外 = (ROOT / "tests" / "adapters", ROOT / "tests" / "ui")
     亡霊 = [
         str(p.relative_to(ROOT))
         for p in (ROOT / "tests").rglob("test_*.py")
-        if p.parent != ROOT / "tests" and p not in 実物
+        if p.parent != ROOT / "tests"
+        and not any(p.is_relative_to(d) for d in 鏡の外)
+        and p not in 実物
     ]
     assert not 亡霊, "実物の無いテスト:\n" + "\n".join(亡霊)
