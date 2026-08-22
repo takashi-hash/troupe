@@ -3,10 +3,25 @@ name = "ichiza"
 version = "0.1.0"
 description = "一座 — AI が仕事を回し、判断は人間が持つ仕事場"
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2.9", "pyside6>=6.7"]
+dependencies = ["pydantic>=2.9", "google-genai>=1.0"]
+
+# 器と帳簿は差し替わる——載せる先で要るものだけを入れる。
+# 机の窓には PySide6、web の窓には FastAPI、クラウドの帳簿には psycopg。
+[project.optional-dependencies]
+desktop = ["pyside6>=6.7"]
+web = ["fastapi>=0.115", "uvicorn>=0.30"]
+cloud = ["psycopg[binary]>=3.2"]
 
 [dependency-groups]
-dev = ["pytest>=8", "pyright>=1.1.380", "import-linter>=2.0"]
+dev = [
+    "pytest>=8",
+    "pyright>=1.1.380",
+    "import-linter>=2.0",
+    "pyside6>=6.7",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "psycopg[binary]>=3.2",
+]
 
 [tool.pyright]
 include = ["domain", "app", "adapters", "ui", "main.py", "tests"]

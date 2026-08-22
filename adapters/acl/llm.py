@@ -20,6 +20,9 @@ import math
 import time
 import urllib.request
 
+from google import genai
+from google.genai import types
+
 from domain.value_objects.job.reply import Mark, Reply
 
 _SYSTEM_PROMPT = (
@@ -87,6 +90,24 @@ def _user_message(
     return "\n".join(lines)
 
 
+def _situation_message(
+    situation: str,
+    fall_reasons: tuple[str, ...],
+    previous_result: str | None,
+    sibling_states: tuple[str, ...],
+) -> str:
+    """巡回の材料を1つの文にまとめる。**どの実装から呼んでも同じ文になる。**"""
+    lines = [f"いまの状況: {situation}"]
+    if fall_reasons:
+        lines.append("止まった理由（古い順）:")
+        lines.extend(f"- {reason}" for reason in fall_reasons)
+    if previous_result is not None:
+        lines.append(f"前に出した成果: {previous_result}")
+    if sibling_states:
+        lines.append(f"同じ決まり・同じ期間の別の版の仕事の状態: {'、'.join(sibling_states)}")
+    return "\n".join(lines)
+
+
 class OllamaLlm:
     """LLM の実装 — ローカルの Ollama に渡し、整えた応答と使った量を受け取る。"""
 
@@ -148,20 +169,17 @@ class OllamaLlm:
         sibling_states: tuple[str, ...],
     ) -> tuple[str, str, int, int]:
         """状況を読み、（見立て, 理由, 回数, 秒）を返す。巡回の口。"""
-        lines = [f"いまの状況: {situation}"]
-        if fall_reasons:
-            lines.append("止まった理由（古い順）:")
-            lines.extend(f"- {reason}" for reason in fall_reasons)
-        if previous_result is not None:
-            lines.append(f"前に出した成果: {previous_result}")
-        if sibling_states:
-            lines.append(f"同じ決まり・同じ期間の別の版の仕事の状態: {'、'.join(sibling_states)}")
         payload = json.dumps(
             {
                 "model": self._model,
                 "messages": (
                     {"role": "system", "content": _SITUATION_PROMPT},
-                    {"role": "user", "content": "\n".join(lines)},
+                    {
+                        "role": "user",
+                        "content": _situation_message(
+                            situation, fall_reasons, previous_result, sibling_states
+                        ),
+                    },
                 ),
                 "stream": False,
             }
@@ -203,3 +221,76 @@ def _translate_situation(content: str) -> tuple[str, str]:
     if not reason:
         reason = "（理由の名乗りが無かったので、本文全体を見立てとして扱った）"
     return finding, reason
+
+
+class GeminiLlm:
+    """LLM の実装 — Google の Gemini に渡し、整えた応答と使った量を受け取る。
+
+    設計: 設計/どう作るか.md §5「llm の中身は Ollama と Gemini」。
+
+    **翻訳は Ollama と同じものを使う。** 違うのは輸送だけ——
+    印の剥がしも、材料のまとめかたも、見立ての読みかたも、この1枚の中で共有する。
+    翻訳が実装ごとに分かれたら、腐敗防止層が2つになる（同じ外の言葉が2通りに中へ入る）。
+
+    どこへ繋ぐかは環境が決める（`GOOGLE_GENAI_USE_VERTEXAI`・`GOOGLE_CLOUD_PROJECT`・
+    `GOOGLE_CLOUD_LOCATION`、または `GOOGLE_API_KEY`）——**注ぐのは main.py だけ**で、
+    ここは繋ぎ先を選ばない。クラウドの上では鍵を持たない（実行の身元で通る）。
+
+    例外はそのまま投げる。Gemini に届かないのは仕事の失敗ではなく環境の故障。
+    """
+
+    def __init__(self, model: str = "gemini-3.5-flash") -> None:
+        self._model = model
+        self._client = genai.Client()
+
+    def _問う(self, system: str, message: str) -> tuple[str, int]:
+        """渡して、（応答の文字, 使った秒）を受け取る。**ここだけが外に触る。**
+
+        秒は測った差の切り上げで、最低1——使ったのに0は嘘になる。
+        """
+        before = time.monotonic()
+        response = self._client.models.generate_content(
+            model=self._model,
+            contents=message,
+            config=types.GenerateContentConfig(system_instruction=system),
+        )
+        seconds = max(1, math.ceil(time.monotonic() - before))
+        return response.text or "", seconds
+
+    def consult(
+        self,
+        instruction: str,
+        criteria_terms: tuple[str, ...],
+        criteria_note: str,
+        source_material: str,
+        answered_questions: tuple[tuple[str, str], ...],
+        previous_result: str | None,
+    ) -> tuple[Reply, int, int]:
+        """材料を渡し、（整えた応答, 使った回数, 使った秒）を受け取る。回数は1。"""
+        content, seconds = self._問う(
+            _SYSTEM_PROMPT,
+            _user_message(
+                instruction,
+                criteria_terms,
+                criteria_note,
+                source_material,
+                answered_questions,
+                previous_result,
+            ),
+        )
+        return _translate(content), 1, seconds
+
+    def read_situation(
+        self,
+        situation: str,
+        fall_reasons: tuple[str, ...],
+        previous_result: str | None,
+        sibling_states: tuple[str, ...],
+    ) -> tuple[str, str, int, int]:
+        """状況を読み、（見立て, 理由, 回数, 秒）を返す。巡回の口。"""
+        content, seconds = self._問う(
+            _SITUATION_PROMPT,
+            _situation_message(situation, fall_reasons, previous_result, sibling_states),
+        )
+        finding, reason = _translate_situation(content)
+        return finding, reason, 1, seconds

@@ -12,7 +12,8 @@ from typing import Any
 
 import pytest
 
-from adapters.acl.llm import OllamaLlm
+import adapters.acl.llm as llm_module
+from adapters.acl.llm import GeminiLlm, OllamaLlm
 from app.ports.llm_port import LlmPort
 from domain.value_objects.job.reply import Mark
 
@@ -121,3 +122,103 @@ def test_渡る形はOllamaのchatで印の指示が載る(monkeypatch: pytest.M
     assert system["role"] == "system"
     for 名乗り in ("印: 成果", "印: 質問", "印: どちらでもない"):
         assert 名乗り in system["content"]
+
+
+# --- Gemini — 輸送だけが違う。翻訳が Ollama と同じものであることを、ここで確かめる ---
+
+
+class _FakeGeminiResponse:
+    def __init__(self, text: str | None) -> None:
+        self.text = text
+
+
+class _FakeGeminiModels:
+    def __init__(self, text: str | None) -> None:
+        self._text = text
+        self.seen: list[dict[str, Any]] = []
+
+    def generate_content(
+        self, *, model: str, contents: Any, config: Any
+    ) -> _FakeGeminiResponse:
+        self.seen.append({"model": model, "contents": contents, "config": config})
+        return _FakeGeminiResponse(self._text)
+
+
+class _FakeGeminiClient:
+    def __init__(self, text: str | None) -> None:
+        self.models = _FakeGeminiModels(text)
+
+
+def _Geminiを差す(
+    monkeypatch: pytest.MonkeyPatch, text: str | None
+) -> _FakeGeminiModels:
+    """Gemini へは繋がない。渡した形と、翻訳の結果だけを見る。"""
+    client = _FakeGeminiClient(text)
+    monkeypatch.setattr(llm_module.genai, "Client", lambda *a, **k: client)
+    return client.models
+
+
+def test_Geminiでも成果の名乗りを剥がして印にする(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _Geminiを差す(monkeypatch, "印: 成果\n2026-07 の請求は42件、計84万円")
+    reply, calls, seconds = _問う(GeminiLlm())
+    assert reply.mark is Mark.RESULT
+    assert reply.body == "2026-07 の請求は42件、計84万円"
+    assert calls == 1
+    assert seconds >= 1
+
+
+def test_Geminiでも名乗りが読めなければどちらでもないに倒す(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _Geminiを差す(monkeypatch, "請求は42件でした")
+    reply, _, _ = _問う(GeminiLlm())
+    assert reply.mark is Mark.NEITHER
+    assert reply.body == "請求は42件でした"
+
+
+def test_Geminiの応答が空でも本文の空な応答は作らない(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`response.text` は None になりうる。**本文が空の整えた応答は義務違反。**"""
+    _Geminiを差す(monkeypatch, None)
+    reply, _, _ = _問う(GeminiLlm())
+    assert reply.mark is Mark.NEITHER
+    assert reply.body.strip()
+
+
+def test_Geminiへ渡る形はモデルと印の指示(monkeypatch: pytest.MonkeyPatch) -> None:
+    models = _Geminiを差す(monkeypatch, "印: 成果\n請求は42件")
+    _問う(GeminiLlm(model="gemini-3.5-flash"))
+    渡した = models.seen[0]
+    assert 渡した["model"] == "gemini-3.5-flash"
+    for 名乗り in ("印: 成果", "印: 質問", "印: どちらでもない"):
+        assert 名乗り in 渡した["config"].system_instruction
+    assert "先月分の請求を集計する" in 渡した["contents"]
+
+
+def test_巡回の材料はOllamaとGeminiで同じ文になる(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**翻訳は共有**——実装ごとに材料のまとめかたが分かれたら、腐敗防止層が2つになる。"""
+    材料 = ("実行中で12時間動いていない", ("源が読めない",), "前の成果", ("失敗した",))
+    models = _Geminiを差す(monkeypatch, "見立て: 源が落ちている\n理由: 3回とも同じ理由")
+    見立て, 理由, calls, seconds = GeminiLlm().read_situation(*材料)
+    assert 見立て == "源が落ちている"
+    assert 理由 == "3回とも同じ理由"
+    assert (calls, seconds >= 1) == (1, True)
+
+    ollama_seen = _応答を差す(monkeypatch, "見立て: x\n理由: y")
+    OllamaLlm(model="qwen3").read_situation(*材料)
+    ollama_data = ollama_seen[0].data
+    assert isinstance(ollama_data, bytes)
+    渡した = json.loads(ollama_data.decode("utf-8"))["messages"][1]["content"]
+    assert 渡した == models.seen[0]["contents"]
+
+
+def test_GeminiもLLMの口を名乗れる(monkeypatch: pytest.MonkeyPatch) -> None:
+    """**口が1つであることの証拠**——差し替えても呼ぶ側は何も知らない。"""
+    _Geminiを差す(monkeypatch, "印: 成果\n請求は42件")
+    口: LlmPort = GeminiLlm()
+    assert _問う(口)[0].mark is Mark.RESULT

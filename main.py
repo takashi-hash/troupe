@@ -2,8 +2,8 @@
 
 設計: 設計/どう作るか §5。
 
-帳簿は SQLite（data/ichiza.db）、LLM はローカル（Ollama）、源はファイル、
-題材は custom/ のフォルダ。注ぎ先はすべて宣言（Protocol）——中身は誰も知らない。
+帳簿は SQLite（data/ichiza.db）、LLM は手元の Ollama かクラウドの Gemini（`--llm`）、
+源はファイル、題材は custom/ のフォルダ。注ぎ先はすべて宣言（Protocol）——中身は誰も知らない。
 
 窓は `window`（今日・予定・履歴・検索——詳細は行から開く）。CLI は同じ入り口を文字で呼ぶ——
 画面から渡るのは文字だけ、という決まりを引数がそのまま守る。
@@ -21,9 +21,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
-from adapters.acl.llm import OllamaLlm
+from adapters.acl.llm import GeminiLlm, OllamaLlm
 from adapters.acl.source import FileSource
 from adapters.clock import SystemClock
 from adapters.ids import UuidIds
@@ -50,6 +51,7 @@ from adapters.ledger.stores import (
 )
 from adapters.topic import FolderTopic
 from app.dto.version_form import VersionForm
+from app.ports.llm_port import LlmPort
 from app.services.agent.consult import consult
 from app.services.agent.patrol import patrol
 from app.services.agent.start import start
@@ -81,7 +83,7 @@ from domain.value_objects.people.agent import Agent
 class Ichiza:
     """一座 — 注いだ口の束。"""
 
-    def __init__(self, root: Path, model: str) -> None:
+    def __init__(self, root: Path, model: str, llm: str = "ollama") -> None:
         self.conn = open_ledger(root / "data" / "ichiza.db")
         self.jobs = SqliteJobs(self.conn)
         self.rules = SqliteRules(self.conn)
@@ -103,7 +105,19 @@ class Ichiza:
         self.ids = UuidIds()
         self.source = FileSource(root)
         self.topics = FolderTopic(root / "custom")
-        self.llm = OllamaLlm(model=model)
+        self.llm = _llm(llm, model)
+
+
+#: LLM の道具の既定のモデル。**どちらも同じ口**——選ぶのはここだけ。
+_MODELS = {"ollama": "gpt-oss:20b", "gemini": "gemini-3.5-flash"}
+
+
+def _llm(kind: str, model: str | None) -> LlmPort:
+    """LLM の道具を選ぶ。**呼ぶ側は口しか知らない**——設計 §4 の腐敗防止層。"""
+    if kind not in _MODELS:
+        raise SystemExit(f"LLM の道具は {'・'.join(_MODELS)} のどれかです: {kind}")
+    chosen = model or _MODELS[kind]
+    return GeminiLlm(model=chosen) if kind == "gemini" else OllamaLlm(model=chosen)
 
 
 def _tick(za: Ichiza) -> None:
@@ -181,7 +195,13 @@ def _today(za: Ichiza, viewer: str) -> None:
 def main() -> None:
     p = argparse.ArgumentParser(prog="ichiza", description="一座 — 判断は人間")
     p.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
-    p.add_argument("--model", default="gpt-oss:20b")
+    p.add_argument(
+        "--llm",
+        choices=sorted(_MODELS),
+        default=os.environ.get("ICHIZA_LLM", "ollama"),
+        help="LLM の道具。手元は ollama、クラウドは gemini",
+    )
+    p.add_argument("--model", default=None, help="既定は道具ごと（--llm を見る）")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("tick")
     a = sub.add_parser("agent")
@@ -208,7 +228,7 @@ def main() -> None:
     args = p.parse_args()
 
     (args.root / "data").mkdir(exist_ok=True)
-    za = Ichiza(args.root, args.model)
+    za = Ichiza(args.root, args.model, args.llm)
 
     if args.cmd == "window":
         # Qt は窓のときだけ読み込む——launchd の脈に起動コストを載せない。
