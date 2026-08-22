@@ -12,6 +12,7 @@ import sqlite3
 from typing import Any
 
 from adapters.ledger.jobs import load_job, read_events
+from domain.aggregates.job.life import TERMINAL
 from app.ports.work_reader import WorkMaterial
 from domain.value_objects.calendar.cycle import Cycle
 from domain.value_objects.job.assessment import Assessment
@@ -158,9 +159,11 @@ class SqliteToday:
 
     def read_all(self) -> tuple[TodayMaterial, ...]:
         out: list[TodayMaterial] = []
+        # 終点の名は自分で数えない——正本は一生の TERMINAL（数える場所は正本を1つ）。
+        # 出す・出さないの判定そのものは judge_today の仕事で、ここは読みの範囲だけ。
+        置かない = ", ".join(f"'{name}'" for name in sorted(TERMINAL))
         for (id_text,) in self._conn.execute(
-            "SELECT id FROM jobs WHERE state_name NOT IN ('Finished', 'Abandoned')"
-            " ORDER BY id"
+            f"SELECT id FROM jobs WHERE state_name NOT IN ({置かない}) ORDER BY id"
         ).fetchall():
             out.append(self._material(JobId(text=id_text)))
         return tuple(out)
