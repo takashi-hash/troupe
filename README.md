@@ -31,6 +31,17 @@ uv run python main.py window                          # 画面（作りかけ—
 
 要件: macOS / uv / Ollama＋`gpt-oss:20b`（13GB。初回に `ollama pull gpt-oss:20b`）。
 
+## 止める・撤去する
+
+```sh
+sh launchd/stop.sh agent      # 緊急停止 — AI の脈だけ止める（時計は回り続ける）
+sh launchd/stop.sh            # 両方止める（再開は start.sh）
+sh launchd/status.sh          # 脈と ollama の状態・直近のログ
+sh launchd/uninstall.sh       # 撤去 — **帳簿 data/ は消さない**（消すのは人の手）
+```
+
+業務を止めるのは別の話——ルールは `rule-deactivate`、仕事は `act abandon`（判断は人間）。
+
 ## 確かめる
 
 ```sh
