@@ -270,7 +270,9 @@ def _予定(rules: tuple[ScheduleRow, ...], jobs: tuple[SearchRow, ...]) -> str:
     決まり = "".join(
         f"<tr><td>{escape(r.rule)}</td><td>{escape(r.instruction)}</td>"
         f"<td>{r.version}</td><td>{r.active_version if r.active_version else '—'}</td>"
-        f"<td>{escape(r.next_period or '—')}</td></tr>"
+        # 次の対象期間だけを出す。**その期間の仕事が在るかは、すぐ下の表が示す**
+        # ——同じことを2箇所で言わない（言い換えを画面で作らない）
+        f"<td>{escape((r.next_period or '—').split('（')[0])}</td></tr>"
         for r in rules
     )
     仕事 = "".join(
