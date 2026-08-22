@@ -3,7 +3,7 @@ name = "ichiza"
 version = "0.1.0"
 description = "一座 — AI が仕事を回し、判断は人間が持つ仕事場"
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2.9"]
+dependencies = ["pydantic>=2.9", "pyside6>=6.7"]
 
 [dependency-groups]
 dev = ["pytest>=8", "pyright>=1.1.380", "import-linter>=2.0"]

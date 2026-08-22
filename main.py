@@ -165,6 +165,7 @@ def main() -> None:
     p.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
     p.add_argument("--model", default="qwen3")
     sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("window")
     sub.add_parser("tick")
     a = sub.add_parser("agent")
     a.add_argument("--name", default="一号")
@@ -183,6 +184,13 @@ def main() -> None:
     act.add_argument("--by", required=True)
     act.add_argument("--text", default="", help="差し戻し・打ち切りの理由／回答の中身")
     args = p.parse_args()
+
+    if args.cmd == "window":
+        # Qt は窓のときだけ読み込む——5分ごとの脈に起動コストを載せない。
+        # 窓は帳簿を開かない（真っ白の段。中身が入る段で読みの口だけ渡す）。
+        from ui.shell import run
+
+        raise SystemExit(run())
 
     (args.root / "data").mkdir(exist_ok=True)
     za = Ichiza(args.root, args.model)
