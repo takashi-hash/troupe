@@ -29,17 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.today_row import TodayRow
-
-#: 操作の識別子 → 用語集の語。画面で言い換えない。
-操作の語 = {
-    "answer": "答える",
-    "approve": "承認する",
-    "send_back": "差し戻す",
-    "abandon": "打ち切る",
-}
-
-#: 書く欄が要る操作と、その欄の名。
-書く欄 = {"answer": "答え", "send_back": "差し戻す理由", "abandon": "打ち切る理由"}
+from ui.words import 操作の語, 書く欄
 
 
 class 読む手(Protocol):

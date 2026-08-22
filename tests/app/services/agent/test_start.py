@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.agent.take import take
+from app.services.agent.start import start
 from app.services.refusal import Refusal
 from domain.aggregates.job.life import InProgress, Ready
 from domain.events.job.job_started import JobStarted
@@ -15,7 +15,7 @@ def test_着手できるを1件取り実行中へ() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Ready())
     帳簿.jobs[仕事.id] = 仕事
-    取れた = take(帳簿, 状態読みの偽物({"Ready": (仕事.id,)}), 固定時計(), by=働き手)
+    取れた = start(帳簿, 状態読みの偽物({"Ready": (仕事.id,)}), 固定時計(), by=働き手)
     assert 取れた == 仕事.id
     後 = 帳簿.jobs[仕事.id]
     assert isinstance(後.state, InProgress) and 後.state.assignee == 働き手
@@ -24,7 +24,7 @@ def test_着手できるを1件取り実行中へ() -> None:
 
 def test_着手できるが無ければ断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
-    取れた = take(帳簿, 状態読みの偽物(), 固定時計(), by=働き手)
+    取れた = start(帳簿, 状態読みの偽物(), 固定時計(), by=働き手)
     assert isinstance(取れた, Refusal) and not 帳簿.events
 
 
@@ -33,6 +33,6 @@ def test_読みと帳簿がずれていたら断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(InProgress(assignee=働き手))  # 読みは着手できると言ったが、もう取られている
     帳簿.jobs[仕事.id] = 仕事
-    取れた = take(帳簿, 状態読みの偽物({"Ready": (仕事.id,)}), 固定時計(), by=働き手)
+    取れた = start(帳簿, 状態読みの偽物({"Ready": (仕事.id,)}), 固定時計(), by=働き手)
     assert isinstance(取れた, Refusal)
     assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events

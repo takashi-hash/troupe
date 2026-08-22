@@ -2,10 +2,10 @@
 
 設計: 設計/人に見えるもの.md §1「予定」・§2「予定の行」・§3。
 
-**判定するのは仕様（reconcile）。集めて渡すだけ。帳簿に書かない。**
+**判定するのは仕様（reconcile・rule_allowed）。集めて渡すだけ。帳簿に書かない。**
 次の対象期間は業務ルール×暦から導き、その仕事が**まだ無ければ（未作成）**と添える。
 有効にしていない業務ルールに次の対象期間は無い（決め済み）。
-押せること: 版を積む・有効にする（人なら誰でも）・止める（有効なときだけ）。
+押せることは仕様（`rule_allowed`）に尋ねる——ここで if を組まない。
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from app.ports.clock_port import ClockPort
 from app.ports.origin_reader import OriginReader
 from app.ports.rule_reader import RuleReader
 from domain.services.reconcile import reconcile
+from domain.services.rule_allowed import rule_allowed
 from domain.value_objects.calendar.period import Period
 
 
@@ -37,14 +38,13 @@ def gather_schedule(
 
     rows: list[ScheduleRow] = []
     for line in rules.read_all():
-        active_here = line.active_version is not None
         next_period: str | None = None
-        if active_here:
+        if line.active_version is not None:
             base = 次の期間.get(line.name)
             if base is not None:
                 済み = (line.name, line.active_version) not in 未作成
                 next_period = base + ("（作られた）" if 済み else "（未作成）")
-        actions = ("add_version", "activate") + (("deactivate",) if active_here else ())
+        actions = rule_allowed(line.active_version)
         rows.append(
             ScheduleRow(
                 rule=line.name,

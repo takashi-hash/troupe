@@ -11,11 +11,11 @@ AI が仕事を回し、**判断は人間**が持つ仕事場。
 ```
 ログイン
  ├─ ollama serve（brew サービス。モデル: gpt-oss:20b——これ未満は非推奨）
- ├─ launchd: 時計のひと回り（5分ごと）… 作る・配る・検査・仕分け・確かめ・突合
- └─ launchd: AI のひと回り（5分ごと）… 取る → LLM に問う → 見立ての巡回
+ ├─ launchd: 時計のひと回り（60秒ごと＋帳簿の変化に即応）… 作る・配る・検査・仕分け・確かめ・突合
+ └─ launchd: AI のひと回り（60秒ごと＋帳簿の変化に即応）… 着手 → LLM に問う → 見立ての巡回
 ```
 
-常駐プロセスは ollama だけ。一座は5分の脈で目を覚ましては帳簿を見て死ぬ——
+常駐プロセスは ollama だけ。一座は60秒の脈で目を覚ましては帳簿を見て死ぬ——
 **状態は全部 SQLite に在り、プロセスは何も覚えない**。だから雑に殺しても壊れない。
 
 ## 動かす
@@ -26,7 +26,7 @@ uv run python main.py today --viewer 座長             # 今日 — 判断が�
 uv run python main.py act approve --id <識別子> --by 座長
 uv run python main.py rule-add --name <業務ルール> --by 座長   # 題材: custom/<名>/topic.json
 uv run python main.py rule-activate --name <業務ルール> --version 1 --by 座長
-uv run python main.py window                          # 画面（作りかけ——いまは白い窓）
+uv run python main.py window --viewer 座長            # 窓 — 今日・予定・詳細（判断は画面から押せる）
 ```
 
 要件: macOS / uv / Ollama＋`gpt-oss:20b`（13GB。初回に `ollama pull gpt-oss:20b`）。

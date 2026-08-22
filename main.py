@@ -5,12 +5,13 @@
 帳簿は SQLite（data/ichiza.db）、LLM はローカル（Ollama）、源はファイル、
 題材は custom/ のフォルダ。注ぎ先はすべて宣言（Protocol）——中身は誰も知らない。
 
-画面（ui/ の5枚)は保留中なので、ここの引数と print が仮の入り口。
-画面から渡るのは文字だけ、という決まりはコマンドの引数がそのまま守る。
+窓は `window`（今日・予定・詳細）。CLI のコマンドは同じ入り口を文字で呼ぶ——
+画面から渡るのは文字だけ、という決まりを引数がそのまま守る。
 
+    uv run python main.py window --viewer 座長    窓（今日・予定・詳細）
     uv run python main.py tick                    時計のひと回り
-    uv run python main.py agent --name 一号       AI のひと回り（取る→LLM に問う）
-    uv run python main.py today --viewer 座長     今日の画面
+    uv run python main.py agent --name 一号       AI のひと回り（着手→LLM に問う→巡回）
+    uv run python main.py today --viewer 座長     今日を文字で
     uv run python main.py rule-add --name 週次の依存の棚卸し --by 座長
     uv run python main.py rule-activate --name 週次の依存の棚卸し --version 1 --by 座長
     uv run python main.py act approve --id J-1 --by 座長
@@ -48,7 +49,7 @@ from adapters.topic import FolderTopic
 from app.dto.version_form import VersionForm
 from app.services.agent.consult import consult
 from app.services.agent.patrol import patrol
-from app.services.agent.take import take
+from app.services.agent.start import start
 from app.services.clock.audit import audit
 from app.services.clock.confirm import confirm
 from app.services.clock.create import create
@@ -59,7 +60,7 @@ from app.services.clock.run_check import run_check
 from app.services.clock.sort_failures import sort_failures
 from app.services.human.abandon import abandon
 from app.services.human.activate import activate
-from app.services.human.add_version import add_version
+from app.services.human.add_version import add_version, add_version_from_fields
 from app.services.human.answer import answer
 from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
@@ -123,11 +124,11 @@ def _tick(za: Ichiza) -> None:
 
 
 def _agent(za: Ichiza, name: str) -> None:
-    """AI のひと回り——引き金は AI 自身。取って進め、人の手が要る仕事に見立てを書く。"""
+    """AI のひと回り——引き金は AI 自身。着手して進め、人の手が要る仕事に見立てを書く。"""
     ai = Agent(name=name)
-    took = take(za.jobs, za.states, za.clock, by=ai)
+    took = start(za.jobs, za.states, za.clock, by=ai)
     if isinstance(took, JobId):
-        print(f"取った: {took.text}")
+        print(f"着手した: {took.text}")
         outcome = consult(
             za.jobs,
             za.work,
@@ -170,7 +171,7 @@ def _today(za: Ichiza, viewer: str) -> None:
 def main() -> None:
     p = argparse.ArgumentParser(prog="ichiza", description="一座 — 判断は人間")
     p.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
-    p.add_argument("--model", default="qwen3")
+    p.add_argument("--model", default="gpt-oss:20b")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("tick")
     a = sub.add_parser("agent")
@@ -200,8 +201,8 @@ def main() -> None:
     za = Ichiza(args.root, args.model)
 
     if args.cmd == "window":
-        # Qt は窓のときだけ読み込む——5分ごとの脈に起動コストを載せない。
-        # 窓には「読む」「押す」の2つの手だけを注ぐ——画面は手の中身を知らない。
+        # Qt は窓のときだけ読み込む——launchd の脈に起動コストを載せない。
+        # 窓には手（読む・押す・詳細・予定を読む・決まりを押す）だけを注ぐ——画面は手の中身を知らない。
         from ui.shell import run
 
         def 読む() -> tuple[object, ...]:
@@ -228,23 +229,7 @@ def main() -> None:
 
         def 決まりを押す(what: str, name: str, version: int, fields: dict[str, str]) -> str | None:
             if what == "add_version":
-                form = VersionForm(
-                    instruction=fields.get("instruction"),
-                    source=fields.get("source"),
-                    required_terms=(
-                        tuple(t.strip() for t in fields["required_terms"].split("、") if t.strip())
-                        if "required_terms" in fields
-                        else None
-                    ),
-                    description=fields.get("description"),
-                    cycle=fields.get("cycle"),
-                    days=int(fields["days"]) if "days" in fields else None,
-                    budget_calls=int(fields["budget_calls"]) if "budget_calls" in fields else None,
-                    budget_seconds=int(fields["budget_seconds"]) if "budget_seconds" in fields else None,
-                    owner=fields.get("owner"),
-                    max_retries=int(fields["max_retries"]) if "max_retries" in fields else None,
-                )
-                断り = add_version(za.rules, za.topics, za.clock, name, args.viewer, form)
+                断り = add_version_from_fields(za.rules, za.topics, za.clock, name, args.viewer, fields)
             elif what == "activate":
                 断り = activate(za.rules, za.clock, name, version, args.viewer)
             elif what == "deactivate":

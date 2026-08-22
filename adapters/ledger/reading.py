@@ -1,4 +1,4 @@
-"""帳簿からの読み — Reader 5つの SQLite 実装。
+"""帳簿からの読み — Reader の SQLite 実装（数と欄の正本は筋道 §4）。
 
 設計: 設計/仕事が回る筋道.md §4「interface の正本」・§3。
 **一覧の読みは集約を再構成しない**……が正本の言いかただが、ここは同じ帳簿を
@@ -234,7 +234,7 @@ class SqliteToday:
 
 
 class SqliteDetail:
-    """`DetailReader` — 詳細の材料。出来事の列は消えない正本から。"""
+    """`DetailReader` — 出来事の列と問答の対だけ。成果・根拠・見立ては今日の材料が運ぶ。"""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
@@ -256,37 +256,7 @@ class SqliteDetail:
             elif ev_name == "QuestionAnswered" and asked:
                 questions.append((asked.pop(0), str(data["body"])))
         questions.extend((q, None) for q in asked)
-        assessments = tuple(
-            (a["finding"], a["reason"])
-            for (raw,) in self._conn.execute(
-                "SELECT body FROM assessments WHERE job_id = ? ORDER BY at", (id.text,)
-            ).fetchall()
-            for a in (json.loads(raw),)
-        )
-        job_row = self._conn.execute(
-            "SELECT body FROM jobs WHERE id = ?", (id.text,)
-        ).fetchone()
-        result: str | None = None
-        quotes: tuple[str, ...] = ()
-        if job_row:
-            job = json.loads(job_row[0])
-            if job.get("result_at"):
-                got = self._conn.execute(
-                    "SELECT body FROM results WHERE at = ?", (job["result_at"],)
-                ).fetchone()
-                result = json.loads(got[0])["body"] if got else None
-            if job.get("evidence_at"):
-                got = self._conn.execute(
-                    "SELECT body FROM evidence WHERE at = ?", (job["evidence_at"],)
-                ).fetchone()
-                quotes = (json.loads(got[0])["quote"],) if got else ()
-        return DetailMaterial(
-            events=tuple(events),
-            questions=tuple(questions),
-            assessments=assessments,
-            result=result,
-            evidence_quotes=quotes,
-        )
+        return DetailMaterial(events=tuple(events), questions=tuple(questions))
 
 
 class SqliteRuleLines:

@@ -26,9 +26,6 @@ class 詳細読みの偽物:
         return DetailMaterial(
             events=(("2026-08-22 09:00", "時計", "JobCreated"), ("2026-08-22 09:01", "一号", "JobStarted")),
             questions=(("どちらの依存ですか", "手元です"),),
-            assessments=(),
-            result=None,
-            evidence_quotes=(),
         )
 
 

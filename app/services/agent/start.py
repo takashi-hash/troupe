@@ -21,7 +21,7 @@ from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
 
 
-def take(
+def start(
     jobs: JobRepository, states: JobStateReader, clock: ClockPort, by: Agent
 ) -> JobId | Refusal:
     """着手できるを1件取り、実行中へ。取れたら識別子、取れなければ断り。"""

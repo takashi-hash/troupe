@@ -38,7 +38,7 @@ from adapters.ledger.stores import (
 from app.dto.version_form import VersionForm
 from app.ports.source_port import Quote, SourceOutcome
 from app.services.agent.consult import consult
-from app.services.agent.take import take
+from app.services.agent.start import start
 from app.services.clock.confirm import confirm
 from app.services.clock.create import create
 from app.services.clock.hand_out import hand_out
@@ -172,7 +172,7 @@ def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
     assert 仕事 is not None and 仕事.criteria.required_terms == ("2026-W34",)
 
     # 月09:00 AI が取る（引き金は AI 自身）
-    assert take(jobs, states, 時計, by=一号) == id
+    assert start(jobs, states, 時計, by=一号) == id
 
     # 月09:02 詰まる → 人に尋ねる（判断は求めない。材料の不足だけ）
     時計.set(時(17, 9, 2))
@@ -186,7 +186,7 @@ def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:33 AI が取り直す
     時計.set(時(17, 9, 33))
-    assert take(jobs, states, 時計, by=一号) == id
+    assert start(jobs, states, 時計, by=一号) == id
 
     # 月09:35 成果を出す（根拠は源から——AI の言葉は根拠にならない）
     時計.set(時(17, 9, 35))

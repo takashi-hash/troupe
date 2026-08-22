@@ -26,9 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.schedule_row import ScheduleRow
-
-#: 操作の識別子 → 用語集の語。
-操作の語 = {"add_version": "版を積む", "activate": "有効にする", "deactivate": "止める"}
+from ui.words import 操作の語
 
 
 class 予定を読む手(Protocol):
@@ -49,7 +47,7 @@ class VersionFormDialog(QDialog):
         ("source", "源（例: file:custom/名前/deps.txt）"),
         ("required_terms", "必ず含む語（読点区切り。{対象期間} と書ける）"),
         ("description", "説明の文"),
-        ("cycle", "周期（weekly / monthly）"),
+        ("cycle", "周期（週 か 月）"),
         ("days", "終えるまでの日数"),
         ("budget_calls", "使用上限（回数）"),
         ("budget_seconds", "使用上限（秒）"),

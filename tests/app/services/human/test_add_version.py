@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.dto.version_form import VersionForm
-from app.services.human.add_version import add_version
+from app.services.human.add_version import add_version, add_version_from_fields
 from domain.events.rule.rule_version_added import RuleVersionAdded
 from tests.aggregates.job.conftest import make_copied
 from tests.aggregates.rule.conftest import make_rule, 名, 座長
@@ -51,4 +51,26 @@ def test_義務に触れる上書きは断りに変わる() -> None:
     帳簿 = ルール帳簿の偽物()
     断り = add_version(帳簿, 題材の偽物(make_copied()), 固定時計(), 名.text, by=座長.name, form=VersionForm(days=0))
     assert 断り is not None
+    assert not 帳簿.rules and not 帳簿.events
+
+
+def test_欄の文字から組める_周期は用語集の語で書ける() -> None:
+    """画面から渡るのは文字だけ——数に読むのも周期の語を写すのも app の仕事。"""
+    帳簿 = ルール帳簿の偽物()
+    断り = add_version_from_fields(
+        帳簿, 題材の偽物(make_copied()), 固定時計(), 名.text, by=座長.name,
+        fields={"days": "5", "cycle": "月"},
+    )
+    assert 断り is None
+    版 = 帳簿.rules[名].versions[-1]
+    assert 版.days == 5 and 版.cycle.value == "monthly"
+
+
+def test_数に読めない欄は断りに変わる_窓は落ちない() -> None:
+    帳簿 = ルール帳簿の偽物()
+    断り = add_version_from_fields(
+        帳簿, 題材の偽物(make_copied()), 固定時計(), 名.text, by=座長.name,
+        fields={"days": "五日"},
+    )
+    assert 断り is not None and "days" in 断り.reason
     assert not 帳簿.rules and not 帳簿.events

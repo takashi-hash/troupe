@@ -20,7 +20,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.detail_view import DetailView
-from ui.today import 押す手, 操作の語, 書く欄
+from ui.today import 押す手
+from ui.words import 操作の語, 書く欄
 
 
 class DetailDialog(QDialog):
