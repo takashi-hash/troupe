@@ -16,10 +16,14 @@ LLM だけは台本（差し替え式の口があることの証明でもある�
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
-from adapters.ledger.db import open_ledger
+import pytest
+
+from adapters.ledger.db import Ledger, open_cloud_ledger, open_ledger
 from adapters.ledger.jobs import SqliteJobs, read_events
 from adapters.ledger.reading import (
     SqliteActiveRules,
@@ -124,8 +128,40 @@ class 題材なし:
         return None
 
 
-def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
-    conn = open_ledger(tmp_path / "ichiza.db")
+def _まっさらなクラウドの帳簿(dsn: str) -> Ledger:
+    """クラウドの帳簿を、毎回まっさらから開き直す。
+
+    前の週の帳簿が残っていると筋書きが変わる。表の名を並べて消すと
+    形が2箇所に書かれることになるので、入れ物ごと作り直す。
+    """
+    帳簿 = open_cloud_ledger(dsn)
+    帳簿.execute("DROP SCHEMA public CASCADE")
+    帳簿.execute("CREATE SCHEMA public")
+    帳簿.commit()
+    帳簿.close()
+    return open_cloud_ledger(dsn)
+
+
+@pytest.fixture(params=["手元", "クラウド"])
+def 帳簿(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Ledger]:
+    """同じ週を、手元（SQLite）とクラウド（Cloud SQL）の両方で通す。
+
+    **口が1つであることの、いちばん強い証拠**——同じ筋書きが、器を替えても同じ順で残る。
+    在りかが渡っていなければクラウドの分は飛ばす（器は買うもので、常に居るとは限らない）。
+    """
+    if request.param == "手元":
+        帳簿 = open_ledger(tmp_path / "ichiza.db")
+    else:
+        dsn = os.environ.get("ICHIZA_PG_DSN")
+        if not dsn:
+            pytest.skip("ICHIZA_PG_DSN が無いので、クラウドの帳簿は通さない")
+        帳簿 = _まっさらなクラウドの帳簿(dsn)
+    yield 帳簿
+    帳簿.close()
+
+
+def test_週Aが本物の帳簿で最後まで通る(帳簿: Ledger) -> None:
+    conn = 帳簿
     jobs, rules = SqliteJobs(conn), SqliteRules(conn)
     results, evidences = SqliteResults(conn), SqliteEvidence(conn)
     questions, assessments = SqliteQuestions(conn), SqliteAssessments(conn)
@@ -230,4 +266,3 @@ def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 終わったあとの今日は空——済んだものを出さない（F6）
     assert gather_today(today, 時計, viewer="座長") == ()
-    conn.close()
