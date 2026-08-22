@@ -86,6 +86,9 @@ def open_ledger(path: Path | str) -> sqlite3.Connection:
     """帳簿を開く。無ければ形を作り、形の番号が合わなければ開かない（I10）。"""
     conn = sqlite3.connect(str(path))
     conn.execute("PRAGMA journal_mode=WAL")
+    # 常駐で時計と AI が同時に書く。待たずに即エラーにせず、少し待つ
+    # （楽観ロックは別の層の話——これは器の混雑の話）
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_TABLES)
     row = conn.execute("SELECT number FROM shape").fetchone()

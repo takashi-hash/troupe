@@ -30,6 +30,7 @@ def request(
 
     **画面から渡るのは文字だけ**（設計 §1）——ui は domain を知らないので、
     値に組むのはここ。依頼発は題材の初期値が無い——欄はぜんぶ人が書く。
+    成功しても識別子は**返さない**——画面は常に帳簿から導出する（今日に出る）。
     """
     try:
         req = Request(by=Human(name=by), at=clock.now(), body=body)

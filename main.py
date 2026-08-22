@@ -47,6 +47,7 @@ from app.dto.version_form import VersionForm
 from app.services.agent.consult import consult
 from app.services.agent.patrol import patrol
 from app.services.agent.take import take
+from app.services.clock.audit import audit
 from app.services.clock.confirm import confirm
 from app.services.clock.create import create
 from app.services.clock.hand_out import hand_out
@@ -98,6 +99,9 @@ def _tick(za: Ichiza) -> None:
     sorted_ = sort_failures(za.jobs, za.states, za.clock)
     confirmed = confirm(za.jobs, za.states, za.source, za.evidences, za.clock)
     overdue = mark_overdue(za.jobs, za.states, za.overdue_marks, za.clock)
+    欠け = audit(za.active, za.origins, za.clock)
+    for 名前, 版, 期間 in 欠け:
+        print(f"⚠ I8: 有効なのに仕事が無い — {名前.text} 版{版} {期間.text}")
     for 名, 列 in (
         ("作った", made),
         ("配った", handed),
