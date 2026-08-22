@@ -8,9 +8,9 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from typing import Any
 
+from adapters.ledger.db import Ledger
 from adapters.ledger.jobs import load_job, read_events
 from domain.aggregates.job.life import TERMINAL
 from app.ports.detail_reader import DetailMaterial
@@ -38,7 +38,7 @@ def _assignee_name(state: object) -> str | None:
 class SqliteJobStates:
     """`JobStateReader` — ある状態の仕事の識別子。担当でも絞れる。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def ids_in(self, state_name: str, assignee_name: str | None = None) -> tuple[JobId, ...]:
@@ -57,7 +57,7 @@ class SqliteJobStates:
 class SqliteOrigins:
     """`OriginReader` — 既にある仕事の作成元の鍵。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def keys(self) -> frozenset[str]:
@@ -68,7 +68,7 @@ class SqliteOrigins:
 class SqliteActiveRules:
     """`ActiveRuleReader` — 有効な版の（識別子・番号・周期）。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read_all(self) -> tuple[tuple[RuleName, int, Cycle], ...]:
@@ -91,7 +91,7 @@ class SqliteWork:
     答えのある質問と落ちた理由は**出来事から**読む——出来事は消えない正本。
     """
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read(self, id: JobId) -> WorkMaterial:
@@ -145,7 +145,7 @@ class SqliteWork:
 class SqliteOverdueMarks:
     """`OverdueMarkReader` — 既に「期日を過ぎた」の印が刻まれた仕事。二度目を刻まない。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def marked_ids(self) -> frozenset[JobId]:
@@ -158,7 +158,7 @@ class SqliteOverdueMarks:
 class SqliteToday:
     """`TodayReader` — 今日の材料（仕様が見る domain の値）。終点は運ばない。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read_all(self) -> tuple[TodayMaterial, ...]:
@@ -240,7 +240,7 @@ class SqliteToday:
 class SqliteDetail:
     """`DetailReader` — 出来事の列と問答の対だけ。成果・根拠・見立ては今日の材料が運ぶ。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read(self, id: JobId) -> DetailMaterial:
@@ -267,7 +267,7 @@ class SqliteDetail:
 class SqliteHistory:
     """`HistoryReader` — 出来事の列を新しい順に、どの仕事かの材料を添えて。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read_latest(self, limit: int) -> tuple[HistoryEntry, ...]:
@@ -301,7 +301,7 @@ class SqliteSearch:
     空の条件は絞らない。
     """
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read(
@@ -350,7 +350,7 @@ class SqliteSearch:
 class SqliteRuleLines:
     """`RuleReader` — 業務ルールの一覧。やることは有効な版のもの、無ければ最新。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def read_all(self) -> tuple[RuleLine, ...]:

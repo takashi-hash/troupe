@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import json
-import sqlite3
+from adapters.ledger.db import Ledger, LedgerDuplicate
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -37,7 +37,7 @@ def load_job(body: str) -> Job[Any]:
 class SqliteJobs:
     """仕事の帳簿。1つの接続の上で、読んだ改訂を覚える。"""
 
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
         self._seen: dict[str, int] = {}
 
@@ -110,7 +110,7 @@ class SqliteJobs:
                     ),
                 )
             cur.execute("COMMIT")
-        except sqlite3.IntegrityError as なぜ:
+        except LedgerDuplicate as なぜ:
             cur.execute("ROLLBACK")
             raise ValueError(f"同じ作成元の仕事が既にあります（I3）: {なぜ}") from なぜ
         except BaseException:
@@ -129,7 +129,7 @@ def _name_of(who: object | None) -> str | None:
     return str(name) if name is not None else None
 
 
-def read_events(conn: sqlite3.Connection, id: JobId) -> tuple[tuple[str, str], ...]:
+def read_events(conn: Ledger, id: JobId) -> tuple[tuple[str, str], ...]:
     """出来事の（名, 中身の JSON）の列。読みの部品——履歴と材料が使う。"""
     rows = conn.execute(
         "SELECT name, body FROM job_events WHERE job_id = ? ORDER BY seq", (id.text,)
@@ -137,7 +137,7 @@ def read_events(conn: sqlite3.Connection, id: JobId) -> tuple[tuple[str, str], .
     return tuple((str(n), str(b)) for n, b in rows)
 
 
-def event_bodies(conn: sqlite3.Connection, id: JobId, name: str) -> tuple[dict[str, Any], ...]:
+def event_bodies(conn: Ledger, id: JobId, name: str) -> tuple[dict[str, Any], ...]:
     """ある名の出来事の中身。"""
     return tuple(
         json.loads(b) for n, b in read_events(conn, id) if n == name

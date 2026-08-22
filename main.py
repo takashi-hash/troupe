@@ -2,7 +2,8 @@
 
 設計: 設計/どう作るか §5。
 
-帳簿は SQLite（data/ichiza.db）、LLM は手元の Ollama かクラウドの Gemini（`--llm`）、
+帳簿は手元の SQLite（data/ichiza.db）かクラウドの Cloud SQL（`--dsn`）、
+LLM は手元の Ollama かクラウドの Gemini（`--llm`）、
 源はファイル、題材は custom/ のフォルダ。注ぎ先はすべて宣言（Protocol）——中身は誰も知らない。
 
 窓は `window`（今日・予定・履歴・検索——詳細は行から開く）。CLI は同じ入り口を文字で呼ぶ——
@@ -28,7 +29,7 @@ from adapters.acl.llm import GeminiLlm, OllamaLlm
 from adapters.acl.source import FileSource
 from adapters.clock import SystemClock
 from adapters.ids import UuidIds
-from adapters.ledger.db import open_ledger
+from adapters.ledger.db import open_cloud_ledger, open_ledger
 from adapters.ledger.jobs import SqliteJobs
 from adapters.ledger.reading import (
     SqliteActiveRules,
@@ -83,8 +84,13 @@ from domain.value_objects.people.agent import Agent
 class Ichiza:
     """一座 — 注いだ口の束。"""
 
-    def __init__(self, root: Path, model: str, llm: str = "ollama") -> None:
-        self.conn = open_ledger(root / "data" / "ichiza.db")
+    def __init__(
+        self, root: Path, model: str, llm: str = "ollama", dsn: str | None = None
+    ) -> None:
+        # 在りかが渡ればクラウドの帳簿、無ければ手元の帳簿。**呼ぶ側は口しか知らない。**
+        self.conn = (
+            open_cloud_ledger(dsn) if dsn else open_ledger(root / "data" / "ichiza.db")
+        )
         self.jobs = SqliteJobs(self.conn)
         self.rules = SqliteRules(self.conn)
         self.results = SqliteResults(self.conn)
@@ -202,6 +208,11 @@ def main() -> None:
         help="LLM の道具。手元は ollama、クラウドは gemini",
     )
     p.add_argument("--model", default=None, help="既定は道具ごと（--llm を見る）")
+    p.add_argument(
+        "--dsn",
+        default=os.environ.get("ICHIZA_LEDGER_DSN"),
+        help="クラウドの帳簿の在りか。無ければ手元の data/ichiza.db",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("tick")
     a = sub.add_parser("agent")
@@ -228,7 +239,7 @@ def main() -> None:
     args = p.parse_args()
 
     (args.root / "data").mkdir(exist_ok=True)
-    za = Ichiza(args.root, args.model, args.llm)
+    za = Ichiza(args.root, args.model, args.llm, args.dsn)
 
     if args.cmd == "window":
         # Qt は窓のときだけ読み込む——launchd の脈に起動コストを載せない。

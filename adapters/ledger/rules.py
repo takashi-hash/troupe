@@ -8,15 +8,15 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 
+from adapters.ledger.db import Ledger
 from domain.aggregates.rule.rule import Rule
 from domain.events.event import Event
 from domain.value_objects.rule.rule_name import RuleName
 
 
 class SqliteRules:
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
         self._seen: dict[str, int] = {}
 

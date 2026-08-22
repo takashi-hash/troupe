@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
-import sqlite3
 
+from adapters.ledger.db import Ledger
 from domain.value_objects.job.answer import Answer
 from domain.value_objects.job.assessment import Assessment
 from domain.value_objects.job.evidence import Evidence
@@ -17,7 +17,7 @@ from domain.value_objects.job.result import Result
 
 
 class SqliteResults:
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def put(self, result: Result) -> str:
@@ -35,7 +35,7 @@ class SqliteResults:
 
 
 class SqliteEvidence:
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def put(self, evidence: Evidence) -> str:
@@ -53,7 +53,7 @@ class SqliteEvidence:
 
 
 class SqliteQuestions:
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def put_question(self, q: Question) -> str:
@@ -86,16 +86,19 @@ class SqliteQuestions:
 
 
 class SqliteAssessments:
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
     def put(self, job: JobId, a: Assessment) -> str:
+        # 採番は器に言わせる（`RETURNING`）——「いま入れた行の番号」を
+        # あとから尋ねる書きかたは器ごとに違い、手元でしか通らない
         cur = self._conn.execute(
-            "INSERT INTO assessments(job_id, body) VALUES (?, ?)",
+            "INSERT INTO assessments(job_id, body) VALUES (?, ?) RETURNING at",
             (job.text, a.model_dump_json()),
         )
+        置いた = cur.fetchone()[0]
         self._conn.commit()
-        return f"assessment://{cur.lastrowid}"
+        return f"assessment://{置いた}"
 
     def list_for(self, job: JobId) -> tuple[Assessment, ...]:
         rows = self._conn.execute(
