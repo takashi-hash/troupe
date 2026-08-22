@@ -51,6 +51,12 @@ from adapters.ledger.stores import (
     SqliteResults,
 )
 from adapters.topic import FolderTopic
+from app.dto.detail_view import DetailView
+from app.dto.history_row import HistoryRow
+from app.dto.row_filter import RowFilter
+from app.dto.schedule_row import ScheduleRow
+from app.dto.search_row import SearchRow
+from app.dto.today_row import TodayRow
 from app.dto.version_form import VersionForm
 from app.ports.llm_port import LlmPort
 from app.services.agent.consult import consult
@@ -79,6 +85,7 @@ from app.services.screen.gather_search import gather_search
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
+from ui.web import 手
 
 
 class Ichiza:
@@ -124,6 +131,76 @@ def _llm(kind: str, model: str | None) -> LlmPort:
         raise SystemExit(f"LLM の道具は {'・'.join(_MODELS)} のどれかです: {kind}")
     chosen = model or _MODELS[kind]
     return GeminiLlm(model=chosen) if kind == "gemini" else OllamaLlm(model=chosen)
+
+def _手(za: Ichiza, viewer: str) -> 手:
+    """手を組む。**器が2つでも、手を組む場所は1つ。**
+
+    設計/どう作るか §5——器は `shell`（机の窓）と `web`（web の窓）。
+    どちらも同じ手を受け取る。手の中身（app のどの操作を呼ぶか）は画面が知らない。
+    """
+
+    def 読む() -> tuple[TodayRow, ...]:
+        return gather_today(za.today, za.clock, viewer)
+
+    def 押す(what: str, id: str, text: str) -> str | None:
+        if what == "answer":
+            断り = answer(za.jobs, za.questions, za.clock, id, viewer, text)
+        elif what == "approve":
+            断り = approve(za.jobs, za.clock, id, viewer)
+        elif what == "send_back":
+            断り = send_back(za.jobs, za.clock, id, viewer, text)
+        elif what == "abandon":
+            断り = abandon(za.jobs, za.clock, id, viewer, text)
+        else:
+            return f"知らない操作です: {what}"
+        return None if 断り is None else 断り.reason
+
+    def 詳細(id: str) -> DetailView | None:
+        return gather_detail(za.today, za.details, za.clock, viewer, id)
+
+    def 予定を読む() -> tuple[ScheduleRow, ...]:
+        return gather_schedule(za.rule_lines, za.active, za.origins, za.clock)
+
+    def 決まりを押す(
+        what: str, name: str, version: int, fields: dict[str, str]
+    ) -> str | None:
+        if what == "add_version":
+            断り = add_version_from_fields(
+                za.rules, za.topics, za.clock, name, viewer, fields
+            )
+        elif what == "activate":
+            断り = activate(za.rules, za.clock, name, version, viewer)
+        elif what == "deactivate":
+            断り = deactivate(za.rules, za.clock, name, viewer)
+        else:
+            return f"知らない操作です: {what}"
+        return None if 断り is None else 断り.reason
+
+    def 履歴を読む() -> tuple[HistoryRow, ...]:
+        return gather_history(za.history)
+
+    def 検索する(filter: RowFilter) -> tuple[SearchRow, ...]:
+        return gather_search(za.search_hits, filter)
+
+    def 頼む(body: str, fields: dict[str, str]) -> str | None:
+        断り = request_from_fields(za.jobs, za.ids, za.clock, viewer, body, fields)
+        return None if 断り is None else 断り.reason
+
+    def 来ている仕事を読む() -> tuple[SearchRow, ...]:
+        return gather_upcoming(za.today)
+
+    return 手(
+        fetch=読む,
+        act=押す,
+        detail=詳細,
+        schedule_fetch=予定を読む,
+        schedule_act=決まりを押す,
+        history_fetch=履歴を読む,
+        search=検索する,
+        request=頼む,
+        upcoming=来ている仕事を読む,
+        close=za.conn.close,
+    )
 
 
 def _tick(za: Ichiza) -> None:
@@ -221,6 +298,8 @@ def main() -> None:
     t.add_argument("--viewer", required=True)
     w = sub.add_parser("window")
     w.add_argument("--viewer", required=True)
+    sv = sub.add_parser("serve")
+    sv.add_argument("--viewer", required=True)
     ra = sub.add_parser("rule-add")
     ra.add_argument("--name", required=True)
     ra.add_argument("--by", required=True)
@@ -242,60 +321,41 @@ def main() -> None:
     za = Ichiza(args.root, args.model, args.llm, args.dsn)
 
     if args.cmd == "window":
-        # Qt は窓のときだけ読み込む——launchd の脈に起動コストを載せない。
+        # Qt は窓のときだけ読み込む——脈に起動コストを載せない。
         # 窓には手だけを注ぐ——画面は手の中身を知らない。
-        from app.dto.row_filter import RowFilter
         from ui.shell import run
 
-        def 読む() -> tuple[object, ...]:
-            return gather_today(za.today, za.clock, args.viewer)
-
-        def 押す(what: str, id: str, text: str) -> str | None:
-            if what == "answer":
-                断り = answer(za.jobs, za.questions, za.clock, id, args.viewer, text)
-            elif what == "approve":
-                断り = approve(za.jobs, za.clock, id, args.viewer)
-            elif what == "send_back":
-                断り = send_back(za.jobs, za.clock, id, args.viewer, text)
-            elif what == "abandon":
-                断り = abandon(za.jobs, za.clock, id, args.viewer, text)
-            else:
-                return f"知らない操作です: {what}"
-            return None if 断り is None else 断り.reason
-
-        def 詳細(id: str) -> object | None:
-            return gather_detail(za.today, za.details, za.clock, args.viewer, id)
-
-        def 予定を読む() -> tuple[object, ...]:
-            return gather_schedule(za.rule_lines, za.active, za.origins, za.clock)
-
-        def 決まりを押す(what: str, name: str, version: int, fields: dict[str, str]) -> str | None:
-            if what == "add_version":
-                断り = add_version_from_fields(za.rules, za.topics, za.clock, name, args.viewer, fields)
-            elif what == "activate":
-                断り = activate(za.rules, za.clock, name, version, args.viewer)
-            elif what == "deactivate":
-                断り = deactivate(za.rules, za.clock, name, args.viewer)
-            else:
-                return f"知らない操作です: {what}"
-            return None if 断り is None else 断り.reason
-
-        def 履歴を読む() -> tuple[object, ...]:
-            return gather_history(za.history)
-
-        def 検索する(filter: RowFilter) -> tuple[object, ...]:
-            return gather_search(za.search_hits, filter)
-
-        def 頼む(body: str, fields: dict[str, str]) -> str | None:
-            断り = request_from_fields(za.jobs, za.ids, za.clock, args.viewer, body, fields)
-            return None if 断り is None else 断り.reason
-
-        def 来ている仕事を読む() -> tuple[object, ...]:
-            return gather_upcoming(za.today)
-
+        h = _手(za, args.viewer)
         raise SystemExit(
-            run(読む, 押す, 詳細, 予定を読む, 決まりを押す, 履歴を読む, 検索する, 頼む, 来ている仕事を読む)  # type: ignore[arg-type]
+            run(
+                h.fetch,
+                h.act,
+                h.detail,
+                h.schedule_fetch,
+                h.schedule_act,
+                h.history_fetch,
+                h.search,
+                h.request,
+                h.upcoming,
+            )  # type: ignore[arg-type]
         )
+
+    if args.cmd == "serve":
+        # web の器。**手は1回ごとに開いて閉じる**——器が帳簿を跨いで持たない。
+        import uvicorn
+
+        from ui.web import make_app
+
+        def 開く() -> 手:
+            return _手(Ichiza(args.root, args.model, args.llm, args.dsn), args.viewer)
+
+        za.conn.close()  # 立てるだけの接続は持たない
+        uvicorn.run(
+            make_app(開く, args.viewer),
+            host="0.0.0.0",
+            port=int(os.environ.get("PORT", "8080")),
+        )
+        return
 
     if args.cmd == "tick":
         _tick(za)

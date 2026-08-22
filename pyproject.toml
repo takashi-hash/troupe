@@ -9,7 +9,7 @@ dependencies = ["pydantic>=2.9", "google-genai>=1.0"]
 # 机の窓には PySide6、web の窓には FastAPI、クラウドの帳簿には psycopg。
 [project.optional-dependencies]
 desktop = ["pyside6>=6.7"]
-web = ["fastapi>=0.115", "uvicorn>=0.30"]
+web = ["fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.9"]
 cloud = ["psycopg[binary]>=3.2"]
 
 [dependency-groups]
@@ -20,6 +20,7 @@ dev = [
     "pyside6>=6.7",
     "fastapi>=0.115",
     "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
     "psycopg[binary]>=3.2",
 ]
 
