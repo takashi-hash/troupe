@@ -27,3 +27,18 @@ class LlmPort(Protocol):
     ) -> tuple[Reply, int, int]:
         """材料を渡し、（整えた応答, 使った回数, 使った秒）を受け取る。"""
         ...
+
+    def read_situation(
+        self,
+        situation: str,
+        fall_reasons: tuple[str, ...],
+        previous_result: str | None,
+        sibling_states: tuple[str, ...],
+    ) -> tuple[str, str, int, int]:
+        """状況を読み、（見立て, そう読んだ理由, 使った回数, 使った秒）を受け取る。
+
+        巡回が呼ぶ——**見立てが無いと AI は数字しか出せない**（設計の値打ちの行）。
+        この一呼びは使用上限に数えない：安全弁（I14）は仕事を**進める**暴走を
+        止めるもので、見立ての暴走は F6（同じ見立てを二度書かない）が止める。
+        """
+        ...

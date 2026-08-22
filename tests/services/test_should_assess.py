@@ -29,10 +29,17 @@ def test_書いたら偽() -> None:
     assert should_assess((見立て,), (), Spent(calls=0, seconds=0), 上限, 20, 20) is False
 
 
-def test_落ちた中身があれば真_書いたら偽() -> None:
+def test_止まった理由だけでは書かない() -> None:
+    """時計がまだ仕分ける仕事は拾わない——早く書くと、やり直し0回時点の
+    古い見立てが残る（実機で起きた）。上限に触れるか尽きるまで待つ。"""
     止まった理由 = ("必ず含む語がありません: 2026-W34",)
-    assert should_assess((), 止まった理由, Spent(calls=3, seconds=60), 上限, 1, 20) is True
-    assert should_assess((見立て,), 止まった理由, Spent(calls=3, seconds=60), 上限, 1, 20) is False
+    assert should_assess((), 止まった理由, Spent(calls=3, seconds=60), 上限, 1, 20) is False
+
+
+def test_尽きたら真_書いたら偽() -> None:
+    止まった理由 = ("必ず含む語がありません: 2026-W34",)
+    assert should_assess((), 止まった理由, Spent(calls=3, seconds=60), 上限, 20, 20) is True
+    assert should_assess((見立て,), 止まった理由, Spent(calls=3, seconds=60), 上限, 20, 20) is False
 
 
 def test_材料が無ければ偽() -> None:

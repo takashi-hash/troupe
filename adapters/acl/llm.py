@@ -139,3 +139,67 @@ class OllamaLlm:
         seconds = max(1, math.ceil(time.monotonic() - before))
         content = raw["message"]["content"]
         return _translate(str(content)), 1, seconds
+
+    def read_situation(
+        self,
+        situation: str,
+        fall_reasons: tuple[str, ...],
+        previous_result: str | None,
+        sibling_states: tuple[str, ...],
+    ) -> tuple[str, str, int, int]:
+        """状況を読み、（見立て, 理由, 回数, 秒）を返す。巡回の口。"""
+        lines = [f"いまの状況: {situation}"]
+        if fall_reasons:
+            lines.append("止まった理由（古い順）:")
+            lines.extend(f"- {reason}" for reason in fall_reasons)
+        if previous_result is not None:
+            lines.append(f"前に出した成果: {previous_result}")
+        if sibling_states:
+            lines.append(f"同じ決まり・同じ期間の別の版の仕事の状態: {'、'.join(sibling_states)}")
+        payload = json.dumps(
+            {
+                "model": self._model,
+                "messages": (
+                    {"role": "system", "content": _SITUATION_PROMPT},
+                    {"role": "user", "content": "\n".join(lines)},
+                ),
+                "stream": False,
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            self._base_url + "/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        before = time.monotonic()
+        with urllib.request.urlopen(request) as response:
+            raw = json.loads(response.read().decode("utf-8"))
+        seconds = max(1, math.ceil(time.monotonic() - before))
+        finding, reason = _translate_situation(str(raw["message"]["content"]))
+        return finding, reason, 1, seconds
+
+
+_SITUATION_PROMPT = (
+    "あなたは仕事場の状況を読んで、見立てを書く係です。**判断はしません**——"
+    "事実の報告と案だけを書きます。決めるのは人です。\n"
+    "応答は次の2つの行で書いてください。\n"
+    "見立て: 状況を読んだ結果を1〜2文で。数字の羅列ではなく、何が起きていそうかを言う。\n"
+    "理由: そう読んだ根拠を1〜2文で。"
+)
+
+
+def _translate_situation(content: str) -> tuple[str, str]:
+    """見立てと理由の行を剥がす。名乗りが読めなければ全文を見立てに倒す。"""
+    finding, reason = "", ""
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("見立て:") or stripped.startswith("見立て："):
+            finding = stripped.split(":", 1)[-1].split("：", 1)[-1].strip()
+        elif stripped.startswith("理由:") or stripped.startswith("理由："):
+            reason = stripped.split(":", 1)[-1].split("：", 1)[-1].strip()
+    if not finding:
+        finding = content.strip() or "（LLM の応答が空でした）"
+    if not reason:
+        reason = "（理由の名乗りが無かったので、本文全体を見立てとして扱った）"
+    return finding, reason

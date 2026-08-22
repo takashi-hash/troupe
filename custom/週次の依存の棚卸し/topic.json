@@ -1,0 +1,12 @@
+{
+  "instruction": "源にある依存の一覧を読み、更新が来ているものを挙げる。成果には対象期間を必ず書く",
+  "source": "file:custom/週次の依存の棚卸し/deps.txt",
+  "required_terms": ["{対象期間}"],
+  "description": "一覧の日付が今週のものである",
+  "cycle": "weekly",
+  "days": 3,
+  "budget_calls": 20,
+  "budget_seconds": 600,
+  "owner": "座長",
+  "max_retries": 20
+}

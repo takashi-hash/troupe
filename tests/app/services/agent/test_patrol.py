@@ -10,6 +10,7 @@ from domain.events.job.job_failed import JobFailed
 from domain.value_objects.calendar.cycle import Cycle
 from domain.value_objects.job.approval import Approval
 from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.job.reply import Reply
 from domain.value_objects.job.due_date import DueDate
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.job.recheck_date import RecheckDate
@@ -28,14 +29,45 @@ def _見回る(
     帳簿: 帳簿の偽物, 状態読み: 状態読みの偽物, 材料読み: 材料読みの偽物
 ) -> tuple[tuple[JobId, ...], 見立て置き場の偽物]:
     見立て = 見立て置き場の偽物()
-    動いた = patrol(帳簿, 状態読み, 材料読み, 見立て, 固定時計(), by=働き手)
+    動いた = patrol(帳簿, 状態読み, 材料読み, 見立て, 状況読みの偽物(), 固定時計(), by=働き手)
     return 動いた, 見立て
 
 
-def test_落ちた仕事に見立てが付く() -> None:
-    """2つ目が無いと、落ちた仕事に見立てが付かない——状態は変えずに見立てだけ刻む。"""
+class 状況読みの偽物:
+    """巡回の口の偽物——決めた見立てを返す。"""
+
+    def __init__(self, finding: str = "源の在りかが変わった可能性が高い", reason: str = "止まった理由が全部同じ") -> None:
+        self.finding, self.reason = finding, reason
+        self.calls = 0
+
+    def consult(
+        self,
+        instruction: str,
+        criteria_terms: tuple[str, ...],
+        criteria_note: str,
+        source_material: str,
+        answered_questions: tuple[tuple[str, str], ...],
+        previous_result: str | None,
+    ) -> tuple[Reply, int, int]:
+        raise AssertionError("巡回が consult を呼んだ")
+
+    def read_situation(
+        self,
+        situation: str,
+        fall_reasons: tuple[str, ...],
+        previous_result: str | None,
+        sibling_states: tuple[str, ...],
+    ) -> tuple[str, str, int, int]:
+        self.calls += 1
+        return self.finding, self.reason, 1, 3
+
+
+def test_尽きた仕事に見立てが付く() -> None:
+    """2つ目が無いと、落ちた仕事に見立てが付かない——状態は変えずに見立てだけ刻む。
+    引き金は**やり直しが尽きた**（時計がまだ仕分ける仕事は拾わない——実機で
+    1回目の失敗に書いて、やり直し0回のまま古びた）。本文は LLM が状況を読んだ言葉。"""
     帳簿 = 帳簿の偽物()
-    仕事 = make_job(Failed(fallen="源に接続できませんでした"))
+    仕事 = make_job(Failed(fallen="源に接続できませんでした"), retried=20)
     帳簿.jobs[仕事.id] = 仕事
     材料読み = 材料読みの偽物(
         WorkMaterial(
@@ -49,8 +81,8 @@ def test_落ちた仕事に見立てが付く() -> None:
     動いた, 見立て = _見回る(帳簿, 状態読みの偽物({"Failed": (仕事.id,)}), 材料読み)
     assert 動いた == (仕事.id,)
     (行,) = 見立て.rows
-    assert 行[0] == 仕事.id and "源に接続できませんでした" in 行[1].finding
-    assert 行[1].reason  # 理由の空な見立ては型が拒む——中身も入っている
+    assert 行[0] == 仕事.id and 行[1].finding == "源の在りかが変わった可能性が高い"
+    assert 行[1].reason == "止まった理由が全部同じ"  # LLM の読んだ言葉がそのまま届く
     後 = 帳簿.jobs[仕事.id]
     assert isinstance(後.state, Failed)  # 状態は変わらない
     assert [type(e) for e in 帳簿.events] == [AssessmentWritten]
@@ -59,7 +91,7 @@ def test_落ちた仕事に見立てが付く() -> None:
 def test_見立てが既に在れば書かない() -> None:
     """F6——同じ見立てを二度書かない。判定したのは仕様。"""
     帳簿 = 帳簿の偽物()
-    仕事 = make_job(Failed(fallen="源に接続できませんでした"))
+    仕事 = make_job(Failed(fallen="源に接続できませんでした"), retried=20)
     帳簿.jobs[仕事.id] = 仕事
     材料読み = 材料読みの偽物(
         WorkMaterial(
@@ -90,7 +122,7 @@ def test_根拠なしで終わった仕事に見立てが付く() -> None:
     )
     assert 動いた == (仕事.id,)
     (行,) = 見立て.rows
-    assert "根拠" in 行[1].finding
+    assert 行[1].finding == "源の在りかが変わった可能性が高い"  # 本文は LLM の言葉
     assert isinstance(帳簿.jobs[仕事.id].state, FinishedPendingRecheck)  # 状態は変わらない
     assert [type(e) for e in 帳簿.events] == [AssessmentWritten]
 

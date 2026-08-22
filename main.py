@@ -131,7 +131,7 @@ def _agent(za: Ichiza, name: str) -> None:
         )
         print(f"進めた: {took.text}" if outcome is None else f"断り: {outcome.reason}")
     visited = patrol(
-        za.jobs, za.states, za.work, za.assessments, za.clock, by=ai
+        za.jobs, za.states, za.work, za.assessments, za.llm, za.clock, by=ai
     )
     if visited:
         print(f"見立てを書いた: {'、'.join(j.text for j in visited)}")

@@ -27,9 +27,15 @@ def should_assess(
     retried: int,
     max_retries: int,
 ) -> bool:
-    """書くべきなら真。材料が無ければ偽。書いたら偽（F6）。"""
+    """書くべきなら真。**上限に触れた・やり直しが尽きたときだけ**。書いたら偽（F6）。
+
+    止まった理由が在るだけでは書かない——**時計がまだ仕分ける仕事は拾わない**
+    （早く書くと、やり直し0回時点の古い見立てが残る。実機で起きた）。
+    根拠なしで終わった仕事は状態そのものが引き金なので、巡回が状態で拾う
+    （この仕様の材料に状態は無い）。
+    """
     touched = spent.calls >= budget.calls or spent.seconds >= budget.seconds
     exhausted = retried >= max_retries
-    if not (touched or exhausted or stop_reasons):
+    if not (touched or exhausted):
         return False
     return len(assessments) == 0

@@ -1,0 +1,12 @@
+{
+  "instruction": "無い源を読む実験",
+  "source": "file:custom/壊れた棚卸し/存在しない.txt",
+  "required_terms": ["{対象期間}"],
+  "description": "落ちる週の実験",
+  "cycle": "weekly",
+  "days": 1,
+  "budget_calls": 5,
+  "budget_seconds": 60,
+  "owner": "座長",
+  "max_retries": 2
+}

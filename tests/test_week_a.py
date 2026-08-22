@@ -98,6 +98,16 @@ class 台本LLM:
     ) -> tuple[Reply, int, int]:
         return self.replies.pop(0), 1, 12
 
+    def read_situation(
+        self,
+        situation: str,
+        fall_reasons: tuple[str, ...],
+        previous_result: str | None,
+        sibling_states: tuple[str, ...],
+    ) -> tuple[str, str, int, int]:
+        raise AssertionError("この筋書きで巡回の見立ては書かれない")
+
+
 
 class 引用の源:
     """源はいつでも読めて、引用を返す週。"""

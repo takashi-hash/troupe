@@ -41,6 +41,14 @@ class LLMの偽物:
         self.received.append(source_material)
         return self.reply, self.calls, self.seconds
 
+    def read_situation(
+        self,
+        situation: str,
+        fall_reasons: tuple[str, ...],
+        previous_result: str | None,
+        sibling_states: tuple[str, ...],
+    ) -> tuple[str, str, int, int]:
+        raise AssertionError("この筋書きで巡回の見立ては書かれない")
 
 class 源の偽物:
     """材料／引用／読めない、を並べた順に返す。尽きたら最後を繰り返す。"""
