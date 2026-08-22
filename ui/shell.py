@@ -14,21 +14,29 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow
 
-from ui.today import TodayScreen, 押す手, 読む手
+from ui.today import TodayScreen, 押す手, 詳細を読む手, 読む手
 
 
-def make_window(fetch: 読む手 | None = None, act: 押す手 | None = None) -> QMainWindow:
+def make_window(
+    fetch: 読む手 | None = None,
+    act: 押す手 | None = None,
+    detail: 詳細を読む手 | None = None,
+) -> QMainWindow:
     """窓。読む手と押す手を注がれたら今日を挟む。無ければ真っ白のまま。"""
     window = QMainWindow()
     window.setWindowTitle("一座")
     window.resize(720, 560)
     if fetch is not None and act is not None:
-        window.setCentralWidget(TodayScreen(fetch, act))
+        window.setCentralWidget(TodayScreen(fetch, act, detail))
     return window
 
 
-def run(fetch: 読む手 | None = None, act: 押す手 | None = None) -> int:
+def run(
+    fetch: 読む手 | None = None,
+    act: 押す手 | None = None,
+    detail: 詳細を読む手 | None = None,
+) -> int:
     app = QApplication(sys.argv)
-    window = make_window(fetch, act)
+    window = make_window(fetch, act, detail)
     window.show()
     return app.exec()

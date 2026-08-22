@@ -13,10 +13,15 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from domain.value_objects.job.job_id import JobId
 from domain.value_objects.job.today_material import TodayMaterial
 
 
 class TodayReader(Protocol):
+    def read(self, id: JobId) -> TodayMaterial | None:
+        """1件。**終点も引ける**——詳細は終わった仕事も見る。無ければ None。"""
+        ...
+
     def read_all(self) -> tuple[TodayMaterial, ...]:
         """今日の材料をぜんぶ。絞るのは Reader ではなく `judge_today`。"""
         ...

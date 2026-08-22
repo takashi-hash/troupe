@@ -29,6 +29,7 @@ from adapters.ledger.db import open_ledger
 from adapters.ledger.jobs import SqliteJobs
 from adapters.ledger.reading import (
     SqliteActiveRules,
+    SqliteDetail,
     SqliteOverdueMarks,
     SqliteJobStates,
     SqliteOrigins,
@@ -62,6 +63,7 @@ from app.services.human.answer import answer
 from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
 from app.services.human.send_back import send_back
+from app.services.screen.gather_detail import gather_detail
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
@@ -83,6 +85,7 @@ class Ichiza:
         self.active = SqliteActiveRules(self.conn)
         self.work = SqliteWork(self.conn)
         self.today = SqliteToday(self.conn)
+        self.details = SqliteDetail(self.conn)
         self.overdue_marks = SqliteOverdueMarks(self.conn)
         self.clock = SystemClock()
         self.ids = UuidIds()
@@ -214,7 +217,10 @@ def main() -> None:
                 return f"知らない操作です: {what}"
             return None if 断り is None else 断り.reason
 
-        raise SystemExit(run(読む, 押す))  # type: ignore[arg-type]
+        def 詳細(id: str) -> object | None:
+            return gather_detail(za.today, za.details, za.clock, args.viewer, id)
+
+        raise SystemExit(run(読む, 押す, 詳細))  # type: ignore[arg-type]
 
     if args.cmd == "tick":
         _tick(za)

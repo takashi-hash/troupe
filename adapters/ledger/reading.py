@@ -13,6 +13,7 @@ from typing import Any
 
 from adapters.ledger.jobs import load_job, read_events
 from domain.aggregates.job.life import TERMINAL
+from app.ports.detail_reader import DetailMaterial
 from app.ports.work_reader import WorkMaterial
 from domain.value_objects.calendar.cycle import Cycle
 from domain.value_objects.job.assessment import Assessment
@@ -168,6 +169,11 @@ class SqliteToday:
             out.append(self._material(JobId(text=id_text)))
         return tuple(out)
 
+    def read(self, id: JobId) -> TodayMaterial | None:
+        """1件——終点も引ける（read_all だけが終点を運ばない）。"""
+        row = self._conn.execute("SELECT 1 FROM jobs WHERE id = ?", (id.text,)).fetchone()
+        return self._material(id) if row else None
+
     def _material(self, id: JobId) -> TodayMaterial:
         body = self._conn.execute(
             "SELECT body FROM jobs WHERE id = ?", (id.text,)
@@ -223,4 +229,60 @@ class SqliteToday:
             spent=job.spent,
             budget=job.budget,
             owner=job.owner,
+        )
+
+
+class SqliteDetail:
+    """`DetailReader` — 詳細の材料。出来事の列は消えない正本から。"""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def read(self, id: JobId) -> DetailMaterial:
+        events: list[tuple[str, str, str]] = []
+        for at, kind, name, ev_name in self._conn.execute(
+            "SELECT at, by_kind, by_name, name FROM job_events WHERE job_id = ? ORDER BY seq",
+            (id.text,),
+        ).fetchall():
+            誰が = str(name) if name else {"clock": "時計"}.get(str(kind), str(kind))
+            events.append((str(at)[:16].replace("T", " "), 誰が, str(ev_name)))
+        questions: list[tuple[str, str | None]] = []
+        asked: list[str] = []
+        for ev_name, body in read_events(self._conn, id):
+            data = json.loads(body)
+            if ev_name == "QuestionAsked":
+                asked.append(str(data["body"]))
+            elif ev_name == "QuestionAnswered" and asked:
+                questions.append((asked.pop(0), str(data["body"])))
+        questions.extend((q, None) for q in asked)
+        assessments = tuple(
+            (a["finding"], a["reason"])
+            for (raw,) in self._conn.execute(
+                "SELECT body FROM assessments WHERE job_id = ? ORDER BY at", (id.text,)
+            ).fetchall()
+            for a in (json.loads(raw),)
+        )
+        job_row = self._conn.execute(
+            "SELECT body FROM jobs WHERE id = ?", (id.text,)
+        ).fetchone()
+        result: str | None = None
+        quotes: tuple[str, ...] = ()
+        if job_row:
+            job = json.loads(job_row[0])
+            if job.get("result_at"):
+                got = self._conn.execute(
+                    "SELECT body FROM results WHERE at = ?", (job["result_at"],)
+                ).fetchone()
+                result = json.loads(got[0])["body"] if got else None
+            if job.get("evidence_at"):
+                got = self._conn.execute(
+                    "SELECT body FROM evidence WHERE at = ?", (job["evidence_at"],)
+                ).fetchone()
+                quotes = (json.loads(got[0])["quote"],) if got else ()
+        return DetailMaterial(
+            events=tuple(events),
+            questions=tuple(questions),
+            assessments=assessments,
+            result=result,
+            evidence_quotes=quotes,
         )

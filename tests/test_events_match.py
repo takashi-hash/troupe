@@ -58,3 +58,19 @@ def test_出来事は1出来事1ファイル() -> None:
         snake = re.sub(r"(?<!^)([A-Z])", r"_\1", name).lower()
         candidates = list((ROOT / "domain" / "events").rglob(f"{snake}.py"))
         assert candidates, f"{name} のファイル {snake}.py が無い"
+
+
+def test_出来事の語の橋が設計と一致する() -> None:
+    """`EVENT_WORDS` の正本は §5 の表——語も識別子も1対1。"""
+    from domain.events.event import EVENT_WORDS
+
+    doc = (設計 / "仕事が回る筋道.md").read_text(encoding="utf-8")
+    body = doc.split("## 5. ドメインイベント", 1)[1].split("## 6", 1)[0]
+    設計側: dict[str, str] = {}
+    for line in body.splitlines():
+        m = re.match(r"\| \*?\*?([^|*]+?)\*?\*? \| .+ \| `([A-Z][A-Za-z]+)` \|$", line.strip())
+        if m:
+            設計側[m.group(1).strip()] = m.group(2)
+    assert 設計側 == EVENT_WORDS, (
+        f"設計だけ: {set(設計側) - set(EVENT_WORDS)}／橋だけ: {set(EVENT_WORDS) - set(設計側)}"
+    )

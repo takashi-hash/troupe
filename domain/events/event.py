@@ -24,3 +24,32 @@ class Event(Value):
 
     #: 誰が — 起こす者（人・AI・時計）。担当とは別。
     by: Actor
+
+
+#: 日本語⇄識別子の橋（設計 §5 の出来事の欄）。画面の詰め替えと突合が使う。
+EVENT_WORDS: dict[str, str] = {
+    "仕事が頼まれた": "JobRequested",
+    "仕事が作られた": "JobCreated",
+    "仕事が配られた": "JobHandedOut",
+    "着手された": "JobStarted",
+    "手放された": "JobReleased",
+    "時間切れで戻った": "JobTimedOut",
+    "成果が出された": "ResultSubmitted",
+    "検査に通った": "CheckPassed",
+    "検査で止まった": "CheckStopped",
+    "承認された": "Approved",
+    "差し戻された": "SentBack",
+    "終わった": "JobFinished",
+    "確かめ期日が先へ送られた": "RecheckDatePushed",
+    "打ち切られた": "JobAbandoned",
+    "期日を過ぎた": "DueDatePassed",
+    "失敗した": "JobFailed",
+    "もう一度やった": "Retried",
+    "使った量が増えた": "SpentIncreased",
+    "質問された": "QuestionAsked",
+    "答えられた": "QuestionAnswered",
+    "見立てが書かれた": "AssessmentWritten",
+    "版が足された": "RuleVersionAdded",
+    "業務ルールが有効になった": "RuleActivated",
+    "業務ルールが止められた": "RuleDeactivated",
+}

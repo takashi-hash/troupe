@@ -24,6 +24,9 @@ class 読みの偽物:
         self.materials = materials
         self.writes: list[object] = []
 
+    def read(self, id: object) -> TodayMaterial | None:
+        return self.materials[0] if self.materials else None
+
     def read_all(self) -> tuple[TodayMaterial, ...]:
         return self.materials
 

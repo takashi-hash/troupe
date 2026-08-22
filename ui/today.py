@@ -52,13 +52,26 @@ class 押す手(Protocol):
         ...
 
 
+class 詳細を読む手(Protocol):
+    def __call__(self, id: str) -> object | None:
+        """1件の詳細（DetailView）。無ければ None。"""
+        ...
+
+
 class TodayScreen(QWidget):
     """今日の画面。読む手と押す手を注がれて、並べるだけ。"""
 
-    def __init__(self, fetch: 読む手, act: 押す手, refresh_seconds: int = 60) -> None:
+    def __init__(
+        self,
+        fetch: 読む手,
+        act: 押す手,
+        detail: 詳細を読む手 | None = None,
+        refresh_seconds: int = 60,
+    ) -> None:
         super().__init__()
         self._fetch = fetch
         self._act = act
+        self._detail = detail
         self._word = QLabel()
         self._word.setWordWrap(True)
         self._rows_box = QVBoxLayout()
@@ -131,9 +144,24 @@ class TodayScreen(QWidget):
                 lambda _=False, a=action, r=row.id, t=text_input: self._press(a, r, t.text())
             )
             buttons.addWidget(button)
+        if self._detail is not None:
+            詳細 = QPushButton("詳細")
+            詳細.clicked.connect(lambda _=False, r=row.id: self._open_detail(r))
+            buttons.addWidget(詳細)
         box.addLayout(buttons)
         card.setLayout(box)
         return card
+
+    def _open_detail(self, id: str) -> None:
+        from app.dto.detail_view import DetailView
+        from ui.detail import DetailDialog
+
+        view = self._detail(id) if self._detail is not None else None
+        if not isinstance(view, DetailView):
+            self._word.setText("断り: その仕事はもうありません")
+            return
+        DetailDialog(view, self._act, parent=self).exec()
+        self.refresh()
 
     def _press(self, action: str, id: str, text: str) -> None:
         断り = self._act(action, id, text)
