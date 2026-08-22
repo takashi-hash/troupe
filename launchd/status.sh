@@ -9,7 +9,11 @@ for label in org.ichiza.tick org.ichiza.agent; do
   fi
 done
 if curl -s --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
-  echo "ollama: 動いている"
+  if curl -s --max-time 2 http://localhost:11434/api/tags | grep -q "gpt-oss:20b"; then
+    echo "ollama: 動いている（gpt-oss:20b あり）"
+  else
+    echo "ollama: 動いているが gpt-oss:20b が無い（ollama pull gpt-oss:20b）"
+  fi
 else
   echo "ollama: 止まっている（brew services start ollama）"
 fi

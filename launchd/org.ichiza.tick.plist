@@ -6,18 +6,18 @@
   <key>Label</key><string>org.ichiza.tick</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/opt/homebrew/bin/uv</string>
+    <string>__UV__</string>
     <string>run</string>
     <string>--project</string>
-    <string>/Users/hashimototakashi/Ichiza</string>
+    <string>__ROOT__</string>
     <string>python</string>
-    <string>/Users/hashimototakashi/Ichiza/main.py</string>
+    <string>__ROOT__/main.py</string>
     <string>tick</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/hashimototakashi/Ichiza</string>
+  <key>WorkingDirectory</key><string>__ROOT__</string>
   <key>StartInterval</key><integer>300</integer>
   <key>RunAtLoad</key><true/>
-  <key>StandardOutPath</key><string>/Users/hashimototakashi/Ichiza/data/logs/tick.log</string>
-  <key>StandardErrorPath</key><string>/Users/hashimototakashi/Ichiza/data/logs/tick.log</string>
+  <key>StandardOutPath</key><string>__ROOT__/data/logs/tick.log</string>
+  <key>StandardErrorPath</key><string>__ROOT__/data/logs/tick.log</string>
 </dict>
 </plist>
