@@ -14,7 +14,9 @@ from typing import Any
 from adapters.ledger.jobs import load_job, read_events
 from domain.aggregates.job.life import TERMINAL
 from app.ports.detail_reader import DetailMaterial
+from app.ports.history_reader import HistoryEntry
 from app.ports.rule_reader import RuleLine
+from app.ports.search_reader import SearchHit
 from app.ports.work_reader import WorkMaterial
 from domain.value_objects.calendar.cycle import Cycle
 from domain.value_objects.job.assessment import Assessment
@@ -258,6 +260,89 @@ class SqliteDetail:
                 questions.append((asked.pop(0), str(data["body"])))
         questions.extend((q, None) for q in asked)
         return DetailMaterial(events=tuple(events), questions=tuple(questions))
+
+
+class SqliteHistory:
+    """`HistoryReader` — 出来事の列を新しい順に、どの仕事かの材料を添えて。"""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def read_latest(self, limit: int) -> tuple[HistoryEntry, ...]:
+        out: list[HistoryEntry] = []
+        for at, kind, name, ev_name, job_id, rule, period, body in self._conn.execute(
+            "SELECT e.at, e.by_kind, e.by_name, e.name, e.job_id,"
+            " j.rule_name, j.period, j.body"
+            " FROM job_events e JOIN jobs j ON j.id = e.job_id"
+            " ORDER BY e.at DESC, e.seq DESC LIMIT ?",
+            (limit,),
+        ).fetchall():
+            誰が = str(name) if name else {"clock": "時計"}.get(str(kind), str(kind))
+            out.append(
+                HistoryEntry(
+                    at=str(at)[:16].replace("T", " "),
+                    by=誰が,
+                    name=str(ev_name),
+                    job_id=str(job_id),
+                    rule=str(rule) if rule else None,
+                    period=str(period) if period else None,
+                    instruction=json.loads(body)["instruction"]["text"],
+                )
+            )
+        return tuple(out)
+
+
+class SqliteSearch:
+    """`SearchReader` — 絞り込みの条件で仕事を引く。終わったものも含めて（F1）。
+
+    キーワードは識別子・業務ルールの名・対象期間・帳簿の中身（やること等）に当てる。
+    空の条件は絞らない。
+    """
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def read(
+        self,
+        keyword: str | None,
+        state_name: str | None,
+        rule: str | None,
+        assignee: str | None,
+    ) -> tuple[SearchHit, ...]:
+        where: list[str] = []
+        args: list[str] = []
+        if keyword:
+            where.append("(id LIKE ? OR rule_name LIKE ? OR period LIKE ? OR body LIKE ?)")
+            args += [f"%{keyword}%"] * 4
+        if state_name:
+            where.append("state_name = ?")
+            args.append(state_name)
+        if rule:
+            where.append("rule_name LIKE ?")
+            args.append(f"%{rule}%")
+        if assignee:
+            where.append("assignee_name LIKE ?")
+            args.append(f"%{assignee}%")
+        条件 = f" WHERE {' AND '.join(where)}" if where else ""
+        out: list[SearchHit] = []
+        for id_text, rule_name, period, state, assignee_name, body in self._conn.execute(
+            "SELECT id, rule_name, period, state_name, assignee_name, body"
+            f" FROM jobs{条件} ORDER BY id",
+            args,
+        ).fetchall():
+            job = json.loads(body)
+            out.append(
+                SearchHit(
+                    id=str(id_text),
+                    rule=str(rule_name) if rule_name else None,
+                    period=str(period) if period else None,
+                    instruction=job["instruction"]["text"],
+                    state_name=str(state),
+                    due=str(job["due"]["at"]),
+                    assignee_name=str(assignee_name) if assignee_name else None,
+                )
+            )
+        return tuple(out)
 
 
 class SqliteRuleLines:

@@ -31,10 +31,12 @@ from adapters.ledger.jobs import SqliteJobs
 from adapters.ledger.reading import (
     SqliteActiveRules,
     SqliteDetail,
-    SqliteRuleLines,
-    SqliteOverdueMarks,
+    SqliteHistory,
     SqliteJobStates,
     SqliteOrigins,
+    SqliteOverdueMarks,
+    SqliteRuleLines,
+    SqliteSearch,
     SqliteToday,
     SqliteWork,
 )
@@ -66,7 +68,9 @@ from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
+from app.services.screen.gather_history import gather_history
 from app.services.screen.gather_schedule import gather_schedule
+from app.services.screen.gather_search import gather_search
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
@@ -91,6 +95,8 @@ class Ichiza:
         self.details = SqliteDetail(self.conn)
         self.rule_lines = SqliteRuleLines(self.conn)
         self.overdue_marks = SqliteOverdueMarks(self.conn)
+        self.history = SqliteHistory(self.conn)
+        self.search_hits = SqliteSearch(self.conn)
         self.clock = SystemClock()
         self.ids = UuidIds()
         self.source = FileSource(root)
@@ -203,7 +209,8 @@ def main() -> None:
 
     if args.cmd == "window":
         # Qt は窓のときだけ読み込む——launchd の脈に起動コストを載せない。
-        # 窓には手（読む・押す・詳細・予定を読む・決まりを押す）だけを注ぐ——画面は手の中身を知らない。
+        # 窓には手だけを注ぐ——画面は手の中身を知らない。
+        from app.dto.row_filter import RowFilter
         from ui.shell import run
 
         def 読む() -> tuple[object, ...]:
@@ -239,7 +246,15 @@ def main() -> None:
                 return f"知らない操作です: {what}"
             return None if 断り is None else 断り.reason
 
-        raise SystemExit(run(読む, 押す, 詳細, 予定を読む, 決まりを押す))  # type: ignore[arg-type]
+        def 履歴を読む() -> tuple[object, ...]:
+            return gather_history(za.history)
+
+        def 検索する(filter: RowFilter) -> tuple[object, ...]:
+            return gather_search(za.search_hits, filter)
+
+        raise SystemExit(
+            run(読む, 押す, 詳細, 予定を読む, 決まりを押す, 履歴を読む, 検索する)  # type: ignore[arg-type]
+        )
 
     if args.cmd == "tick":
         _tick(za)
