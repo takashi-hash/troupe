@@ -59,6 +59,7 @@ from app.services.human.abandon import abandon
 from app.services.human.activate import activate
 from app.services.human.add_version import add_version
 from app.services.human.answer import answer
+from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
 from app.services.human.send_back import send_back
 from app.services.screen.gather_today import gather_today
@@ -178,6 +179,9 @@ def main() -> None:
     rc.add_argument("--name", required=True)
     rc.add_argument("--version", type=int, required=True)
     rc.add_argument("--by", required=True)
+    rd = sub.add_parser("rule-deactivate")
+    rd.add_argument("--name", required=True)
+    rd.add_argument("--by", required=True)
     act = sub.add_parser("act")
     act.add_argument("what", choices=["approve", "send-back", "answer", "abandon"])
     act.add_argument("--id", required=True)
@@ -207,6 +211,9 @@ def main() -> None:
     elif args.cmd == "rule-activate":
         断り = activate(za.rules, za.clock, args.name, args.version, args.by)
         print("有効にした" if 断り is None else f"断り: {断り.reason}")
+    elif args.cmd == "rule-deactivate":
+        断り = deactivate(za.rules, za.clock, args.name, args.by)
+        print("止めた" if 断り is None else f"断り: {断り.reason}")
     elif args.cmd == "act":
         if args.what == "approve":
             断り = approve(za.jobs, za.clock, args.id, args.by)
