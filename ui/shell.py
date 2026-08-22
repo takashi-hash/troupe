@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget
 
+from ui.schedule import ScheduleScreen, 予定を読む手, 決まりを押す手
 from ui.today import TodayScreen, 押す手, 詳細を読む手, 読む手
 
 
@@ -21,13 +22,20 @@ def make_window(
     fetch: 読む手 | None = None,
     act: 押す手 | None = None,
     detail: 詳細を読む手 | None = None,
+    schedule_fetch: 予定を読む手 | None = None,
+    schedule_act: 決まりを押す手 | None = None,
 ) -> QMainWindow:
-    """窓。読む手と押す手を注がれたら今日を挟む。無ければ真っ白のまま。"""
+    """窓。注がれた手のぶんだけ画面を挟む——押しつけは今日だけ、残りは引き出し（タブ）。"""
     window = QMainWindow()
     window.setWindowTitle("一座")
-    window.resize(720, 560)
+    window.resize(760, 600)
+    tabs = QTabWidget()
     if fetch is not None and act is not None:
-        window.setCentralWidget(TodayScreen(fetch, act, detail))
+        tabs.addTab(TodayScreen(fetch, act, detail), "今日")
+    if schedule_fetch is not None and schedule_act is not None:
+        tabs.addTab(ScheduleScreen(schedule_fetch, schedule_act), "予定")
+    if tabs.count():
+        window.setCentralWidget(tabs)
     return window
 
 
@@ -35,8 +43,10 @@ def run(
     fetch: 読む手 | None = None,
     act: 押す手 | None = None,
     detail: 詳細を読む手 | None = None,
+    schedule_fetch: 予定を読む手 | None = None,
+    schedule_act: 決まりを押す手 | None = None,
 ) -> int:
     app = QApplication(sys.argv)
-    window = make_window(fetch, act, detail)
+    window = make_window(fetch, act, detail, schedule_fetch, schedule_act)
     window.show()
     return app.exec()

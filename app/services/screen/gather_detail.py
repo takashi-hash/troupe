@@ -59,8 +59,7 @@ def gather_detail(
             if material.recheck_at is not None
             else None
         ),
-        question_body=material.question_body,
-        answer_body=material.answer_body,
+        questions=d.questions,
         assessments=tuple((a.finding, a.reason) for a in material.assessments),
         actions=actions,
         events=events,

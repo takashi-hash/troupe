@@ -118,7 +118,8 @@ class TodayScreen(QWidget):
         box = QVBoxLayout()
 
         見出し = row.rule or row.request_head or row.id
-        box.addWidget(_bold(f"{見出し}　{row.period or ''}　［{row.state_name}］　期日 {row.due}"))
+        担当 = f"　担当 {row.assignee_name}" if row.assignee_name else ""
+        box.addWidget(_bold(f"{見出し}　{row.period or ''}　［{row.state_name}］{担当}　期日 {row.due}"))
         if row.question_body:
             box.addWidget(_para(f"質問: {row.question_body}"))
         if row.answer_body:

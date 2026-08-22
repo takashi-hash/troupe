@@ -25,8 +25,8 @@ class DetailView(BaseModel):
     result_body: str | None
     evidence_quote: str | None
     recheck_at: str | None
-    question_body: str | None
-    answer_body: str | None
+    #: 質問と回答の本文——**全部**（新しいものが最後。答えの無い質問は None）
+    questions: tuple[tuple[str, str | None], ...]
     #: 見立て — （本文, そう読んだ理由）の列。そのまま届く。
     assessments: tuple[tuple[str, str], ...]
     actions: tuple[str, ...]

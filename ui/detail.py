@@ -42,10 +42,9 @@ class DetailDialog(QDialog):
             body.addWidget(_para(f"担当: {view.assignee_name}"))
         if view.recheck_at:
             body.addWidget(_para(f"確かめ期日: {view.recheck_at}"))
-        if view.question_body:
-            body.addWidget(_para(f"質問: {view.question_body}"))
-        if view.answer_body:
-            body.addWidget(_para(f"回答: {view.answer_body}"))
+        for 質問, 回答 in view.questions:
+            body.addWidget(_para(f"質問: {質問}"))
+            body.addWidget(_para(f"回答: {回答}" if 回答 is not None else "回答: （まだ）"))
         if view.result_body:
             body.addWidget(_para(f"成果: {view.result_body}"))
         if view.evidence_quote:

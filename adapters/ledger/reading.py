@@ -14,6 +14,7 @@ from typing import Any
 from adapters.ledger.jobs import load_job, read_events
 from domain.aggregates.job.life import TERMINAL
 from app.ports.detail_reader import DetailMaterial
+from app.ports.rule_reader import RuleLine
 from app.ports.work_reader import WorkMaterial
 from domain.value_objects.calendar.cycle import Cycle
 from domain.value_objects.job.assessment import Assessment
@@ -286,3 +287,29 @@ class SqliteDetail:
             result=result,
             evidence_quotes=quotes,
         )
+
+
+class SqliteRuleLines:
+    """`RuleReader` — 業務ルールの一覧。やることは有効な版のもの、無ければ最新。"""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def read_all(self) -> tuple[RuleLine, ...]:
+        out: list[RuleLine] = []
+        for (body,) in self._conn.execute("SELECT body FROM rules ORDER BY name").fetchall():
+            rule = json.loads(body)
+            versions = rule["versions"]
+            active = rule.get("active")
+            picked = next(
+                (v for v in versions if v["number"] == active), versions[-1]
+            )
+            out.append(
+                RuleLine(
+                    name=rule["name"]["text"],
+                    version_number=int(versions[-1]["number"]),
+                    active_version=int(active) if active is not None else None,
+                    instruction=picked["instruction"]["text"],
+                )
+            )
+        return tuple(out)

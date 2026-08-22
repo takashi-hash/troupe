@@ -30,6 +30,7 @@ from adapters.ledger.jobs import SqliteJobs
 from adapters.ledger.reading import (
     SqliteActiveRules,
     SqliteDetail,
+    SqliteRuleLines,
     SqliteOverdueMarks,
     SqliteJobStates,
     SqliteOrigins,
@@ -64,6 +65,7 @@ from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
+from app.services.screen.gather_schedule import gather_schedule
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
@@ -86,6 +88,7 @@ class Ichiza:
         self.work = SqliteWork(self.conn)
         self.today = SqliteToday(self.conn)
         self.details = SqliteDetail(self.conn)
+        self.rule_lines = SqliteRuleLines(self.conn)
         self.overdue_marks = SqliteOverdueMarks(self.conn)
         self.clock = SystemClock()
         self.ids = UuidIds()
@@ -220,7 +223,37 @@ def main() -> None:
         def 詳細(id: str) -> object | None:
             return gather_detail(za.today, za.details, za.clock, args.viewer, id)
 
-        raise SystemExit(run(読む, 押す, 詳細))  # type: ignore[arg-type]
+        def 予定を読む() -> tuple[object, ...]:
+            return gather_schedule(za.rule_lines, za.active, za.origins, za.clock)
+
+        def 決まりを押す(what: str, name: str, version: int, fields: dict[str, str]) -> str | None:
+            if what == "add_version":
+                form = VersionForm(
+                    instruction=fields.get("instruction"),
+                    source=fields.get("source"),
+                    required_terms=(
+                        tuple(t.strip() for t in fields["required_terms"].split("、") if t.strip())
+                        if "required_terms" in fields
+                        else None
+                    ),
+                    description=fields.get("description"),
+                    cycle=fields.get("cycle"),
+                    days=int(fields["days"]) if "days" in fields else None,
+                    budget_calls=int(fields["budget_calls"]) if "budget_calls" in fields else None,
+                    budget_seconds=int(fields["budget_seconds"]) if "budget_seconds" in fields else None,
+                    owner=fields.get("owner"),
+                    max_retries=int(fields["max_retries"]) if "max_retries" in fields else None,
+                )
+                断り = add_version(za.rules, za.topics, za.clock, name, args.viewer, form)
+            elif what == "activate":
+                断り = activate(za.rules, za.clock, name, version, args.viewer)
+            elif what == "deactivate":
+                断り = deactivate(za.rules, za.clock, name, args.viewer)
+            else:
+                return f"知らない操作です: {what}"
+            return None if 断り is None else 断り.reason
+
+        raise SystemExit(run(読む, 押す, 詳細, 予定を読む, 決まりを押す))  # type: ignore[arg-type]
 
     if args.cmd == "tick":
         _tick(za)
