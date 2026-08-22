@@ -67,7 +67,9 @@ def _version(**over: object) -> Version:
 
 def test_同じ中身なら等しい() -> None:
     assert JobId(text="j1") == JobId(text="j1")
-    assert {JobId(text="j1"): 1}[JobId(text="j1")] == 1
+    # frozen が基底クラスにあると pyright が __hash__ を見ない（実物は下で確かめる）
+    assert {JobId(text="j1"): 1}[JobId(text="j1")] == 1  # pyright: ignore[reportUnhashable]
+    assert hash(JobId(text="j1")) == hash(JobId(text="j1"))
 
 
 def test_作ったあと書き換えられない() -> None:

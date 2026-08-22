@@ -16,13 +16,13 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Value(BaseModel):
     """値オブジェクトの共通の義務をここで1度だけ守る。"""
 
-    model_config = {"frozen": True, "extra": "forbid"}
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 def _not_blank(text: str, what: str) -> str:

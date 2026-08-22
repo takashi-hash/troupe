@@ -19,6 +19,7 @@ testpaths = ["tests"]
 # 依存は内向きのみ（設計/どう作るか §4）
 [tool.importlinter]
 root_packages = ["domain", "app", "adapters", "ui"]
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "依存は内向きのみ"
