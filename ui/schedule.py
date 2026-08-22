@@ -2,9 +2,9 @@
 
 設計: 設計/人に見えるもの.md §1「予定」・§3。
 
-**引き出しの画面**（押しつけは今日だけ）。業務ルールの一覧と次の対象期間、
-未作成のものが見える（F1）。押せるのは 版を積む・有効にする・止める・**頼む**——
-人なら誰でも。版の欄は書かなければ**題材のデータが初期値**（依頼発に題材は無い）。
+**引き出しの画面**（押しつけは今日だけ）。業務ルールの一覧と次の対象期間・未作成のもの、
+**作られた仕事の列（終点以外）**が見える（F1）。押せるのは 版を積む・有効にする・止める・
+**頼む**——人なら誰でも。頼んだ直後の仕事は下段の列に見え、行から詳細が開く。
 """
 
 from __future__ import annotations
@@ -27,6 +27,8 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.schedule_row import ScheduleRow
+from app.dto.search_row import SearchRow
+from ui.today import Press, FetchDetail
 from ui.words import ACTION_WORDS
 
 
@@ -43,6 +45,12 @@ class PressRule(Protocol):
 class RequestJob(Protocol):
     def __call__(self, body: str, fields: dict[str, str]) -> str | None:
         """頼む——一度きりの仕事。通れば None、断られたら理由。"""
+        ...
+
+
+class FetchUpcoming(Protocol):
+    def __call__(self) -> tuple[SearchRow, ...]:
+        """作られた仕事の列（終点以外）。"""
         ...
 
 
@@ -92,11 +100,23 @@ class RequestFormDialog(QDialog):
         self._body.setPlaceholderText("頼む中身")
         form.addRow("頼む中身", self._body)
         self._inputs: dict[str, QLineEdit] = {}
+        案内 = {
+            "instruction": "書かなければ頼む中身がそのまま",
+            "source": "書く（例: file:custom/名前/deps.txt）",
+            "required_terms": "書く——成果に必ず入っているべき語",
+            "description": "書かなくてよい",
+            "cycle": "書かなければ 週",
+            "days": "書かなければ 3",
+            "budget_calls": "書かなければ 20",
+            "budget_seconds": "書かなければ 600",
+            "owner": "書かなければ頼んだ人",
+            "max_retries": "書かなければ 2",
+        }
         for key, label in VersionFormDialog.欄:
             if key == "required_terms":
                 label = "必ず含む語（読点区切り。依頼発に {対象期間} は書けない）"
             edit = QLineEdit()
-            edit.setPlaceholderText("依頼発に題材は無い——書く")
+            edit.setPlaceholderText(案内.get(key, "書く"))
             self._inputs[key] = edit
             form.addRow(label, edit)
         頼む = QPushButton("頼む")
@@ -115,12 +135,21 @@ class ScheduleScreen(QWidget):
     """予定の画面。読む手と押す手を注がれて並べるだけ。"""
 
     def __init__(
-        self, fetch: FetchSchedule, act: PressRule, request: RequestJob | None = None
+        self,
+        fetch: FetchSchedule,
+        act: PressRule,
+        request: RequestJob | None = None,
+        upcoming: FetchUpcoming | None = None,
+        press: Press | None = None,
+        detail: FetchDetail | None = None,
     ) -> None:
         super().__init__()
         self._fetch = fetch
         self._act = act
         self._request = request
+        self._upcoming = upcoming
+        self._press_job = press
+        self._detail = detail
         self._word = QLabel()
         self._word.setWordWrap(True)
         self._rows_box = QVBoxLayout()
@@ -147,6 +176,7 @@ class ScheduleScreen(QWidget):
             item = self._rows_box.takeAt(0)
             widget = item.widget() if item is not None else None
             if widget is not None:
+                widget.setParent(None)  # すぐ画面から外す——deleteLater 待ちの重なりを見せない
                 widget.deleteLater()
         rows = self._fetch()
         if not rows:
@@ -158,6 +188,7 @@ class ScheduleScreen(QWidget):
                 頼む = QPushButton(f"{ACTION_WORDS['request']}（一度きりの仕事）")
                 頼む.clicked.connect(self._ask_request)
                 self._rows_box.addWidget(頼む)
+            self._show_upcoming()
             return
         self._word.setText(f"業務ルール: {len(rows)}件")
         for row in rows:
@@ -169,6 +200,7 @@ class ScheduleScreen(QWidget):
             頼む = QPushButton(f"{ACTION_WORDS['request']}（一度きりの仕事）")
             頼む.clicked.connect(self._ask_request)
             self._rows_box.addWidget(頼む)
+        self._show_upcoming()
 
     def _card(self, row: ScheduleRow) -> QFrame:
         card = QFrame()
@@ -215,6 +247,44 @@ class ScheduleScreen(QWidget):
         if not 欄.exec():
             return
         self._press("add_version", 名前, 0, 欄.fields())
+
+    def _show_upcoming(self) -> None:
+        """作られた仕事の列（終点以外）。頼んだ直後の行方がここに見える。"""
+        if self._upcoming is None:
+            return
+        jobs = self._upcoming()
+        見出し = QLabel(f"── 来ている仕事: {len(jobs)}件（終点以外） ──")
+        見出し.setWordWrap(True)
+        self._rows_box.addWidget(見出し)
+        for job in jobs:
+            line = QWidget()
+            box = QHBoxLayout()
+            box.setContentsMargins(0, 0, 0, 0)
+            担当 = f"　担当 {job.assignee_name}" if job.assignee_name else ""
+            文 = f"{job.head}　［{job.state_name}］{担当}　期日 {job.due}"
+            if len(文) > 80:
+                文 = 文[:80] + "…"  # 折り返さない——全文は行の詳細で読める
+            label = QLabel(文)
+            label.setWordWrap(False)
+            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            box.addWidget(label, stretch=1)
+            if self._detail is not None and self._press_job is not None:
+                詳細 = QPushButton("詳細")
+                詳細.clicked.connect(lambda _=False, r=job.id: self._open_detail(r))
+                box.addWidget(詳細)
+            line.setLayout(box)
+            self._rows_box.addWidget(line)
+
+    def _open_detail(self, id: str) -> None:
+        from app.dto.detail_view import DetailView
+        from ui.detail import DetailDialog
+
+        view = self._detail(id) if self._detail is not None else None
+        if not isinstance(view, DetailView) or self._press_job is None:
+            self._word.setText("断り: その仕事はもうありません")
+            return
+        DetailDialog(view, self._press_job, parent=self).exec()
+        self.refresh()
 
     def _ask_request(self) -> None:
         if self._request is None:

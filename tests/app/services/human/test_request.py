@@ -95,3 +95,29 @@ def test_数に読めない欄は断りに変わる_窓は落ちない() -> None
     )
     assert 断り is not None and "終えるまでの日数" in 断り.reason  # 断りも用語集の語で
     assert not 帳簿.jobs and not 帳簿.events
+
+
+def test_人が書くのは3つだけ_残りは既定が効く() -> None:
+    """頼む中身・源・必ず含む語だけで頼める（筋道 §1 の既定）。"""
+    帳簿 = 帳簿の偽物()
+    断り = request_from_fields(
+        帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="今週の依存も棚卸しして",
+        fields={"source": "file:custom/deps.txt", "required_terms": "依存"},
+    )
+    assert 断り is None
+    仕事 = next(iter(帳簿.jobs.values()))
+    assert 仕事.instruction.text == "今週の依存も棚卸しして"  # やること=頼む中身
+    assert 仕事.owner.person.name == 座長.name  # 受け持ち=頼んだ人
+    assert 仕事.cycle.value == "weekly" and 仕事.max_retries == 2
+    assert 仕事.budget.calls == 20 and 仕事.budget.seconds == 600
+
+
+def test_中身が空なら断りは義務の文言だけ() -> None:
+    """pydantic の生ダンプを画面に出さない。"""
+    帳簿 = 帳簿の偽物()
+    断り = request_from_fields(
+        帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="",
+        fields={"source": "file:custom/deps.txt", "required_terms": "依存"},
+    )
+    assert 断り is not None
+    assert 断り.reason == "依頼の中身が空です"

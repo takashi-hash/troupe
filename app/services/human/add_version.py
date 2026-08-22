@@ -16,7 +16,7 @@ from __future__ import annotations
 from app.dto.version_form import VersionForm
 from app.ports.clock_port import ClockPort
 from app.ports.topic_port import TopicPort
-from app.services.refusal import Refusal
+from app.services.refusal import Refusal, reason_of
 from domain.aggregates.rule import add_version as 版積み
 from domain.repositories.rule_repository import RuleRepository
 from domain.value_objects.people.human import Human
@@ -127,7 +127,7 @@ def add_version_from_fields(
     try:
         form = form_from_fields(fields)
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     return add_version(rules, topics, clock, name, by, form)
 
 
@@ -147,7 +147,7 @@ def add_version(
     try:
         鍵, 人 = RuleName(text=name), Human(name=by)
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     base = topics.read(鍵)
     rule = rules.load(鍵)
     last = 0 if rule is None else rule.versions[-1].number
@@ -166,6 +166,6 @@ def add_version(
         )
         next_rule, event = 版積み.add_version(rule, 鍵, version, by=人, now=clock.now())
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     rules.save(next_rule, (event,))
     return None

@@ -93,6 +93,7 @@ class TodayScreen(QWidget):
             item = self._rows_box.takeAt(0)
             widget = item.widget() if item is not None else None
             if widget is not None:
+                widget.setParent(None)  # すぐ画面から外す——deleteLater 待ちの重なりを見せない
                 widget.deleteLater()
         rows = self._fetch()
         if not rows:
@@ -165,9 +166,9 @@ class TodayScreen(QWidget):
 
     def _press(self, action: str, id: str, text: str) -> None:
         断り = self._act(action, id, text)
-        self._word.setText(f"断り: {断り}" if 断り else f"{ACTION_WORDS.get(action, action)} — できた")
         if not 断り:
-            self.refresh()
+            self.refresh()  # 開き直しが先——結果の言葉を上書きで消さない
+        self._word.setText(f"断り: {断り}" if 断り else f"{ACTION_WORDS.get(action, action)} — できた")
 
 
 def _bold(text: str) -> QLabel:

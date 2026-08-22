@@ -64,3 +64,21 @@ def test_止まっている業務ルールに次の対象期間は無い() -> No
     (行,) = gather_schedule(一覧の偽物(_line(active=None)), 有効の偽物(), 鍵の偽物(), 固定時計())
     assert 行.next_period is None
     assert 行.actions == ("add_version", "activate")  # 止めるは有効なときだけ
+
+
+def test_来ている仕事の列が語と見出しで出る() -> None:
+    """予定の下段——頼んだ直後の行方がここに見える（§1 予定の正本）。"""
+    from app.services.screen.gather_schedule import gather_upcoming
+    from tests.services.conftest import make_material
+
+    class 今日読みの偽物:
+        def read(self, id):  # type: ignore[no-untyped-def]
+            return None
+
+        def read_all(self):  # type: ignore[no-untyped-def]
+            return (make_material(),)
+
+    rows = gather_upcoming(今日読みの偽物())
+    assert rows[0].head == "週次の依存の棚卸し　2026-W34"
+    assert rows[0].state_name == "承認待ち"  # 画面に出るのは用語集の語そのまま
+    assert rows[0].instruction

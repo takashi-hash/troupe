@@ -67,6 +67,7 @@ class HistoryScreen(QWidget):
             item = self._rows_box.takeAt(0)
             widget = item.widget() if item is not None else None
             if widget is not None:
+                widget.setParent(None)  # すぐ画面から外す——deleteLater 待ちの重なりを見せない
                 widget.deleteLater()
         rows = self._fetch()
         if not rows:
@@ -80,8 +81,11 @@ class HistoryScreen(QWidget):
         line = QWidget()
         box = QHBoxLayout()
         box.setContentsMargins(0, 0, 0, 0)
-        label = QLabel(f"{row.at}　{row.by}　{row.what}　— {row.head}")
-        label.setWordWrap(True)
+        文 = f"{row.at}　{row.by}　{row.what}　— {row.head}"
+        if len(文) > 80:
+            文 = 文[:80] + "…"  # 折り返さない——全文は行の詳細で読める
+        label = QLabel(文)
+        label.setWordWrap(False)
         label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         box.addWidget(label, stretch=1)
         if self._detail is not None and self._act is not None:

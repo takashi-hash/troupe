@@ -71,7 +71,7 @@ from app.services.human.request import request_from_fields
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
 from app.services.screen.gather_history import gather_history
-from app.services.screen.gather_schedule import gather_schedule
+from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
 from app.services.screen.gather_search import gather_search
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
@@ -259,8 +259,11 @@ def main() -> None:
             断り = request_from_fields(za.jobs, za.ids, za.clock, args.viewer, body, fields)
             return None if 断り is None else 断り.reason
 
+        def 来ている仕事を読む() -> tuple[object, ...]:
+            return gather_upcoming(za.today)
+
         raise SystemExit(
-            run(読む, 押す, 詳細, 予定を読む, 決まりを押す, 履歴を読む, 検索する, 頼む)  # type: ignore[arg-type]
+            run(読む, 押す, 詳細, 予定を読む, 決まりを押す, 履歴を読む, 検索する, 頼む, 来ている仕事を読む)  # type: ignore[arg-type]
         )
 
     if args.cmd == "tick":

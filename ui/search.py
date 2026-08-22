@@ -81,6 +81,7 @@ class SearchScreen(QWidget):
             item = self._rows_box.takeAt(0)
             widget = item.widget() if item is not None else None
             if widget is not None:
+                widget.setParent(None)  # すぐ画面から外す——deleteLater 待ちの重なりを見せない
                 widget.deleteLater()
         条件 = RowFilter(
             keyword=self._keyword.text().strip() or None,

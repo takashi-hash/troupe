@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from app.ports.clock_port import ClockPort
-from app.services.refusal import Refusal
+from app.services.refusal import Refusal, reason_of
 from domain.aggregates.job import send_back as 差し戻し
 from domain.aggregates.job.life import (
     AwaitingApproval,
@@ -35,7 +35,7 @@ def send_back(jobs: JobRepository, clock: ClockPort, id: str, by: str, reason: s
         鍵 = JobId(text=id)
         sb = SendBack(by=Human(name=by), reason=reason)
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     job = jobs.load(鍵)
     if job is None:
         return Refusal(reason="その仕事はもうありません")
@@ -44,6 +44,6 @@ def send_back(jobs: JobRepository, clock: ClockPort, id: str, by: str, reason: s
     try:
         next_job, event = 差し戻し.send_back(job, sb, now=clock.now())
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     jobs.save(next_job, (event,))
     return None

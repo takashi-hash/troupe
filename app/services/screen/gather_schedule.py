@@ -11,13 +11,19 @@
 from __future__ import annotations
 
 from app.dto.schedule_row import ScheduleRow
+from app.dto.search_row import SearchRow
 from app.ports.active_rule_reader import ActiveRuleReader
 from app.ports.clock_port import ClockPort
 from app.ports.origin_reader import OriginReader
 from app.ports.rule_reader import RuleReader
+from app.ports.today_reader import TodayReader
+from app.services.screen.gather_history import heading
+from domain.aggregates.job.life import STATE_WORDS
 from domain.services.reconcile import reconcile
 from domain.services.rule_allowed import rule_allowed
 from domain.value_objects.calendar.period import Period
+
+_状態の語 = {ident: word for word, ident in STATE_WORDS.items()}
 
 
 def gather_schedule(
@@ -56,3 +62,26 @@ def gather_schedule(
             )
         )
     return tuple(rows)
+
+
+def gather_upcoming(today: TodayReader) -> tuple[SearchRow, ...]:
+    """作られた仕事の列（終点以外——一覧の読みが運ぶ範囲そのまま）。予定の下段。
+
+    頼んだ直後の仕事がここに見える——**押して何も起きないのが一番わるい**（§3）。
+    """
+    return tuple(
+        SearchRow(
+            id=m.id.text,
+            head=heading(
+                m.rule.text if m.rule is not None else None,
+                m.period.text if m.period is not None else None,
+                m.request_head or m.instruction.text,
+            ),
+            period=m.period.text if m.period is not None else None,
+            instruction=m.instruction.text,
+            state_name=_状態の語[m.state_name],
+            due=m.due.at.isoformat()[:16].replace("T", " "),
+            assignee_name=m.assignee_name,
+        )
+        for m in today.read_all()
+    )

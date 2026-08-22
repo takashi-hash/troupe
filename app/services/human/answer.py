@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from app.ports.clock_port import ClockPort
-from app.services.refusal import Refusal
+from app.services.refusal import Refusal, reason_of
 from domain.aggregates.job import answer as 回答
 from domain.aggregates.job.life import AwaitingAnswer
 from domain.repositories.job_repository import JobRepository
@@ -34,7 +34,7 @@ def answer(
         鍵 = JobId(text=id)
         ans = Answer(by=Human(name=by), body=body)
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     job = jobs.load(鍵)
     if job is None:
         return Refusal(reason="その仕事はもうありません")
@@ -43,7 +43,7 @@ def answer(
     try:
         next_job, event = 回答.answer(job, ans, now=clock.now())
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     questions.put_answer(job.state.question_at, ans)
     jobs.save(next_job, (event,))
     return None

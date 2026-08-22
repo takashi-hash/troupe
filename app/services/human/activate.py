@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from app.ports.clock_port import ClockPort
-from app.services.refusal import Refusal
+from app.services.refusal import Refusal, reason_of
 from domain.aggregates.rule import activate as 有効化
 from domain.repositories.rule_repository import RuleRepository
 from domain.value_objects.people.human import Human
@@ -29,13 +29,13 @@ def activate(
     try:
         鍵, 人 = RuleName(text=name), Human(name=by)
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     rule = rules.load(鍵)
     if rule is None:
         return Refusal(reason="その業務ルールはありません")
     try:
         next_rule, event = 有効化.activate(rule, version, by=人, now=clock.now())
     except ValueError as なぜ:
-        return Refusal(reason=str(なぜ))
+        return Refusal(reason=reason_of(なぜ))
     rules.save(next_rule, (event,))
     return None
