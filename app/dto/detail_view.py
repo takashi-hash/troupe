@@ -10,11 +10,13 @@
 from __future__ import annotations
 
 from app.dto.event_row import EventRow
-from domain.obligations import Value
+from pydantic import BaseModel, ConfigDict
 
 
-class DetailView(Value):
+class DetailView(BaseModel):
     """詳細 — 1仕事1枚。出来事の列は出来事の行で持つ。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     state_name: str

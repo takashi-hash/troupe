@@ -10,11 +10,13 @@
 
 from __future__ import annotations
 
-from domain.obligations import Value
+from pydantic import BaseModel, ConfigDict
 
 
-class TodayRow(Value):
+class TodayRow(BaseModel):
     """今日の行 — 1仕事1行。`gather_today` が 材料 → 仕様 → 行 の順に詰め替える。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     rule: str | None

@@ -9,11 +9,13 @@
 
 from __future__ import annotations
 
-from domain.obligations import Value
+from pydantic import BaseModel, ConfigDict
 
 
-class ScheduleRow(Value):
+class ScheduleRow(BaseModel):
     """予定の行 — 1業務ルール1行。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     rule: str
     instruction: str

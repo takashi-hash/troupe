@@ -8,11 +8,13 @@
 
 from __future__ import annotations
 
-from domain.obligations import Value
+from pydantic import BaseModel, ConfigDict
 
 
-class RowFilter(Value):
+class RowFilter(BaseModel):
     """絞り込みの条件 — 欄はどれも文字。空なら絞らない。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     keyword: str | None = None
     state_label: str | None = None

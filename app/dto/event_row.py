@@ -8,11 +8,13 @@
 
 from __future__ import annotations
 
-from domain.obligations import Value
+from pydantic import BaseModel, ConfigDict
 
 
-class EventRow(Value):
+class EventRow(BaseModel):
     """出来事の行 — 1出来事1行。"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     at: str
     by: str
