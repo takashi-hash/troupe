@@ -14,7 +14,7 @@ for name in tick agent; do
   launchctl unload ~/Library/LaunchAgents/org.ichiza.$name.plist 2>/dev/null || true
   launchctl load ~/Library/LaunchAgents/org.ichiza.$name.plist
 done
-echo "配線した: 時計の脈・AI の脈（5分ごと）"
+echo "配線した: 時計の脈・AI の脈（心拍60秒＋帳簿が変わった瞬間に即応）"
 
 # LLM の道具——起こすだけ。モデルは人に入れてもらう（13GB は黙って引かない）
 if command -v ollama >/dev/null 2>&1; then

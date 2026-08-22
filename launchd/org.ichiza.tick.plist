@@ -15,7 +15,12 @@
     <string>tick</string>
   </array>
   <key>WorkingDirectory</key><string>__ROOT__</string>
-  <key>StartInterval</key><integer>300</integer>
+  <!-- 心拍は60秒。加えて帳簿（WAL）が変わった瞬間にも起きる——
+       呼ばれずに来る、の実装。空振りは書かないので連鎖はすぐ静まる
+       （launchd の既定 ThrottleInterval 10秒が暴走も防ぐ）。 -->
+  <key>StartInterval</key><integer>60</integer>
+  <key>WatchPaths</key>
+  <array><string>__ROOT__/data/ichiza.db-wal</string></array>
   <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>__ROOT__/data/logs/tick.log</string>
   <key>StandardErrorPath</key><string>__ROOT__/data/logs/tick.log</string>
