@@ -28,7 +28,7 @@ include_external_packages = true
 [[tool.importlinter.contracts]]
 name = "業務ルールは仕事を知らない（集約の境界）"
 type = "layers"
-layers = ["domain.job", "domain.rule", "domain.calendar | domain.people", "domain.obligations"]
+layers = ["domain.values.job", "domain.values.rule", "domain.values.calendar | domain.values.people", "domain.obligations"]
 
 [[tool.importlinter.contracts]]
 name = "domain は外の道具を知らない"
