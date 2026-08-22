@@ -1,0 +1,37 @@
+[project]
+name = "ichiza"
+version = "0.1.0"
+description = "一座 — AI が仕事を回し、判断は人間が持つ仕事場"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.9"]
+
+[dependency-groups]
+dev = ["pytest>=8", "pyright>=1.1.380", "import-linter>=2.0"]
+
+[tool.pyright]
+include = ["domain", "tests"]
+strict = ["domain"]
+reportMissingTypeStubs = false
+# pyright は pydantic の frozen を hashable と見ない（明示した __hash__ も見ない）。
+# 値オブジェクトはすべて frozen なので、この規則はここでは必ず偽陽性になる。
+# **実物は tests が確かめる**——道具の見落としに合わせて義務の側を曲げない。
+reportUnhashable = "none"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_packages = ["domain"]
+include_external_packages = true
+
+# 集約の境界。仕事は版から**写す**——だから import はこの一方向にしか流れない。
+[[tool.importlinter.contracts]]
+name = "業務ルールは仕事を知らない（集約の境界）"
+type = "layers"
+layers = ["domain.job", "domain.rule", "domain.calendar | domain.people", "domain.obligations"]
+
+[[tool.importlinter.contracts]]
+name = "domain は外の道具を知らない"
+type = "forbidden"
+source_modules = ["domain"]
+forbidden_modules = ["sqlite3", "urllib", "random", "os", "time"]
