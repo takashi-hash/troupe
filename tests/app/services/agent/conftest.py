@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from app.ports.source_port import Material, Quote, Unreadable
+from app.ports.source_port import Quote, Unreadable
 from app.ports.work_reader import WorkMaterial
 from domain.value_objects.job.answer import Answer
 from domain.value_objects.job.assessment import Assessment
@@ -45,11 +45,11 @@ class LLMの偽物:
 class 源の偽物:
     """材料／引用／読めない、を並べた順に返す。尽きたら最後を繰り返す。"""
 
-    def __init__(self, *outcomes: Material | Quote | Unreadable) -> None:
+    def __init__(self, *outcomes: Quote | Unreadable) -> None:
         self.outcomes = outcomes
         self.reads = 0
 
-    def read(self, source: Source) -> Material | Quote | Unreadable:
+    def read(self, source: Source) -> Quote | Unreadable:
         outcome = self.outcomes[min(self.reads, len(self.outcomes) - 1)]
         self.reads += 1
         return outcome

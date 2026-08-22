@@ -220,3 +220,4 @@ def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 終わったあとの今日は空——済んだものを出さない（F6）
     assert gather_today(today, 時計, viewer="座長") == ()
+    conn.close()

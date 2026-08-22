@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.ports.source_port import Material, Quote, Unreadable
+from app.ports.source_port import Quote, Unreadable
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.rule.source import Source as 源の型
 from app.ports.work_reader import WorkMaterial
 from app.services.agent.consult import consult
 from app.services.refusal import Refusal
@@ -34,7 +36,7 @@ from tests.app.services.agent.conftest import (
 
 # AI が承認を呼べないことは型が守っている——approve の by は Human で、Agent を渡す行は pyright が赤にする。
 
-材料 = Material(text="依存は42件、うち更新が来ているのは3件")
+材料 = Quote(evidence=Evidence(quote="依存は42件、うち更新が来ているのは3件", source=源の型(location="file:custom/deps.txt")))
 引用 = Quote(evidence=Evidence(quote="更新3件: a, b, c", source=Source(location="deps://prod")))
 
 
@@ -93,9 +95,10 @@ def test_成果と根拠を積む() -> None:
 
 
 def test_引用が取れなければ根拠なしで出す() -> None:
+    """1回目は読めたのに、根拠の取り直しで源が閉じた——それでも成果は出る。"""
     帳簿, 仕事 = _実行中の仕事()
     llm = LLMの偽物(Reply(mark=Mark.RESULT, body="2026-W34 の依存は42件、更新3件"))
-    断り, _, _, 根拠, _ = _進める(帳簿, 仕事, 源の偽物(材料), llm)
+    断り, _, _, 根拠, _ = _進める(帳簿, 仕事, 源の偽物(材料, Unreadable(reason="源が閉じた")), llm)
     assert 断り is None
     後 = 帳簿.jobs[仕事.id]
     assert isinstance(後.state, Submitted) and 後.evidence_at is None

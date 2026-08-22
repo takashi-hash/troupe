@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
-
 from adapters.ledger.db import open_ledger
 from adapters.ledger.jobs import SqliteJobs
 from domain.aggregates.job.approve import approve
@@ -18,26 +16,30 @@ from tests.aggregates.job.conftest import make_job, 座長
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 
 
-def _帳簿(tmp_path):  # type: ignore[no-untyped-def]
-    return SqliteJobs(open_ledger(tmp_path / "ichiza.db"))
+import pytest
 
 
-def test_積んで読み直すと同じ姿が返る(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    帳簿 = _帳簿(tmp_path)
+@pytest.fixture
+def 帳簿(tmp_path):  # type: ignore[no-untyped-def]
+    conn = open_ledger(tmp_path / "ichiza.db")
+    yield SqliteJobs(conn)
+    conn.close()
+
+
+def test_積んで読み直すと同じ姿が返る(帳簿) -> None:  # type: ignore[no-untyped-def]
     仕事 = make_job(Ready())
     帳簿.save(仕事, (JobHandedOut(at=いま, by=Clock()),))
     assert 帳簿.load(仕事.id) == 仕事
 
 
-def test_出来事なしでは書けない(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_出来事なしでは書けない(帳簿) -> None:  # type: ignore[no-untyped-def]
     """I1 — 書き込みの門。"""
     with pytest.raises(ValueError, match="I1"):
-        _帳簿(tmp_path).save(make_job(Ready()), ())
+        帳簿.save(make_job(Ready()), ())
 
 
-def test_同じ作成元の仕事は二度書けない(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_同じ作成元の仕事は二度書けない(帳簿) -> None:  # type: ignore[no-untyped-def]
     """I3 — 帳簿の一意の鍵。"""
-    帳簿 = _帳簿(tmp_path)
     帳簿.save(make_job(Ready()), (JobHandedOut(at=いま, by=Clock()),))
     from domain.value_objects.job.job_id import JobId
 
@@ -49,7 +51,8 @@ def test_同じ作成元の仕事は二度書けない(tmp_path) -> None:  # typ
 def test_先に進んだ帳簿には書けない(tmp_path) -> None:  # type: ignore[no-untyped-def]
     """楽観ロックは adapters の中——黙って上書きしない。"""
     db = tmp_path / "ichiza.db"
-    甲, 乙 = SqliteJobs(open_ledger(db)), SqliteJobs(open_ledger(db))
+    conn甲, conn乙 = open_ledger(db), open_ledger(db)
+    甲, 乙 = SqliteJobs(conn甲), SqliteJobs(conn乙)
     仕事 = make_job(AwaitingApproval(assignee=Owner(person=座長)), result_at="r://1")
     甲.save(仕事, (JobHandedOut(at=いま, by=Clock()),))
     a = 甲.load(仕事.id)
@@ -60,9 +63,10 @@ def test_先に進んだ帳簿には書けない(tmp_path) -> None:  # type: ign
     次2, 出来事2 = approve(b, by=座長, now=いま)
     with pytest.raises(RuntimeError, match="読み直して"):
         乙.save(次2, (出来事2,))
+    conn甲.close()
+    conn乙.close()
 
 
-def test_無い仕事は_None(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    帳簿 = _帳簿(tmp_path)
+def test_無い仕事は_None(帳簿) -> None:  # type: ignore[no-untyped-def]
     仕事 = make_job(Ready())
     assert 帳簿.load(仕事.id) is None

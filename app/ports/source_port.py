@@ -2,7 +2,7 @@
 
 設計: 設計/仕事が回る筋道.md §4。
 | `SourcePort` | Port | 源から読む。**源の言葉を業務の語へ翻訳**（腐敗防止層）。
-出口は**材料・引用・読めなかった理由**の3つ | **app** | adapters |
+出口は**引用・読めなかった理由**の2つ | **app** | adapters |
 `consult`・`submit`・**`confirm`**（根拠の引用を取る） |
 
 **出口の3すくみは domain の値ではない**——業務の一生に残る前の、読みの結果だから。
@@ -20,18 +20,6 @@ from pydantic import Field, model_validator
 from domain.obligations import Value, not_blank
 from domain.value_objects.job.evidence import Evidence
 from domain.value_objects.rule.source import Source
-
-
-class Material(Value):
-    """材料 — 源から読めた中身。LLM へ渡る文字。"""
-
-    kind: Literal["material"] = "material"
-    text: str
-
-    @model_validator(mode="after")
-    def _obligations(self) -> Self:
-        not_blank(self.text, "源から読んだ材料")
-        return self
 
 
 class Quote(Value):
@@ -54,7 +42,7 @@ class Unreadable(Value):
 
 
 #: 出口の3すくみ — 材料・引用・読めなかった理由。**4つ目は無い。**
-SourceOutcome = Annotated[Material | Quote | Unreadable, Field(discriminator="kind")]
+SourceOutcome = Annotated[Quote | Unreadable, Field(discriminator="kind")]
 
 
 class SourcePort(Protocol):

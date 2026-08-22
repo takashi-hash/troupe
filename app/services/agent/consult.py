@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from app.ports.clock_port import ClockPort
 from app.ports.llm_port import LlmPort
-from app.ports.source_port import Material, Quote, SourcePort, Unreadable
+from app.ports.source_port import Quote, SourcePort, Unreadable
 from app.ports.work_reader import WorkReader
 from app.services.refusal import Refusal
 from domain.aggregates.job import ask as 尋ねる
@@ -67,7 +67,7 @@ def consult(
         fallen_job, fell = 落ちる.fail(job, fallen=outcome.reason, now=clock.now())
         jobs.save(fallen_job, (fell,))
         return None
-    source_material = outcome.text if isinstance(outcome, Material) else outcome.evidence.quote
+    source_material = outcome.evidence.quote
 
     # 集約の外の材料と合わせて LLM へ。
     material = work.read(id)

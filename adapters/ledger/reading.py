@@ -137,6 +137,19 @@ class SqliteWork:
         )
 
 
+class SqliteOverdueMarks:
+    """`OverdueMarkReader` — 既に「期日を過ぎた」の印が刻まれた仕事。二度目を刻まない。"""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def marked_ids(self) -> frozenset[JobId]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT job_id FROM job_events WHERE name = 'DueDatePassed'"
+        ).fetchall()
+        return frozenset(JobId(text=str(r[0])) for r in rows)
+
+
 class SqliteToday:
     """`TodayReader` — 今日の材料（仕様が見る domain の値）。終点は運ばない。"""
 
