@@ -14,9 +14,9 @@ from app.ports.clock_port import ClockPort
 from app.services.refusal import Refusal
 from domain.aggregates.job import approve as 承認
 from domain.aggregates.job.life import AwaitingApproval
-from domain.ledger.job_repository import JobRepository
-from domain.values.job.job_id import JobId
-from domain.values.people.human import Human
+from domain.repositories.job_repository import JobRepository
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.people.human import Human
 
 
 def approve(jobs: JobRepository, clock: ClockPort, id: JobId, by: Human) -> Refusal | None:

@@ -11,11 +11,11 @@ from domain.events.job.check_passed import CheckPassed
 from domain.events.job.check_stopped import CheckStopped
 from domain.events.job.job_failed import JobFailed
 from domain.events.job.retried import Retried
-from domain.values.job.origin import Origin
-from domain.values.people.agent import Agent
-from domain.values.people.clock import Clock
-from domain.values.people.owner import Owner
-from domain.values.rule.criteria import AcceptanceCriteria
+from domain.value_objects.job.origin import Origin
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.clock import Clock
+from domain.value_objects.people.owner import Owner
+from domain.value_objects.rule.criteria import AcceptanceCriteria
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 一号 = Agent(name="一号")

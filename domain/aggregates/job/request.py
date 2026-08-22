@@ -17,12 +17,12 @@ from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import Created
 from domain.events.job.job_created import JobCreated
 from domain.events.job.job_requested import JobRequested
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
-from domain.values.job.origin import Origin
-from domain.values.job.request import Request
-from domain.values.job.spent import Spent
-from domain.values.rule.copied import Copied
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.origin import Origin
+from domain.value_objects.job.request import Request
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.rule.copied import Copied
 
 
 def request(

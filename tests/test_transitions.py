@@ -22,10 +22,10 @@ from typing import get_args, get_origin, get_overloads, get_type_hints
 
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import STATE_WORDS
-from domain.values.job.answer import Answer
-from domain.values.job.request import Request
-from domain.values.job.send_back import SendBack
-from domain.values.people.human import Human
+from domain.value_objects.job.answer import Answer
+from domain.value_objects.job.request import Request
+from domain.value_objects.job.send_back import SendBack
+from domain.value_objects.people.human import Human
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 設計 = ROOT / "設計"

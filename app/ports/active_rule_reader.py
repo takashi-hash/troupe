@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from domain.values.calendar.cycle import Cycle
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.rule.rule_name import RuleName
 
 
 class ActiveRuleReader(Protocol):

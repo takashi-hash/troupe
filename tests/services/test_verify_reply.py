@@ -8,9 +8,9 @@ from __future__ import annotations
 import pytest
 
 from domain.services.verify_reply import verify
-from domain.values.calendar.period import Period
-from domain.values.job.reply import Mark, Reply
-from domain.values.rule.criteria import AcceptanceCriteria
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.job.reply import Mark, Reply
+from domain.value_objects.rule.criteria import AcceptanceCriteria
 
 基準 = AcceptanceCriteria(
     required_terms=("{対象期間}", "更新"), description="一覧の日付が今週のものである"

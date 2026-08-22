@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from domain.values.job.today_material import TodayMaterial
+from domain.value_objects.job.today_material import TodayMaterial
 
 
 def judge_today(material: TodayMaterial, actions: tuple[str, ...], now: datetime) -> bool:

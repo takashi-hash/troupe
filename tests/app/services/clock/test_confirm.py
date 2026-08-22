@@ -11,10 +11,10 @@ from app.ports.source_port import Quote, Unreadable
 from app.services.clock.confirm import confirm
 from domain.aggregates.job.life import Cleared, Finished, FinishedPendingRecheck
 from domain.events.job.job_finished import JobFinished
-from domain.values.job.approval import Approval
-from domain.values.job.evidence import Evidence
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.rule.source import Source
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.rule.source import Source
 from tests.aggregates.job.conftest import make_job, 座長
 from tests.app.services.clock.conftest import 根拠置き場の偽物, 状態の読みの偽物, 源の偽物
 from tests.app.services.conftest import いま, 固定時計, 帳簿の偽物

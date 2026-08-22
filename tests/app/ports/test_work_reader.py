@@ -9,8 +9,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.ports.work_reader import WorkMaterial, WorkReader
-from domain.values.job.assessment import Assessment
-from domain.values.job.job_id import JobId
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.job.job_id import JobId
 
 
 def _材料() -> WorkMaterial:

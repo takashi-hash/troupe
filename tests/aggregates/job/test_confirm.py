@@ -10,11 +10,11 @@ from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import Cleared, Finished, FinishedPendingRecheck
 from domain.events.job.job_finished import JobFinished
 from domain.events.job.recheck_date_pushed import RecheckDatePushed
-from domain.values.calendar.cycle import Cycle
-from domain.values.job.approval import Approval
-from domain.values.job.due_date import DueDate
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.people.clock import Clock
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.people.clock import Clock
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 承認 = Approval(by=座長, at=いま)

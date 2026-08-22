@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from domain.values.job.reply import Reply
+from domain.value_objects.job.reply import Reply
 
 
 class LlmPort(Protocol):

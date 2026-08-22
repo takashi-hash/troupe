@@ -13,8 +13,8 @@ from domain.aggregates.job.life import InProgress
 from domain.aggregates.job.spend import spend
 from domain.events.job.spent_increased import SpentIncreased
 from domain.aggregates.job.job import Job
-from domain.values.job.spent import Spent
-from domain.values.people.agent import Agent
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま
 
 働き手 = Agent(name="一号")

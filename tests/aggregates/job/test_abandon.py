@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from domain.aggregates.job.abandon import abandon
 from domain.aggregates.job.life import TERMINAL, Abandoned, Failed, InProgress
 from domain.events.job.job_abandoned import JobAbandoned
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 

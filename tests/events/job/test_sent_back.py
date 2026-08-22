@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.sent_back import SentBack
-from domain.values.people.human import Human
+from domain.value_objects.people.human import Human
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 座長 = Human(name="座長")

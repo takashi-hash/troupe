@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from domain.events.event import Event
-from domain.values.people.human import Human
+from domain.value_objects.people.human import Human
 
 
 class Approved(Event):

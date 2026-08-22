@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from domain.values.rule.criteria import AcceptanceCriteria
+from domain.value_objects.rule.criteria import AcceptanceCriteria
 
 
 def stop_reason(body: str, criteria: AcceptanceCriteria) -> str | None:

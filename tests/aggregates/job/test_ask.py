@@ -9,10 +9,10 @@ from domain.aggregates.job.ask import ask
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import AwaitingAnswer, InProgress, Ready
 from domain.events.job.question_asked import QuestionAsked
-from domain.values.job.question import Question
-from domain.values.people.agent import Agent
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
+from domain.value_objects.job.question import Question
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 一号 = Agent(name="一号")

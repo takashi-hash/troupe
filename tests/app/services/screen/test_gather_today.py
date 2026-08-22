@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.services.screen.gather_today import gather_today
-from domain.values.job.today_material import TodayMaterial
+from domain.value_objects.job.today_material import TodayMaterial
 from tests.app.services.conftest import 固定時計
 from tests.services.conftest import make_material, 座長
 

@@ -32,7 +32,7 @@ def test_実行中でなければ断りに変わる() -> None:
 
 
 def test_無い仕事は断りに変わる() -> None:
-    from domain.values.job.job_id import JobId
+    from domain.value_objects.job.job_id import JobId
 
     断り = release(帳簿の偽物(), 固定時計(), JobId(text="J-9999"))
     assert 断り is not None

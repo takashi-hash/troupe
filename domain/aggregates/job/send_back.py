@@ -26,8 +26,8 @@ from domain.aggregates.job.life import (
     Ready,
 )
 from domain.events.job.sent_back import SentBack
-from domain.values.job.send_back import SendBack
-from domain.values.job.spent import Spent
+from domain.value_objects.job.send_back import SendBack
+from domain.value_objects.job.spent import Spent
 
 
 def send_back(

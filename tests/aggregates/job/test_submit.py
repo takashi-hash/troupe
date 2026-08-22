@@ -9,7 +9,7 @@ from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import InProgress, Submitted
 from domain.aggregates.job.submit import submit
 from domain.events.job.result_submitted import ResultSubmitted
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま
 
 一号 = Agent(name="一号")

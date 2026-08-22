@@ -11,8 +11,8 @@ import pytest
 from domain.aggregates.job.life import Failed, Ready
 from domain.aggregates.job.sort_failures import sort_failures
 from domain.events.job.retried import Retried
-from domain.values.job.spent import Spent
-from domain.values.people.clock import Clock
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.clock import Clock
 from tests.aggregates.job.conftest import make_job, いま
 
 落ちた = Failed(fallen="源が読めませんでした")

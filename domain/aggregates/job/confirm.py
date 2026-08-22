@@ -20,8 +20,8 @@ from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import Cleared, Finished, FinishedPendingRecheck
 from domain.events.job.job_finished import JobFinished
 from domain.events.job.recheck_date_pushed import RecheckDatePushed
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.people.clock import Clock
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.people.clock import Clock
 
 
 @overload

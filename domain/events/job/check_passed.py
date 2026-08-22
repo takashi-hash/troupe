@@ -10,7 +10,7 @@ AI へ移った形は書けない（I6 の入り口）。
 from __future__ import annotations
 
 from domain.events.event import Event
-from domain.values.people.owner import Owner
+from domain.value_objects.people.owner import Owner
 
 
 class CheckPassed(Event):

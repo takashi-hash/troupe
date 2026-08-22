@@ -19,9 +19,9 @@ from domain.aggregates.job.life import (
     FinishedPendingRecheck,
     InProgress,
 )
-from domain.ledger.job_repository import JobRepository
-from domain.values.job.job_id import JobId
-from domain.values.job.send_back import SendBack
+from domain.repositories.job_repository import JobRepository
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.send_back import SendBack
 
 
 def send_back(jobs: JobRepository, clock: ClockPort, id: JobId, sb: SendBack) -> Refusal | None:

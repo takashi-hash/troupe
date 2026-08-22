@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.recheck_date_pushed import RecheckDatePushed
-from domain.values.people.clock import Clock
+from domain.value_objects.people.clock import Clock
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 次 = datetime(2026, 8, 24, 9, 0, tzinfo=UTC)

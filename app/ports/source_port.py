@@ -18,8 +18,8 @@ from typing import Annotated, Literal, Protocol, Self
 from pydantic import Field, model_validator
 
 from domain.obligations import Value, not_blank
-from domain.values.job.evidence import Evidence
-from domain.values.rule.source import Source
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.rule.source import Source
 
 
 class Material(Value):

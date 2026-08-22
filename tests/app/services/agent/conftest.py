@@ -7,15 +7,15 @@ from __future__ import annotations
 
 from app.ports.source_port import Material, Quote, Unreadable
 from app.ports.work_reader import WorkMaterial
-from domain.values.job.answer import Answer
-from domain.values.job.assessment import Assessment
-from domain.values.job.evidence import Evidence
-from domain.values.job.job_id import JobId
-from domain.values.job.question import Question
-from domain.values.job.reply import Reply
-from domain.values.job.result import Result
-from domain.values.people.agent import Agent
-from domain.values.rule.source import Source
+from domain.value_objects.job.answer import Answer
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.question import Question
+from domain.value_objects.job.reply import Reply
+from domain.value_objects.job.result import Result
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.rule.source import Source
 
 働き手 = Agent(name="働き手")
 

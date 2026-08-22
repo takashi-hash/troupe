@@ -17,7 +17,7 @@ from datetime import datetime
 from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import Abandoned, Failed, InProgress
 from domain.events.job.job_abandoned import JobAbandoned
-from domain.values.people.human import Human
+from domain.value_objects.people.human import Human
 
 
 def abandon(

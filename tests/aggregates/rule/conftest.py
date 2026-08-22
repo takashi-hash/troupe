@@ -5,15 +5,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from domain.aggregates.rule.rule import Rule
-from domain.values.calendar.cycle import Cycle
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
-from domain.values.rule.budget import Budget
-from domain.values.rule.criteria import AcceptanceCriteria
-from domain.values.rule.instruction import Instruction
-from domain.values.rule.rule_name import RuleName
-from domain.values.rule.source import Source
-from domain.values.rule.version import Version
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
+from domain.value_objects.rule.budget import Budget
+from domain.value_objects.rule.criteria import AcceptanceCriteria
+from domain.value_objects.rule.instruction import Instruction
+from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.source import Source
+from domain.value_objects.rule.version import Version
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 座長 = Human(name="座長")

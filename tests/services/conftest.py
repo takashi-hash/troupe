@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from domain.values.calendar.period import Period
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
-from domain.values.job.spent import Spent
-from domain.values.job.today_material import TodayMaterial
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
-from domain.values.rule.budget import Budget
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.job.today_material import TodayMaterial
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
+from domain.value_objects.rule.budget import Budget
+from domain.value_objects.rule.rule_name import RuleName
 
 いま = datetime(2026, 8, 18, 9, 2, tzinfo=UTC)
 座長 = Human(name="座長")

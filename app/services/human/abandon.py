@@ -13,9 +13,9 @@ from app.ports.clock_port import ClockPort
 from app.services.refusal import Refusal
 from domain.aggregates.job import abandon as 打ち切り
 from domain.aggregates.job.life import Failed, InProgress
-from domain.ledger.job_repository import JobRepository
-from domain.values.job.job_id import JobId
-from domain.values.people.human import Human
+from domain.repositories.job_repository import JobRepository
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.people.human import Human
 
 
 def abandon(

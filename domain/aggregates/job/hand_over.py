@@ -19,8 +19,8 @@ from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import Failed, InProgress
 from domain.events.job.assessment_written import AssessmentWritten
 from domain.events.job.job_failed import JobFailed
-from domain.values.job.assessment import Assessment
-from domain.values.people.agent import Agent
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.people.agent import Agent
 
 
 @overload

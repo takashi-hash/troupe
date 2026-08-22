@@ -25,18 +25,18 @@ from domain.aggregates.job import fail as 落ちる
 from domain.aggregates.job import spend as 積む
 from domain.aggregates.job import submit as 出す
 from domain.aggregates.job.life import InProgress
-from domain.ledger.assessment_store import AssessmentStore
-from domain.ledger.evidence_store import EvidenceStore
-from domain.ledger.job_repository import JobRepository
-from domain.ledger.question_store import QuestionStore
-from domain.ledger.result_store import ResultStore
+from domain.repositories.assessment_store import AssessmentStore
+from domain.repositories.evidence_store import EvidenceStore
+from domain.repositories.job_repository import JobRepository
+from domain.repositories.question_store import QuestionStore
+from domain.repositories.result_store import ResultStore
 from domain.services.verify_reply import verify
-from domain.values.job.assessment import Assessment
-from domain.values.job.job_id import JobId
-from domain.values.job.question import Question
-from domain.values.job.reply import Mark
-from domain.values.job.result import Result
-from domain.values.people.agent import Agent
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.question import Question
+from domain.value_objects.job.reply import Mark
+from domain.value_objects.job.result import Result
+from domain.value_objects.people.agent import Agent
 
 
 def consult(

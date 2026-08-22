@@ -14,8 +14,8 @@ from app.ports.clock_port import ClockPort
 from app.services.refusal import Refusal
 from domain.aggregates.job import release as 手放す
 from domain.aggregates.job.life import InProgress
-from domain.ledger.job_repository import JobRepository
-from domain.values.job.job_id import JobId
+from domain.repositories.job_repository import JobRepository
+from domain.value_objects.job.job_id import JobId
 
 
 def release(jobs: JobRepository, clock: ClockPort, id: JobId) -> Refusal | None:

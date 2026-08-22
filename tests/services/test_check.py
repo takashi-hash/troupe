@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 from domain.services.check import stop_reason
-from domain.values.calendar.period import Period
-from domain.values.rule.criteria import AcceptanceCriteria
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.rule.criteria import AcceptanceCriteria
 
 基準 = AcceptanceCriteria(
     required_terms=("{対象期間}", "更新"), description="一覧の日付が今週のものである"

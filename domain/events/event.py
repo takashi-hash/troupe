@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from domain.obligations import Value
-from domain.values.people.actor import Actor
+from domain.value_objects.people.actor import Actor
 
 
 class Event(Value):

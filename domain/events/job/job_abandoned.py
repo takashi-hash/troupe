@@ -13,7 +13,7 @@ from typing import Self
 from pydantic import model_validator
 
 from domain.events.event import Event
-from domain.values.people.human import Human
+from domain.value_objects.people.human import Human
 from domain.obligations import not_blank
 
 

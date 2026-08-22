@@ -17,8 +17,8 @@ from typing import TypeVar
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import StateUnion
 from domain.events.job.assessment_written import AssessmentWritten
-from domain.values.job.assessment import Assessment
-from domain.values.people.agent import Agent
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.people.agent import Agent
 
 S = TypeVar("S", bound=StateUnion)
 

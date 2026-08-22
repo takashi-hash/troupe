@@ -6,8 +6,8 @@ from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import InProgress, Ready
 from domain.aggregates.job.return_timed_out import return_timed_out
 from domain.events.job.job_timed_out import JobTimedOut
-from domain.values.people.agent import Agent
-from domain.values.people.clock import Clock
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.clock import Clock
 from tests.aggregates.job.conftest import make_job, いま
 
 一号 = Agent(name="一号")

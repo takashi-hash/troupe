@@ -9,8 +9,8 @@ from domain.aggregates.job.answer import answer
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import AwaitingAnswer, InProgress, Ready
 from domain.events.job.question_answered import QuestionAnswered
-from domain.values.job.answer import Answer
-from domain.values.people.agent import Agent
+from domain.value_objects.job.answer import Answer
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 一号 = Agent(name="一号")

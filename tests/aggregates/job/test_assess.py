@@ -8,9 +8,9 @@ from pydantic import ValidationError
 from domain.aggregates.job.assess import assess
 from domain.aggregates.job.life import Failed, Finished, InProgress
 from domain.events.job.assessment_written import AssessmentWritten
-from domain.values.job.approval import Approval
-from domain.values.job.assessment import Assessment
-from domain.values.people.agent import Agent
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 一号 = Agent(name="一号")

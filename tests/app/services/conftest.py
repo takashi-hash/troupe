@@ -11,11 +11,11 @@ from typing import Any
 from domain.aggregates.job.job import Job
 from domain.aggregates.rule.rule import Rule
 from domain.events.event import Event
-from domain.values.job.answer import Answer
-from domain.values.job.job_id import JobId
-from domain.values.job.question import Question
-from domain.values.rule.copied import Copied
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.job.answer import Answer
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.question import Question
+from domain.value_objects.rule.copied import Copied
+from domain.value_objects.rule.rule_name import RuleName
 
 いま = datetime(2026, 8, 18, 9, 2, tzinfo=UTC)
 

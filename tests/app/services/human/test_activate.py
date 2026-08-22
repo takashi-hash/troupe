@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.services.human.activate import activate
 from domain.events.rule.rule_activated import RuleActivated
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.rule.rule_name import RuleName
 from tests.aggregates.rule.conftest import make_rule, 名, 座長
 from tests.app.services.conftest import 固定時計, ルール帳簿の偽物
 

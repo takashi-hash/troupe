@@ -8,8 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.job_started import JobStarted
-from domain.values.people.agent import Agent
-from domain.values.people.human import Human
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.human import Human
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 番頭 = Agent(name="番頭")

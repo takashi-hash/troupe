@@ -25,9 +25,9 @@ from typing import Self
 from pydantic import model_validator
 
 from domain.obligations import Value
-from domain.values.people.human import Human
-from domain.values.rule.rule_name import RuleName
-from domain.values.rule.version import Version
+from domain.value_objects.people.human import Human
+from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.version import Version
 
 
 class Rule(Value):

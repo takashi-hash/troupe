@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from domain.values.rule.copied import Copied
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.rule.copied import Copied
+from domain.value_objects.rule.rule_name import RuleName
 
 
 class TopicPort(Protocol):

@@ -15,7 +15,7 @@ from datetime import datetime
 
 from domain.aggregates.rule.rule import Rule, fields_of
 from domain.events.rule.rule_activated import RuleActivated
-from domain.values.people.human import Human
+from domain.value_objects.people.human import Human
 
 
 def activate(

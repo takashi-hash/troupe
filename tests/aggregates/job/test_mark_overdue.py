@@ -10,10 +10,10 @@ from pydantic import ValidationError
 from domain.aggregates.job.life import Abandoned, Finished, InProgress
 from domain.aggregates.job.mark_overdue import mark_overdue
 from domain.events.job.due_date_passed import DueDatePassed
-from domain.values.job.approval import Approval
-from domain.values.job.due_date import DueDate
-from domain.values.people.agent import Agent
-from domain.values.people.clock import Clock
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.clock import Clock
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 期日 = DueDate.from_start(いま, 3)

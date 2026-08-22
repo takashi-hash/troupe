@@ -10,10 +10,10 @@ from domain.aggregates.job.life import Created
 from domain.aggregates.job.request import request
 from domain.events.job.job_created import JobCreated
 from domain.events.job.job_requested import JobRequested
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
-from domain.values.job.origin import Origin
-from domain.values.job.request import Request
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.origin import Origin
+from domain.value_objects.job.request import Request
 from tests.aggregates.job.conftest import make_copied, いま, 座長
 
 

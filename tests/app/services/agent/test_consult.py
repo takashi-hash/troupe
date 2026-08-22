@@ -15,10 +15,10 @@ from domain.events.job.job_failed import JobFailed
 from domain.events.job.question_asked import QuestionAsked
 from domain.events.job.result_submitted import ResultSubmitted
 from domain.events.job.spent_increased import SpentIncreased
-from domain.values.job.evidence import Evidence
-from domain.values.job.reply import Mark, Reply
-from domain.values.job.spent import Spent
-from domain.values.rule.source import Source
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.job.reply import Mark, Reply
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.rule.source import Source
 from tests.aggregates.job.conftest import make_job
 from tests.app.services.conftest import 固定時計, 帳簿の偽物
 from tests.app.services.agent.conftest import (

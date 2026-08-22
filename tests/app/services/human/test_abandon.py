@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from app.services.human.abandon import abandon
 from domain.aggregates.job.life import Abandoned, Failed, InProgress, Ready
-from domain.values.job.job_id import JobId
-from domain.values.people.agent import Agent
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, 座長
 from tests.app.services.conftest import 固定時計, 帳簿の偽物
 

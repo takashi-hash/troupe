@@ -8,10 +8,10 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.check_passed import CheckPassed
-from domain.values.people.agent import Agent
-from domain.values.people.clock import Clock
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.clock import Clock
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 受け持ち = Owner(person=Human(name="座長"))

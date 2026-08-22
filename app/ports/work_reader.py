@@ -18,8 +18,8 @@ from __future__ import annotations
 from typing import Protocol
 
 from domain.obligations import Value
-from domain.values.job.assessment import Assessment
-from domain.values.job.job_id import JobId
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.job.job_id import JobId
 
 
 class WorkMaterial(Value):

@@ -15,7 +15,7 @@ from datetime import datetime
 from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import InProgress, Ready
 from domain.events.job.job_started import JobStarted
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 
 
 def start(

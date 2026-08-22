@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 from app.services.clock.return_timed_out import return_timed_out
 from domain.aggregates.job.life import InProgress, Ready
 from domain.events.job.job_timed_out import JobTimedOut
-from domain.values.job.due_date import DueDate
-from domain.values.people.agent import Agent
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job
 from tests.app.services.clock.conftest import 状態の読みの偽物
 from tests.app.services.conftest import 固定時計, 帳簿の偽物

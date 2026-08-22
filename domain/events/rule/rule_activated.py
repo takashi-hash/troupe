@@ -9,8 +9,8 @@
 from __future__ import annotations
 
 from domain.events.event import Event
-from domain.values.people.human import Human
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.people.human import Human
+from domain.value_objects.rule.rule_name import RuleName
 
 
 class RuleActivated(Event):

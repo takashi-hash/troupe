@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from domain.services.judge_today import judge_today
-from domain.values.job.assessment import Assessment
+from domain.value_objects.job.assessment import Assessment
 from tests.services.conftest import make_material, いま
 
 見立て = Assessment(

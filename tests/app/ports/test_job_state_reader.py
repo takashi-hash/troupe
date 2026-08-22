@@ -6,7 +6,7 @@ import inspect
 from typing import get_type_hints
 
 from app.ports.job_state_reader import JobStateReader
-from domain.values.job.job_id import JobId
+from domain.value_objects.job.job_id import JobId
 
 
 def test_返すのは識別子だけ() -> None:

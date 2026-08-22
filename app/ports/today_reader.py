@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from domain.values.job.today_material import TodayMaterial
+from domain.value_objects.job.today_material import TodayMaterial
 
 
 class TodayReader(Protocol):

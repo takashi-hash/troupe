@@ -18,11 +18,11 @@ from app.ports.clock_port import ClockPort
 from app.ports.topic_port import TopicPort
 from app.services.refusal import Refusal
 from domain.aggregates.rule import add_version as 版積み
-from domain.ledger.rule_repository import RuleRepository
-from domain.values.people.human import Human
-from domain.values.rule.copied import Copied
-from domain.values.rule.rule_name import RuleName
-from domain.values.rule.version import Version
+from domain.repositories.rule_repository import RuleRepository
+from domain.value_objects.people.human import Human
+from domain.value_objects.rule.copied import Copied
+from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.version import Version
 
 
 def add_version(

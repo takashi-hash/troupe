@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from app.services.human.send_back import send_back
 from domain.aggregates.job.life import AwaitingApproval, Failed, Ready
-from domain.values.job.job_id import JobId
-from domain.values.job.send_back import SendBack
-from domain.values.job.spent import Spent
-from domain.values.people.owner import Owner
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.send_back import SendBack
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.owner import Owner
 from tests.aggregates.job.conftest import make_job, 座長
 from tests.app.services.conftest import 固定時計, 帳簿の偽物
 

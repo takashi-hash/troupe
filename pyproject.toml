@@ -9,7 +9,7 @@ dependencies = ["pydantic>=2.9"]
 dev = ["pytest>=8", "pyright>=1.1.380", "import-linter>=2.0"]
 
 [tool.pyright]
-include = ["domain", "app", "tests"]
+include = ["domain", "app", "adapters", "ui", "main.py", "tests"]
 strict = ["domain", "app"]
 reportMissingTypeStubs = false
 # pyright は pydantic の frozen を hashable と見ない（明示した __hash__ も見ない）。
@@ -21,31 +21,38 @@ reportUnhashable = "none"
 testpaths = ["tests"]
 
 [tool.importlinter]
-root_packages = ["domain", "app"]
+root_packages = ["domain", "app", "adapters", "ui"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "依存は内向きのみ（app → domain）"
+name = "依存は内向きのみ"
 type = "layers"
-layers = ["app", "domain"]
+layers = ["ui | adapters", "app", "domain"]
+
+# 画面は中心の形を知らない——届くのは文字と ID だけ
+[[tool.importlinter.contracts]]
+name = "ui は domain を知らない"
+type = "forbidden"
+source_modules = ["ui"]
+forbidden_modules = ["domain"]
 
 # domain の中も依存は内向き。出来事と仕様は互いを知らない。
 [[tool.importlinter.contracts]]
 name = "domain の中の層"
 type = "layers"
-layers = ["domain.aggregates", "domain.events | domain.services", "domain.values", "domain.obligations"]
+layers = ["domain.aggregates", "domain.events | domain.services", "domain.value_objects", "domain.obligations"]
 
 # 集約の境界。仕事は版から**写す**——だから import はこの一方向にしか流れない。
 [[tool.importlinter.contracts]]
 name = "業務ルールは仕事を知らない（値）"
 type = "layers"
-layers = ["domain.values.job", "domain.values.rule", "domain.values.calendar | domain.values.people", "domain.obligations"]
+layers = ["domain.value_objects.job", "domain.value_objects.rule", "domain.value_objects.calendar | domain.value_objects.people", "domain.obligations"]
 
 [[tool.importlinter.contracts]]
 name = "業務ルールは仕事を知らない（集約と出来事）"
 type = "forbidden"
 source_modules = ["domain.aggregates.rule", "domain.events.rule"]
-forbidden_modules = ["domain.aggregates.job", "domain.events.job", "domain.values.job"]
+forbidden_modules = ["domain.aggregates.job", "domain.events.job", "domain.value_objects.job"]
 
 [[tool.importlinter.contracts]]
 name = "domain は外の道具を知らない"

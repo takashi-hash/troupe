@@ -7,8 +7,8 @@ from typing import Any
 from app.services.human.approve import approve
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import AwaitingApproval, Cleared, Ready
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
 from tests.aggregates.job.conftest import make_job, 座長
 from tests.app.services.conftest import 固定時計, 帳簿の偽物
 
@@ -46,7 +46,7 @@ def test_受け持ちの人でなければ断りに変わる() -> None:
 
 
 def test_無い仕事は断りに変わる() -> None:
-    from domain.values.job.job_id import JobId
+    from domain.value_objects.job.job_id import JobId
 
     断り = approve(帳簿の偽物(), 固定時計(), JobId(text="J-9999"), by=座長)
     assert 断り is not None

@@ -14,8 +14,8 @@ from app.ports.clock_port import ClockPort
 from app.ports.job_state_reader import JobStateReader
 from domain.aggregates.job import sort_failures as 仕分け
 from domain.aggregates.job.life import Failed
-from domain.ledger.job_repository import JobRepository
-from domain.values.job.job_id import JobId
+from domain.repositories.job_repository import JobRepository
+from domain.value_objects.job.job_id import JobId
 
 
 def sort_failures(

@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.ports.detail_reader import DetailMaterial, DetailReader
-from domain.values.job.job_id import JobId
+from domain.value_objects.job.job_id import JobId
 
 
 def _材料() -> DetailMaterial:

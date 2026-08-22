@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from domain.values.job.today_material import TodayMaterial
-from domain.values.people.human import Human
+from domain.value_objects.job.today_material import TodayMaterial
+from domain.value_objects.people.human import Human
 
 
 def allowed(material: TodayMaterial, viewer: Human, now: datetime) -> tuple[str, ...]:

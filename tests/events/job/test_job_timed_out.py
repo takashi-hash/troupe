@@ -8,8 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.job_timed_out import JobTimedOut
-from domain.values.people.agent import Agent
-from domain.values.people.clock import Clock
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.clock import Clock
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 番頭 = Agent(name="番頭")

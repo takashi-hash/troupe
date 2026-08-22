@@ -14,17 +14,17 @@ from domain.aggregates.job.job import Job
 from domain.aggregates.rule.rule import Rule
 from domain.events.event import Event
 from domain.events.job.due_date_passed import DueDatePassed
-from domain.values.calendar.cycle import Cycle
-from domain.values.job.evidence import Evidence
-from domain.values.job.job_id import JobId
-from domain.values.job.result import Result
-from domain.values.people.owner import Owner
-from domain.values.rule.budget import Budget
-from domain.values.rule.criteria import AcceptanceCriteria
-from domain.values.rule.instruction import Instruction
-from domain.values.rule.rule_name import RuleName
-from domain.values.rule.source import Source
-from domain.values.rule.version import Version
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.result import Result
+from domain.value_objects.people.owner import Owner
+from domain.value_objects.rule.budget import Budget
+from domain.value_objects.rule.criteria import AcceptanceCriteria
+from domain.value_objects.rule.instruction import Instruction
+from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.source import Source
+from domain.value_objects.rule.version import Version
 from tests.aggregates.job.conftest import 座長
 from tests.app.services.conftest import いま, 帳簿の偽物
 

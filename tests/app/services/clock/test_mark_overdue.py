@@ -11,9 +11,9 @@ from datetime import UTC, datetime
 from app.services.clock.mark_overdue import mark_overdue
 from domain.aggregates.job.life import Finished, Ready
 from domain.events.job.due_date_passed import DueDatePassed
-from domain.values.job.approval import Approval
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
 from tests.aggregates.job.conftest import make_job, 座長
 from tests.app.services.clock.conftest import 出来事つき帳簿の偽物, 印の読みの偽物, 状態の読みの偽物
 from tests.app.services.conftest import いま, 固定時計

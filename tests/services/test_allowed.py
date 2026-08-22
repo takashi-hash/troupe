@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from domain.services.allowed import allowed
-from domain.values.job.assessment import Assessment
-from domain.values.people.human import Human
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.people.human import Human
 from tests.services.conftest import make_material, いま, 座長
 
 見立て = Assessment(

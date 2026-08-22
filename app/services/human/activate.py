@@ -13,9 +13,9 @@ from __future__ import annotations
 from app.ports.clock_port import ClockPort
 from app.services.refusal import Refusal
 from domain.aggregates.rule import activate as 有効化
-from domain.ledger.rule_repository import RuleRepository
-from domain.values.people.human import Human
-from domain.values.rule.rule_name import RuleName
+from domain.repositories.rule_repository import RuleRepository
+from domain.value_objects.people.human import Human
+from domain.value_objects.rule.rule_name import RuleName
 
 
 def activate(

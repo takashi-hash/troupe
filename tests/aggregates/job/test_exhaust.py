@@ -8,8 +8,8 @@ from pydantic import ValidationError
 from domain.aggregates.job.exhaust import EXHAUSTED, exhaust
 from domain.aggregates.job.life import Failed, InProgress
 from domain.events.job.job_failed import JobFailed
-from domain.values.job.spent import Spent
-from domain.values.people.agent import Agent
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま
 
 働き手 = Agent(name="一号")

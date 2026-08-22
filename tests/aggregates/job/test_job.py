@@ -12,11 +12,11 @@ from domain.aggregates.job.life import (
     Ready,
     Submitted,
 )
-from domain.values.calendar.cycle import Cycle
-from domain.values.job.approval import Approval
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.job.spent import Spent
-from domain.values.people.agent import Agent
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 
@@ -31,14 +31,14 @@ def test_業務ルール発は生まれた版と対象期間が三つ揃う() ->
 
 def test_作成元が生まれた版と食い違うと作れない() -> None:
     """I3 — 二度作らない鍵が嘘になる形を型で殺す。"""
-    from domain.values.job.origin import Origin
+    from domain.value_objects.job.origin import Origin
 
     with pytest.raises(ValidationError):
         make_job(Ready(), origin=Origin(key="rule:別のルール/v9/2026-W01"))
 
 
 def test_開かれていない差し込みを持つ仕事は作れない() -> None:
-    from domain.values.rule.criteria import AcceptanceCriteria
+    from domain.value_objects.rule.criteria import AcceptanceCriteria
 
     with pytest.raises(ValidationError):
         make_job(Ready(), criteria=AcceptanceCriteria(required_terms=("{対象期間}",)))

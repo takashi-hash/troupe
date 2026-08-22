@@ -8,8 +8,8 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.rule.rule_version_added import RuleVersionAdded
-from domain.values.people.human import Human
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.people.human import Human
+from domain.value_objects.rule.rule_name import RuleName
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 名 = RuleName(text="週次の依存の棚卸し")

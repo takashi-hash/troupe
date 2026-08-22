@@ -12,8 +12,8 @@
 
 from __future__ import annotations
 
-from domain.values.job.reply import Mark, Reply
-from domain.values.rule.criteria import AcceptanceCriteria
+from domain.value_objects.job.reply import Mark, Reply
+from domain.value_objects.rule.criteria import AcceptanceCriteria
 
 
 def verify(reply: Reply, criteria: AcceptanceCriteria) -> Mark:

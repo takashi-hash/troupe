@@ -9,8 +9,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.ports.source_port import Material, Quote, SourcePort, Unreadable
-from domain.values.job.evidence import Evidence
-from domain.values.rule.source import Source
+from domain.value_objects.job.evidence import Evidence
+from domain.value_objects.rule.source import Source
 
 源 = Source(location="s3://ichiza/請求/2026-08.csv")
 

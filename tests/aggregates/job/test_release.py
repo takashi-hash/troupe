@@ -6,7 +6,7 @@ from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import InProgress, Ready
 from domain.aggregates.job.release import release
 from domain.events.job.job_released import JobReleased
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 一号 = Agent(name="一号")

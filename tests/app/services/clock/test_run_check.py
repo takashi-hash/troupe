@@ -7,9 +7,9 @@ from domain.aggregates.job.life import AwaitingApproval, Ready, Submitted
 from domain.events.job.check_passed import CheckPassed
 from domain.events.job.check_stopped import CheckStopped
 from domain.events.job.retried import Retried
-from domain.values.job.result import Result
-from domain.values.people.agent import Agent
-from domain.values.people.owner import Owner
+from domain.value_objects.job.result import Result
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.owner import Owner
 from tests.aggregates.job.conftest import make_job, 座長
 from tests.app.services.clock.conftest import 成果置き場の偽物, 状態の読みの偽物
 from tests.app.services.conftest import 固定時計, 帳簿の偽物

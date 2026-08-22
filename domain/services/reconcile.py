@@ -17,10 +17,10 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 from datetime import datetime
 
-from domain.values.calendar.cycle import Cycle
-from domain.values.calendar.period import Period
-from domain.values.job.origin import Origin
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.job.origin import Origin
+from domain.value_objects.rule.rule_name import RuleName
 
 
 def reconcile(

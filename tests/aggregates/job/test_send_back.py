@@ -21,14 +21,14 @@ from domain.aggregates.job.life import (
 )
 from domain.aggregates.job.send_back import send_back
 from domain.events.job.sent_back import SentBack
-from domain.values.calendar.cycle import Cycle
-from domain.values.job.approval import Approval
-from domain.values.job.due_date import DueDate
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.job.send_back import SendBack
-from domain.values.job.spent import Spent
-from domain.values.people.agent import Agent
-from domain.values.people.owner import Owner
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.job.send_back import SendBack
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.owner import Owner
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 差し戻し = SendBack(by=座長, reason="件数が源と合っていません。8月分をもう一度数えてください")

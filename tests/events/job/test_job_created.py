@@ -8,9 +8,9 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.job_created import JobCreated
-from domain.values.calendar.period import Period
-from domain.values.people.clock import Clock
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.people.clock import Clock
+from domain.value_objects.rule.rule_name import RuleName
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 規則 = RuleName(text="週次の依存の棚卸し")

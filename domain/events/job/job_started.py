@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from domain.events.event import Event
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 
 
 class JobStarted(Event):

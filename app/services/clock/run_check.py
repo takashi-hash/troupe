@@ -14,9 +14,9 @@ from app.ports.clock_port import ClockPort
 from app.ports.job_state_reader import JobStateReader
 from domain.aggregates.job import run_check as 検査
 from domain.aggregates.job.life import Submitted
-from domain.ledger.job_repository import JobRepository
-from domain.ledger.result_store import ResultStore
-from domain.values.job.job_id import JobId
+from domain.repositories.job_repository import JobRepository
+from domain.repositories.result_store import ResultStore
+from domain.value_objects.job.job_id import JobId
 
 
 def run_check(

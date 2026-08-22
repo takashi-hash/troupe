@@ -13,11 +13,11 @@ from __future__ import annotations
 
 from app.ports.clock_port import ClockPort
 from app.ports.today_reader import TodayReader
-from app.views.today_row import TodayRow
+from app.dto.today_row import TodayRow
 from domain.services.allowed import allowed
 from domain.services.judge_today import judge_today
-from domain.values.job.today_material import TodayMaterial
-from domain.values.people.human import Human
+from domain.value_objects.job.today_material import TodayMaterial
+from domain.value_objects.people.human import Human
 
 
 def gather_today(today: TodayReader, clock: ClockPort, viewer: Human) -> tuple[TodayRow, ...]:

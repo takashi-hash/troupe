@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from domain.events.event import Event
-from domain.values.people.assignee import Assignee
+from domain.value_objects.people.assignee import Assignee
 
 
 class JobTimedOut(Event):

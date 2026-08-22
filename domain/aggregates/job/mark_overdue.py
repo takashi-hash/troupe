@@ -17,7 +17,7 @@ from typing import TypeVar
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import TERMINAL, StateUnion
 from domain.events.job.due_date_passed import DueDatePassed
-from domain.values.people.clock import Clock
+from domain.value_objects.people.clock import Clock
 
 S = TypeVar("S", bound=StateUnion)
 

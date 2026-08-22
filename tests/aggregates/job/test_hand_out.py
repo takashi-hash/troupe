@@ -8,8 +8,8 @@ from pydantic import ValidationError
 from domain.aggregates.job.hand_out import hand_out
 from domain.aggregates.job.life import Created, Ready
 from domain.events.job.job_handed_out import JobHandedOut
-from domain.values.people.agent import Agent
-from domain.values.people.clock import Clock
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.clock import Clock
 from tests.aggregates.job.conftest import make_job, いま
 
 

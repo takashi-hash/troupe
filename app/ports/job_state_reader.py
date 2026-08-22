@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from domain.values.job.job_id import JobId
+from domain.value_objects.job.job_id import JobId
 
 
 class JobStateReader(Protocol):

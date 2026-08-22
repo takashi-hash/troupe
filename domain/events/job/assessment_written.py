@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from domain.events.event import Event
-from domain.values.job.assessment import Assessment
+from domain.value_objects.job.assessment import Assessment
 
 
 class AssessmentWritten(Event):

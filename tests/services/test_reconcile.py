@@ -8,10 +8,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from domain.services.reconcile import reconcile
-from domain.values.calendar.cycle import Cycle
-from domain.values.calendar.period import Period
-from domain.values.job.origin import Origin
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.job.origin import Origin
+from domain.value_objects.rule.rule_name import RuleName
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 週次 = RuleName(text="週次の依存の棚卸し")

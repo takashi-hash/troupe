@@ -16,7 +16,7 @@ from datetime import datetime
 from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import Failed, Ready
 from domain.events.job.retried import Retried
-from domain.values.people.clock import Clock
+from domain.value_objects.people.clock import Clock
 
 
 def sort_failures(

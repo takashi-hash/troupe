@@ -17,7 +17,7 @@ from datetime import datetime
 from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import AwaitingAnswer, Ready
 from domain.events.job.question_answered import QuestionAnswered
-from domain.values.job.answer import Answer
+from domain.value_objects.job.answer import Answer
 
 
 def answer(

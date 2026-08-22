@@ -8,8 +8,8 @@ from domain.aggregates.job.approve import approve
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import AwaitingApproval, Cleared
 from domain.events.job.approved import Approved
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
 from tests.aggregates.job.conftest import make_job, いま, 座長
 
 

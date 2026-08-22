@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from domain.events.job.question_asked import QuestionAsked
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 
 いま = datetime(2026, 8, 17, 9, 0, tzinfo=UTC)
 

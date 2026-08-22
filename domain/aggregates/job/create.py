@@ -16,14 +16,14 @@ from datetime import datetime
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import Created
 from domain.events.job.job_created import JobCreated
-from domain.values.calendar.period import Period
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
-from domain.values.job.origin import Origin
-from domain.values.job.spent import Spent
-from domain.values.people.clock import Clock
-from domain.values.rule.copied import Copied
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.origin import Origin
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.clock import Clock
+from domain.value_objects.rule.copied import Copied
+from domain.value_objects.rule.rule_name import RuleName
 
 
 def create(

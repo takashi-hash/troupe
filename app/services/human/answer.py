@@ -15,10 +15,10 @@ from app.ports.clock_port import ClockPort
 from app.services.refusal import Refusal
 from domain.aggregates.job import answer as 回答
 from domain.aggregates.job.life import AwaitingAnswer
-from domain.ledger.job_repository import JobRepository
-from domain.ledger.question_store import QuestionStore
-from domain.values.job.answer import Answer
-from domain.values.job.job_id import JobId
+from domain.repositories.job_repository import JobRepository
+from domain.repositories.question_store import QuestionStore
+from domain.value_objects.job.answer import Answer
+from domain.value_objects.job.job_id import JobId
 
 
 def answer(

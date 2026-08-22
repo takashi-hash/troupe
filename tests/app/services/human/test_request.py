@@ -6,8 +6,8 @@ from app.services.human.request import request
 from domain.aggregates.job.life import Created
 from domain.events.job.job_created import JobCreated
 from domain.events.job.job_requested import JobRequested
-from domain.values.job.request import Request
-from domain.values.rule.criteria import AcceptanceCriteria
+from domain.value_objects.job.request import Request
+from domain.value_objects.rule.criteria import AcceptanceCriteria
 from tests.aggregates.job.conftest import make_copied, 座長
 from tests.app.services.conftest import 固定時計, 帳簿の偽物, 連番の識別子, いま
 

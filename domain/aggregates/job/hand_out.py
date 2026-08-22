@@ -14,7 +14,7 @@ from datetime import datetime
 from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import Created, Ready
 from domain.events.job.job_handed_out import JobHandedOut
-from domain.values.people.clock import Clock
+from domain.value_objects.people.clock import Clock
 
 
 def hand_out(job: Job[Created], now: datetime) -> tuple[Job[Ready], JobHandedOut]:

@@ -6,8 +6,8 @@ import inspect
 from typing import get_type_hints
 
 from app.ports.topic_port import TopicPort
-from domain.values.rule.copied import Copied
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.rule.copied import Copied
+from domain.value_objects.rule.rule_name import RuleName
 
 
 def test_読みは業務ルールの名を受けて版の中身か無しを返す() -> None:

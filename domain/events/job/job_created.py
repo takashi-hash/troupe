@@ -13,8 +13,8 @@ from typing import Self
 from pydantic import model_validator
 
 from domain.events.event import Event
-from domain.values.calendar.period import Period
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.rule.rule_name import RuleName
 
 
 class JobCreated(Event):

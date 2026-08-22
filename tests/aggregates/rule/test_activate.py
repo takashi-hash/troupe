@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from domain.aggregates.rule.activate import activate
 from domain.events.rule.rule_activated import RuleActivated
-from domain.values.people.agent import Agent
+from domain.value_objects.people.agent import Agent
 from tests.aggregates.rule.conftest import make_rule, make_version, いま, 名, 座長
 
 

@@ -15,7 +15,7 @@ from datetime import datetime
 from domain.aggregates.job.job import Job, fields_of
 from domain.aggregates.job.life import InProgress, Ready
 from domain.events.job.job_timed_out import JobTimedOut
-from domain.values.people.clock import Clock
+from domain.value_objects.people.clock import Clock
 
 
 def return_timed_out(

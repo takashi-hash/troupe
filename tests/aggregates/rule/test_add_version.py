@@ -6,7 +6,7 @@ import pytest
 
 from domain.aggregates.rule.add_version import add_version
 from domain.events.rule.rule_version_added import RuleVersionAdded
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.rule.rule_name import RuleName
 from tests.aggregates.rule.conftest import make_rule, make_version, いま, 名, 座長
 
 

@@ -6,8 +6,8 @@ import inspect
 from typing import get_type_hints
 
 from app.ports.active_rule_reader import ActiveRuleReader
-from domain.values.calendar.cycle import Cycle
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.rule.rule_name import RuleName
 
 
 def test_返すのは有効な版の識別子と番号と周期の列() -> None:

@@ -7,13 +7,13 @@ from app.services.agent.patrol import patrol
 from domain.aggregates.job.life import Failed, FinishedPendingRecheck, InProgress
 from domain.events.job.assessment_written import AssessmentWritten
 from domain.events.job.job_failed import JobFailed
-from domain.values.calendar.cycle import Cycle
-from domain.values.job.approval import Approval
-from domain.values.job.assessment import Assessment
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.job.spent import Spent
+from domain.value_objects.calendar.cycle import Cycle
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.assessment import Assessment
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.job.spent import Spent
 from tests.aggregates.job.conftest import make_job, いま, 座長
 from tests.app.services.conftest import 固定時計, 帳簿の偽物
 from tests.app.services.agent.conftest import (

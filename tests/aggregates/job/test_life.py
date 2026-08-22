@@ -17,9 +17,9 @@ from domain.aggregates.job.life import (
     Ready,
     State,
 )
-from domain.values.people.agent import Agent
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
+from domain.value_objects.people.agent import Agent
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
 
 
 def test_担当の無い実行中が書けない() -> None:

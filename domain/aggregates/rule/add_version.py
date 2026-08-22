@@ -13,9 +13,9 @@ from datetime import datetime
 
 from domain.aggregates.rule.rule import Rule, fields_of
 from domain.events.rule.rule_version_added import RuleVersionAdded
-from domain.values.people.human import Human
-from domain.values.rule.rule_name import RuleName
-from domain.values.rule.version import Version
+from domain.value_objects.people.human import Human
+from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.version import Version
 
 
 def add_version(

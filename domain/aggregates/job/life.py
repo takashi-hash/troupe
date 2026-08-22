@@ -13,11 +13,11 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, model_validator
 
 from domain.obligations import Value, not_blank
-from domain.values.job.approval import Approval
-from domain.values.job.recheck_date import RecheckDate
-from domain.values.people.assignee import Assignee
-from domain.values.people.human import Human
-from domain.values.people.owner import Owner
+from domain.value_objects.job.approval import Approval
+from domain.value_objects.job.recheck_date import RecheckDate
+from domain.value_objects.people.assignee import Assignee
+from domain.value_objects.people.human import Human
+from domain.value_objects.people.owner import Owner
 
 
 class Created(Value):

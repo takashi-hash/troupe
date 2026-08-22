@@ -22,7 +22,7 @@ from domain.events.job.check_stopped import CheckStopped
 from domain.events.job.job_failed import JobFailed
 from domain.events.job.retried import Retried
 from domain.services.check import stop_reason
-from domain.values.people.clock import Clock
+from domain.value_objects.people.clock import Clock
 
 
 def run_check(

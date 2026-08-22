@@ -16,8 +16,8 @@ from app.ports.clock_port import ClockPort
 from app.ports.job_state_reader import JobStateReader
 from domain.aggregates.job import return_timed_out as 時間切れ
 from domain.aggregates.job.life import InProgress
-from domain.ledger.job_repository import JobRepository
-from domain.values.job.job_id import JobId
+from domain.repositories.job_repository import JobRepository
+from domain.value_objects.job.job_id import JobId
 
 
 def return_timed_out(

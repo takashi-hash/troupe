@@ -6,7 +6,7 @@ import inspect
 from typing import get_type_hints
 
 from app.ports.today_reader import TodayReader
-from domain.values.job.today_material import TodayMaterial
+from domain.value_objects.job.today_material import TodayMaterial
 
 
 def test_読みは全件で_返すのは今日の材料() -> None:

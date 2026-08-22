@@ -8,13 +8,13 @@ from pydantic import ValidationError
 from domain.aggregates.job.create import create
 from domain.aggregates.job.life import Created
 from domain.events.job.job_created import JobCreated
-from domain.values.calendar.period import Period
-from domain.values.job.due_date import DueDate
-from domain.values.job.job_id import JobId
-from domain.values.job.spent import Spent
-from domain.values.people.clock import Clock
-from domain.values.rule.criteria import AcceptanceCriteria
-from domain.values.rule.rule_name import RuleName
+from domain.value_objects.calendar.period import Period
+from domain.value_objects.job.due_date import DueDate
+from domain.value_objects.job.job_id import JobId
+from domain.value_objects.job.spent import Spent
+from domain.value_objects.people.clock import Clock
+from domain.value_objects.rule.criteria import AcceptanceCriteria
+from domain.value_objects.rule.rule_name import RuleName
 from tests.aggregates.job.conftest import make_copied, いま
 
 規則 = RuleName(text="週次の依存の棚卸し")
