@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from pydantic import ValidationError
 
@@ -54,3 +56,25 @@ def test_週はW01からW53だけ通す() -> None:
     for text in ("2026-W00", "2026-W54", "2026-W99", "2026-W3"):
         with pytest.raises(ValidationError):
             Period(text=text)
+
+
+def test_いまと週の周期から_ISO週の対象期間が出る() -> None:
+    assert Period.of(datetime(2026, 8, 17, 9, 0, tzinfo=UTC), Cycle.WEEKLY) == Period(
+        text="2026-W34"
+    )
+
+
+def test_いまと月の周期から_月の対象期間が出る() -> None:
+    assert Period.of(datetime(2026, 8, 22, 9, 0, tzinfo=UTC), Cycle.MONTHLY) == Period(
+        text="2026-08"
+    )
+
+
+def test_一桁の週と月は0で埋まる() -> None:
+    assert Period.of(datetime(2026, 1, 1, tzinfo=UTC), Cycle.WEEKLY) == Period(text="2026-W01")
+    assert Period.of(datetime(2026, 1, 15, tzinfo=UTC), Cycle.MONTHLY) == Period(text="2026-01")
+
+
+def test_年始の週はISOの年に従う() -> None:
+    """2027-01-01 は暦の年が変わっても、ISO では 2026 年の第53週。"""
+    assert Period.of(datetime(2027, 1, 1, tzinfo=UTC), Cycle.WEEKLY) == Period(text="2026-W53")

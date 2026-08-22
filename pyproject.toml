@@ -24,11 +24,23 @@ testpaths = ["tests"]
 root_packages = ["domain"]
 include_external_packages = true
 
+# domain の中も依存は内向き。出来事と仕様は互いを知らない。
+[[tool.importlinter.contracts]]
+name = "domain の中の層"
+type = "layers"
+layers = ["domain.aggregates", "domain.events | domain.services", "domain.values", "domain.obligations"]
+
 # 集約の境界。仕事は版から**写す**——だから import はこの一方向にしか流れない。
 [[tool.importlinter.contracts]]
-name = "業務ルールは仕事を知らない（集約の境界）"
+name = "業務ルールは仕事を知らない（値）"
 type = "layers"
 layers = ["domain.values.job", "domain.values.rule", "domain.values.calendar | domain.values.people", "domain.obligations"]
+
+[[tool.importlinter.contracts]]
+name = "業務ルールは仕事を知らない（集約と出来事）"
+type = "forbidden"
+source_modules = ["domain.aggregates.rule", "domain.events.rule"]
+forbidden_modules = ["domain.aggregates.job", "domain.events.job", "domain.values.job"]
 
 [[tool.importlinter.contracts]]
 name = "domain は外の道具を知らない"

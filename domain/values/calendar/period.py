@@ -4,11 +4,14 @@
 | `Period` | 月なら `2026-08`、週なら `2026-W34` の形だけ | `Period("来月")` が通ったら赤 |
 
 **形から周期が読める。** だから `cycle` を返せる——別に持たせると2つがずれる。
+**周期といまからも出せる**（`Period.of`）——`reconcile` が対象期間も決める
+（設計/仕事が回る筋道.md §2）。いまは引数で受け取る（domain に時計は置けない）。
 """
 
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Final, Self
 
 from pydantic import model_validator
@@ -34,6 +37,14 @@ class Period(Value):
         if _WEEKLY_FORM.fullmatch(self.text):
             return Cycle.WEEKLY
         return Cycle.MONTHLY
+
+    @classmethod
+    def of(cls, now: datetime, cycle: Cycle) -> Self:
+        """いまと周期から出す。週なら ISO 週 `2026-W34`、月なら `2026-08` の形。"""
+        if cycle is Cycle.WEEKLY:
+            iso = now.isocalendar()
+            return cls(text=f"{iso.year}-W{iso.week:02d}")
+        return cls(text=f"{now.year}-{now.month:02d}")
 
     @model_validator(mode="after")
     def _obligations(self) -> Self:
