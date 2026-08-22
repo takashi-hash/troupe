@@ -38,6 +38,7 @@ class DetailDialog(QDialog):
 
         body = QVBoxLayout()
         body.setAlignment(Qt.AlignmentFlag.AlignTop)
+        body.addWidget(_para(f"やること: {view.instruction}"))
         body.addWidget(_para(f"状態: {view.state_name}　期日: {view.due}"))
         if view.assignee_name:
             body.addWidget(_para(f"担当: {view.assignee_name}"))

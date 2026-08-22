@@ -12,6 +12,7 @@ from app.dto.event_row import EventRow
 def make_view(**over: object) -> DetailView:
     data: dict[str, object] = {
         "id": "J-0001",
+        "instruction": "依存の一覧を突き合わせる",
         "state_name": "AwaitingApproval",
         "due": "2026-08-20T09:00:00+00:00",
         "assignee_name": "座長",
@@ -27,10 +28,11 @@ def make_view(**over: object) -> DetailView:
 
 
 def test_欄は設計の詳細そのまま() -> None:
-    """仕事の識別子・状態の名・期日・担当・成果の中身・根拠の引用・確かめ期日・
-    質問の本文・回答の本文・見立ての本文と理由・押せること・出来事の列。"""
+    """仕事の識別子・やること・状態の名・期日・担当・成果の中身・根拠の引用・確かめ期日・
+    問答の対の全列・見立ての本文と理由・押せること・出来事の列。"""
     assert set(DetailView.model_fields) == {
         "id",
+        "instruction",
         "state_name",
         "due",
         "assignee_name",

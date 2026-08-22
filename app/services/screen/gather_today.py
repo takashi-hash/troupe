@@ -59,6 +59,7 @@ def _to_row(material: TodayMaterial, actions: tuple[str, ...]) -> TodayRow:
         born_version=material.born_version,
         period=material.period.text if material.period is not None else None,
         request_head=material.request_head,
+        instruction=material.instruction.text,
         state_name=_状態の語[material.state_name],
         due=_日時(material.due.at.isoformat()),
         assignee_name=material.assignee_name,

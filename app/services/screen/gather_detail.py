@@ -49,6 +49,7 @@ def gather_detail(
     )
     return DetailView(
         id=material.id.text,
+        instruction=material.instruction.text,
         state_name=_状態の語[material.state_name],
         due=material.due.at.isoformat()[:16].replace("T", " "),
         assignee_name=material.assignee_name,

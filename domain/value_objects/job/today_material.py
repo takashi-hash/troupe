@@ -19,6 +19,7 @@ from domain.value_objects.job.job_id import JobId
 from domain.value_objects.job.spent import Spent
 from domain.value_objects.people.owner import Owner
 from domain.value_objects.rule.budget import Budget
+from domain.value_objects.rule.instruction import Instruction
 from domain.value_objects.rule.rule_name import RuleName
 
 
@@ -37,6 +38,9 @@ class TodayMaterial(Value):
 
     #: 依頼の中身の先頭 — 依頼発のみ。
     request_head: str | None
+
+    #: やること — 生まれたとき写したもの（依頼発は依頼の中身）。
+    instruction: Instruction
 
     #: 状態の名。
     state_name: str

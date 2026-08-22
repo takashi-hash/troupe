@@ -157,6 +157,7 @@ def _today(za: Ichiza, viewer: str) -> None:
     for r in rows:
         見出し = r.rule or r.request_head or ""
         print(f"[{r.id}] {見出し} {r.period or ''}  {r.state_name}  期日 {r.due}")
+        print(f"  やること: {r.instruction}")
         if r.question_body:
             print(f"  質問: {r.question_body}")
         if r.result_body:

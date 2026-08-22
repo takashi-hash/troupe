@@ -217,6 +217,7 @@ class SqliteToday:
             born_version=job.born_version,
             period=job.period,
             request_head=request_head,
+            instruction=job.instruction,
             state_name=type(state).__name__,
             due=job.due,
             assignee_name=_assignee_name(state),
