@@ -6,6 +6,10 @@ A home-care agency lives or dies by paperwork that expires. A physician order la
 
 Troupe watches for them, does the work, and stops at exactly the point where a human has to decide.
 
+**Live, running on Google Cloud right now:** https://troupe-window-834978405023.asia-northeast1.run.app
+
+Two pulses beat every 60 seconds against a Cloud SQL ledger. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide.
+
 ```
 a business rule + the calendar ──→ a job is created, handed out
                                         ↓
@@ -42,9 +46,11 @@ Every one of those steps is an event appended to a ledger. Nothing is overwritte
 You can check the claim yourself:
 
 ```bash
-git diff --stat main..HEAD -- domain app     # empty
-uv run lint-imports                          # 6 contracts kept
+git diff --stat baseline..HEAD -- domain app   # empty
+uv run lint-imports                            # 6 contracts kept
 ```
+
+`baseline` is the tag on the last commit before the cloud work began. Everything between it and `HEAD` is the swap.
 
 This is not a lucky accident. The design said so before the code existed: *"the mechanism that keeps the AI resident is generic — you buy it"*, *"the tool that calls an LLM is generic — you buy it."* Swapping three of them is the proof that the boundary was real.
 
