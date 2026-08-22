@@ -1,12 +1,14 @@
-"""LLM の道具 — 腐敗防止層。ローカル LLM の応答を、印つきの整えた応答へ翻訳する。
+"""LLM の道具 — 腐敗防止層。LLM の応答を、印つきの整えた応答へ翻訳する。
 
 設計: 設計/どう作るか.md §4。
 | **adapters** | **業務の規則** | 帳簿の実装・Port の実装・**腐敗防止層** |
 LLM の応答は印つきの `Reply` へ翻訳されてから入る（**振り分けるのは domain の仕様**）。
 
 **生の応答はそのまま帳簿へ入らない。** system プロンプトで印の名乗りを指示し
-（1行目に「印: 成果」「印: 質問」「印: どちらでもない」、2行目以降が本文）、
-1行目を剥がして `Mark` に翻訳する。**名乗りが読めなければ「どちらでもない」に倒す**
+（1行目に `MARK: RESULT`・`MARK: QUESTION`・`MARK: NEITHER`、2行目以降が本文）、
+1行目を剥がして `Mark` に翻訳する。名乗りは**用語集の識別子そのまま**——
+`Mark` の値が result・question・neither なので、訳を一段はさまない。
+**名乗りが読めなければ「どちらでもない」に倒す**
 ——翻訳の失敗は成果でも質問でもない。空の応答も同じで、空だった旨が本文になる。
 
 接続できない・タイムアウト等の例外は**そのまま投げる**。LLM が居ないのは
@@ -25,35 +27,41 @@ from google.genai import types
 
 from domain.value_objects.job.reply import Mark, Reply
 
+#: LLM への指示。**印の名乗りは用語集の識別子そのまま**——`Mark` の値が
+#: result・question・neither なので、名乗りもそれに揃う（訳を一段はさまない）。
 _SYSTEM_PROMPT = (
-    "あなたは一座の働き手です。渡された材料だけで仕事を1歩進めてください。\n"
-    "応答の1行目には、必ず「印: 成果」「印: 質問」「印: どちらでもない」の"
-    "どれか1つだけを書いてください。2行目以降が本文です。\n"
-    "印: 成果 — 受け入れ基準を満たす成果が書けたとき。本文は成果そのもの。\n"
-    "印: 質問 — 受け持ちの人に確かめないと進めないとき。本文は質問。\n"
-    "印: どちらでもない — どちらとも言えないとき。本文はそう見立てた理由。"
+    "You are a worker in Troupe. Move the job one step forward, "
+    "using only the material you are given.\n"
+    "The first line of your reply must be exactly one of "
+    "'MARK: RESULT', 'MARK: QUESTION' or 'MARK: NEITHER'. "
+    "Everything from the second line on is the body.\n"
+    "MARK: RESULT — you can write a result that meets the acceptance criteria. "
+    "The body is the result itself.\n"
+    "MARK: QUESTION — you cannot go further without asking the owner. "
+    "The body is the question.\n"
+    "MARK: NEITHER — neither of those. The body is why you read it that way."
 )
 
 _MARKS = {
-    "成果": Mark.RESULT,
-    "質問": Mark.QUESTION,
-    "どちらでもない": Mark.NEITHER,
+    "RESULT": Mark.RESULT,
+    "QUESTION": Mark.QUESTION,
+    "NEITHER": Mark.NEITHER,
 }
 
 
 def _read_mark(line: str) -> Mark | None:
     """1行目から名乗りを読む。読めなければ None——信じるかどうかはここでは決めない。"""
-    named = line.strip().replace("：", ":").replace(" ", "").replace("　", "")
-    if not named.startswith("印:"):
+    named = line.strip().replace("：", ":").replace(" ", "").replace("　", "").upper()
+    if not named.startswith("MARK:"):
         return None
-    return _MARKS.get(named.removeprefix("印:"))
+    return _MARKS.get(named.removeprefix("MARK:"))
 
 
 def _translate(content: str) -> Reply:
     """応答の文字を整えた応答へ。名乗りが読めなければ「どちらでもない」に倒す。"""
     text = content.strip()
     if not text:
-        return Reply(mark=Mark.NEITHER, body="LLM の応答が空でした")
+        return Reply(mark=Mark.NEITHER, body="The model returned an empty reply.")
     first, _, rest = text.partition("\n")
     mark = _read_mark(first)
     body = rest.strip()
@@ -72,21 +80,21 @@ def _user_message(
 ) -> str:
     """材料を1つの文にまとめる。LLM へ渡るのは文字だけ。"""
     lines = [
-        "## やること",
+        "## Instruction",
         instruction,
         "",
-        "## 受け入れ基準",
-        "必ず含む語: " + "、".join(criteria_terms),
+        "## Acceptance criteria",
+        "Required terms: " + ", ".join(criteria_terms),
     ]
     if criteria_note.strip():
-        lines.append("説明: " + criteria_note)
-    lines += ["", "## 源の材料", source_material]
+        lines.append("Description: " + criteria_note)
+    lines += ["", "## Source material", source_material]
     if answered_questions:
-        lines += ["", "## 答えのある質問"]
+        lines += ["", "## Questions already answered"]
         for question, answer in answered_questions:
-            lines += [f"問: {question}", f"答: {answer}"]
+            lines += [f"Q: {question}", f"A: {answer}"]
     if previous_result is not None:
-        lines += ["", "## 前に出した成果（差し戻されている）", previous_result]
+        lines += ["", "## Previous result (it was sent back)", previous_result]
     return "\n".join(lines)
 
 
@@ -97,14 +105,17 @@ def _situation_message(
     sibling_states: tuple[str, ...],
 ) -> str:
     """巡回の材料を1つの文にまとめる。**どの実装から呼んでも同じ文になる。**"""
-    lines = [f"いまの状況: {situation}"]
+    lines = [f"Situation: {situation}"]
     if fall_reasons:
-        lines.append("止まった理由（古い順）:")
+        lines.append("Why it stopped (oldest first):")
         lines.extend(f"- {reason}" for reason in fall_reasons)
     if previous_result is not None:
-        lines.append(f"前に出した成果: {previous_result}")
+        lines.append(f"Previous result: {previous_result}")
     if sibling_states:
-        lines.append(f"同じ決まり・同じ期間の別の版の仕事の状態: {'、'.join(sibling_states)}")
+        lines.append(
+            "States of jobs from other versions of the same rule and period: "
+            + ", ".join(sibling_states)
+        )
     return "\n".join(lines)
 
 
@@ -199,11 +210,12 @@ class OllamaLlm:
 
 
 _SITUATION_PROMPT = (
-    "あなたは仕事場の状況を読んで、見立てを書く係です。**判断はしません**——"
-    "事実の報告と案だけを書きます。決めるのは人です。\n"
-    "応答は次の2つの行で書いてください。\n"
-    "見立て: 状況を読んだ結果を1〜2文で。数字の羅列ではなく、何が起きていそうかを言う。\n"
-    "理由: そう読んだ根拠を1〜2文で。"
+    "You read the situation in the workplace and write an assessment. "
+    "You do NOT decide anything — you report facts and suggest. A human decides.\n"
+    "Write your reply as exactly these two lines.\n"
+    "FINDING: what you make of the situation, in one or two sentences. "
+    "Not a list of numbers — say what seems to be going on.\n"
+    "REASON: what you based that on, in one or two sentences."
 )
 
 
@@ -211,15 +223,15 @@ def _translate_situation(content: str) -> tuple[str, str]:
     """見立てと理由の行を剥がす。名乗りが読めなければ全文を見立てに倒す。"""
     finding, reason = "", ""
     for line in content.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("見立て:") or stripped.startswith("見立て："):
-            finding = stripped.split(":", 1)[-1].split("：", 1)[-1].strip()
-        elif stripped.startswith("理由:") or stripped.startswith("理由："):
-            reason = stripped.split(":", 1)[-1].split("：", 1)[-1].strip()
+        stripped = line.strip().replace("：", ":")
+        if stripped.upper().startswith("FINDING:"):
+            finding = stripped.split(":", 1)[-1].strip()
+        elif stripped.upper().startswith("REASON:"):
+            reason = stripped.split(":", 1)[-1].strip()
     if not finding:
-        finding = content.strip() or "（LLM の応答が空でした）"
+        finding = content.strip() or "(the model returned an empty reply)"
     if not reason:
-        reason = "（理由の名乗りが無かったので、本文全体を見立てとして扱った）"
+        reason = "(no reason was named, so the whole body was taken as the finding)"
     return finding, reason
 
 

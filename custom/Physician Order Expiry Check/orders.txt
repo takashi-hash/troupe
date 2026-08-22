@@ -1,0 +1,15 @@
+# Physician order register - Riverbend Home Health (fictional agency)
+# NOTE: This is synthetic data. No real patient, clinician or practice appears here.
+# Patients are tracked by code only; names are never kept in this register.
+# Columns: patient code / ordering practice / date signed / expiry date / order type
+
+P-001 / Harbor Internal Medicine (fictional) / 2026-02-14 / 2026-08-13 / Home health certification
+P-002 / Cedar Ridge Hospital (fictional)     / 2026-03-01 / 2026-08-31 / Home health certification
+P-003 / Harbor Internal Medicine (fictional) / 2026-06-20 / 2026-12-19 / Home health certification
+P-004 / Eastgate Rehabilitation (fictional)  / 2026-02-28 / 2026-08-27 / Home health certification
+P-005 / Cedar Ridge Hospital (fictional)     / 2026-08-01 / 2026-08-14 / Short-term skilled nursing order
+P-006 / Whitfield Clinic (fictional)         / 2026-05-10 / 2026-11-09 / Home health certification
+P-007 / Eastgate Rehabilitation (fictional)  / 2026-01-31 / 2026-07-30 / Home health certification
+P-008 / Whitfield Clinic (fictional)         / 2026-07-15 / 2027-01-14 / Home health certification
+P-009 / Harbor Internal Medicine (fictional) / 2026-03-09 / 2026-09-08 / Home health certification
+P-010 / Cedar Ridge Hospital (fictional)     / 2026-08-05 / 2026-08-18 / Short-term skilled nursing order

@@ -1,0 +1,16 @@
+# Documents kept on file - Riverbend Home Health (fictional agency)
+# NOTE: Synthetic data. This is not a real agency's file or a real survey result.
+# Columns: document / status / last updated
+
+Governing body and operating policy        / complete   / 2026-04-01
+Patient rights and service agreement       / complete   / 2025-04-01
+Staffing roster (current month)            / complete   / 2026-08-01
+Clinician licence copies on file           / incomplete / 2025-11-20
+Infection prevention and control procedure / complete   / 2024-06-15
+Emergency preparedness plan                / complete   / 2026-03-10
+Abuse and neglect prevention policy        / missing    / -
+Restraint and seclusion policy             / complete   / 2026-02-01
+Complaint log                              / complete   / 2026-07-22
+Incident and adverse event log             / complete   / 2026-05-30
+Staff training and drill records           / incomplete / 2025-12-05
+Privacy and data handling consent forms    / complete   / 2026-06-18

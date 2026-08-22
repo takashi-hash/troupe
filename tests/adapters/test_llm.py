@@ -59,7 +59,7 @@ def _問う(llm: LlmPort) -> tuple[Any, int, int]:
 
 
 def test_成果の名乗りを剥がして印にする(monkeypatch: pytest.MonkeyPatch) -> None:
-    _応答を差す(monkeypatch, "印: 成果\n2026-07 の請求は42件、計84万円")
+    _応答を差す(monkeypatch, "MARK: RESULT\n2026-07 の請求は42件、計84万円")
     reply, calls, seconds = _問う(OllamaLlm(model="qwen3"))
     assert reply.mark is Mark.RESULT
     assert reply.body == "2026-07 の請求は42件、計84万円"
@@ -68,14 +68,14 @@ def test_成果の名乗りを剥がして印にする(monkeypatch: pytest.Monke
 
 
 def test_質問の名乗りを剥がして印にする(monkeypatch: pytest.MonkeyPatch) -> None:
-    _応答を差す(monkeypatch, "印: 質問\n締めの区切りは暦月ですか？")
+    _応答を差す(monkeypatch, "MARK: QUESTION\n締めの区切りは暦月ですか？")
     reply, _, _ = _問う(OllamaLlm(model="qwen3"))
     assert reply.mark is Mark.QUESTION
     assert reply.body == "締めの区切りは暦月ですか？"
 
 
 def test_どちらでもないの名乗りも印になる(monkeypatch: pytest.MonkeyPatch) -> None:
-    _応答を差す(monkeypatch, "印: どちらでもない\n源の数字が基準と噛み合いません")
+    _応答を差す(monkeypatch, "MARK: NEITHER\n源の数字が基準と噛み合いません")
     reply, _, _ = _問う(OllamaLlm(model="qwen3"))
     assert reply.mark is Mark.NEITHER
     assert reply.body == "源の数字が基準と噛み合いません"
@@ -91,14 +91,14 @@ def test_名乗りが読めなければどちらでもないに倒す(monkeypatc
 
 def test_使った秒は最低1(monkeypatch: pytest.MonkeyPatch) -> None:
     """一瞬で返っても、使ったのに0秒とは書かない。"""
-    _応答を差す(monkeypatch, "印: 成果\n請求は42件")
+    _応答を差す(monkeypatch, "MARK: RESULT\n請求は42件")
     monkeypatch.setattr(time, "monotonic", lambda: 5.0)
     _, _, seconds = _問う(OllamaLlm(model="qwen3"))
     assert seconds == 1
 
 
 def test_使った秒は差の切り上げ(monkeypatch: pytest.MonkeyPatch) -> None:
-    _応答を差す(monkeypatch, "印: 成果\n請求は42件")
+    _応答を差す(monkeypatch, "MARK: RESULT\n請求は42件")
     ticks = [10.0, 12.2]
 
     def fake_monotonic() -> float:
@@ -110,7 +110,7 @@ def test_使った秒は差の切り上げ(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_渡る形はOllamaのchatで印の指示が載る(monkeypatch: pytest.MonkeyPatch) -> None:
-    seen = _応答を差す(monkeypatch, "印: 成果\n請求は42件")
+    seen = _応答を差す(monkeypatch, "MARK: RESULT\n請求は42件")
     _問う(OllamaLlm(model="qwen3", base_url="http://localhost:11434"))
     request = seen[0]
     assert request.full_url == "http://localhost:11434/api/chat"
@@ -120,7 +120,7 @@ def test_渡る形はOllamaのchatで印の指示が載る(monkeypatch: pytest.M
     assert payload["stream"] is False
     system = payload["messages"][0]
     assert system["role"] == "system"
-    for 名乗り in ("印: 成果", "印: 質問", "印: どちらでもない"):
+    for 名乗り in ("MARK: RESULT", "MARK: QUESTION", "MARK: NEITHER"):
         assert 名乗り in system["content"]
 
 
@@ -161,7 +161,7 @@ def _Geminiを差す(
 def test_Geminiでも成果の名乗りを剥がして印にする(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _Geminiを差す(monkeypatch, "印: 成果\n2026-07 の請求は42件、計84万円")
+    _Geminiを差す(monkeypatch, "MARK: RESULT\n2026-07 の請求は42件、計84万円")
     reply, calls, seconds = _問う(GeminiLlm())
     assert reply.mark is Mark.RESULT
     assert reply.body == "2026-07 の請求は42件、計84万円"
@@ -189,11 +189,11 @@ def test_Geminiの応答が空でも本文の空な応答は作らない(
 
 
 def test_Geminiへ渡る形はモデルと印の指示(monkeypatch: pytest.MonkeyPatch) -> None:
-    models = _Geminiを差す(monkeypatch, "印: 成果\n請求は42件")
+    models = _Geminiを差す(monkeypatch, "MARK: RESULT\n請求は42件")
     _問う(GeminiLlm(model="gemini-3.5-flash"))
     渡した = models.seen[0]
     assert 渡した["model"] == "gemini-3.5-flash"
-    for 名乗り in ("印: 成果", "印: 質問", "印: どちらでもない"):
+    for 名乗り in ("MARK: RESULT", "MARK: QUESTION", "MARK: NEITHER"):
         assert 名乗り in 渡した["config"].system_instruction
     assert "先月分の請求を集計する" in 渡した["contents"]
 
@@ -202,14 +202,14 @@ def test_巡回の材料はOllamaとGeminiで同じ文になる(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """**翻訳は共有**——実装ごとに材料のまとめかたが分かれたら、腐敗防止層が2つになる。"""
-    材料 = ("実行中で12時間動いていない", ("源が読めない",), "前の成果", ("失敗した",))
-    models = _Geminiを差す(monkeypatch, "見立て: 源が落ちている\n理由: 3回とも同じ理由")
+    材料 = ("in progress, no movement for 12 hours", ("the source could not be read",), "previous result", ("Failed",))
+    models = _Geminiを差す(monkeypatch, "FINDING: the source is down\nREASON: the same reason three times")
     見立て, 理由, calls, seconds = GeminiLlm().read_situation(*材料)
-    assert 見立て == "源が落ちている"
-    assert 理由 == "3回とも同じ理由"
+    assert 見立て == "the source is down"
+    assert 理由 == "the same reason three times"
     assert (calls, seconds >= 1) == (1, True)
 
-    ollama_seen = _応答を差す(monkeypatch, "見立て: x\n理由: y")
+    ollama_seen = _応答を差す(monkeypatch, "FINDING: x\nREASON: y")
     OllamaLlm(model="qwen3").read_situation(*材料)
     ollama_data = ollama_seen[0].data
     assert isinstance(ollama_data, bytes)
@@ -219,6 +219,6 @@ def test_巡回の材料はOllamaとGeminiで同じ文になる(
 
 def test_GeminiもLLMの口を名乗れる(monkeypatch: pytest.MonkeyPatch) -> None:
     """**口が1つであることの証拠**——差し替えても呼ぶ側は何も知らない。"""
-    _Geminiを差す(monkeypatch, "印: 成果\n請求は42件")
+    _Geminiを差す(monkeypatch, "MARK: RESULT\n請求は42件")
     口: LlmPort = GeminiLlm()
     assert _問う(口)[0].mark is Mark.RESULT

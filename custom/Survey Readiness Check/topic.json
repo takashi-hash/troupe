@@ -1,0 +1,12 @@
+{
+  "instruction": "Read the list of documents the agency must keep on file. List every document that is missing or incomplete, and every document whose last update is more than a year before the reporting period named in the acceptance criteria. For each one write: document name, why it is required, date last updated, and exactly what is missing. Put the ones a surveyor looks at first at the top.",
+  "source": "file:custom/Survey Readiness Check/documents.txt",
+  "required_terms": ["{対象期間}", "missing"],
+  "description": "Every document not marked complete is listed, and so is every document last updated more than a year ago.",
+  "cycle": "weekly",
+  "days": 3,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 6
+}

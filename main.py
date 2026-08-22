@@ -86,6 +86,7 @@ from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
 from ui.web import 手
+from ui.words import 状態, 操作, 語
 
 
 class Ichiza:
@@ -214,18 +215,19 @@ def _tick(za: Ichiza) -> None:
     overdue = mark_overdue(za.jobs, za.states, za.overdue_marks, za.clock)
     欠け = audit(za.active, za.origins, za.clock)
     for 名前, 版, 期間 in 欠け:
-        print(f"⚠ I8: 有効なのに仕事が無い — {名前.text} 版{版} {期間.text}")
+        print(f"! I8 active rule with no job — {名前.text} v{版} {期間.text}")
+    # 出すのは §1 の操作の識別子そのまま——ログもまた読む人のもの
     for 名, 列 in (
-        ("作った", made),
-        ("配った", handed),
-        ("時間切れ", returned),
-        ("検査した", checked),
-        ("仕分けた", sorted_),
-        ("確かめた", confirmed),
-        ("期日切れ", overdue),
+        ("create", made),
+        ("hand_out", handed),
+        ("return_timed_out", returned),
+        ("run_check", checked),
+        ("sort_failures", sorted_),
+        ("confirm", confirmed),
+        ("mark_overdue", overdue),
     ):
         if 列:
-            print(f"{名}: {'、'.join(j.text for j in 列)}")
+            print(f"{名}: {', '.join(j.text for j in 列)}")
 
 
 def _agent(za: Ichiza, name: str) -> None:
@@ -233,7 +235,7 @@ def _agent(za: Ichiza, name: str) -> None:
     ai = Agent(name=name)
     took = start(za.jobs, za.states, za.clock, by=ai)
     if isinstance(took, JobId):
-        print(f"着手した: {took.text}")
+        print(f"start: {took.text}")
         outcome = consult(
             za.jobs,
             za.work,
@@ -247,32 +249,41 @@ def _agent(za: Ichiza, name: str) -> None:
             took,
             by=ai,
         )
-        print(f"進めた: {took.text}" if outcome is None else f"断り: {outcome.reason}")
+        print(
+            f"consult: {took.text}"
+            if outcome is None
+            else f"refused: {outcome.reason}"
+        )
     visited = patrol(
         za.jobs, za.states, za.work, za.assessments, za.llm, za.clock, by=ai
     )
     if visited:
-        print(f"見立てを書いた: {'、'.join(j.text for j in visited)}")
+        print(f"assess: {', '.join(j.text for j in visited)}")
 
 
 def _today(za: Ichiza, viewer: str) -> None:
     rows = gather_today(za.today, za.clock, viewer)
     if not rows:
-        print("今日は空です")
+        print("Nothing needs your judgment today.")
         return
     for r in rows:
         見出し = r.rule or r.request_head or ""
-        print(f"[{r.id}] {見出し} {r.period or ''}  {r.state_name}  期日 {r.due}")
-        print(f"  やること: {r.instruction}")
-        if r.question_body:
-            print(f"  質問: {r.question_body}")
-        if r.result_body:
-            print(f"  成果: {r.result_body}")
-        if r.evidence_quote:
-            print(f"  根拠: {r.evidence_quote}")
+        print(
+            f"[{r.id}] {見出し} {r.period or ''}  "
+            f"{状態(r.state_name)}  {語('期日')} {r.due}"
+        )
+        print(f"  {語('やること')}: {r.instruction}")
+        for 欄, 中身 in (
+            ("質問", r.question_body),
+            ("回答", r.answer_body),
+            ("成果", r.result_body),
+            ("根拠", r.evidence_quote),
+        ):
+            if 中身:
+                print(f"  {語(欄)}: {中身}")
         for 見立て, 理由 in r.assessments:
-            print(f"  見立て: {見立て}（{理由}）")
-        print(f"  押せる: {'、'.join(r.actions)}")
+            print(f"  {語('見立て')}: {見立て} ({理由})")
+        print(f"  can press: {', '.join(操作(a) for a in r.actions)}")
 
 
 def main() -> None:
@@ -365,13 +376,13 @@ def main() -> None:
         _today(za, args.viewer)
     elif args.cmd == "rule-add":
         断り = add_version(za.rules, za.topics, za.clock, args.name, args.by, VersionForm())
-        print("積んだ" if 断り is None else f"断り: {断り.reason}")
+        print("add_version: ok" if 断り is None else f"refused: {断り.reason}")
     elif args.cmd == "rule-activate":
         断り = activate(za.rules, za.clock, args.name, args.version, args.by)
-        print("有効にした" if 断り is None else f"断り: {断り.reason}")
+        print("activate: ok" if 断り is None else f"refused: {断り.reason}")
     elif args.cmd == "rule-deactivate":
         断り = deactivate(za.rules, za.clock, args.name, args.by)
-        print("止めた" if 断り is None else f"断り: {断り.reason}")
+        print("deactivate: ok" if 断り is None else f"refused: {断り.reason}")
     elif args.cmd == "act":
         if args.what == "approve":
             断り = approve(za.jobs, za.clock, args.id, args.by)
@@ -381,7 +392,7 @@ def main() -> None:
             断り = answer(za.jobs, za.questions, za.clock, args.id, args.by, args.text)
         else:
             断り = abandon(za.jobs, za.clock, args.id, args.by, args.text)
-        print("できた" if 断り is None else f"断り: {断り.reason}")
+        print(f"{args.what}: ok" if 断り is None else f"refused: {断り.reason}")
     za.conn.close()
 
 

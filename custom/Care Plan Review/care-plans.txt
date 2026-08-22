@@ -1,0 +1,14 @@
+# Plan of care register - Riverbend Home Health (fictional agency)
+# NOTE: Synthetic data. No real patient information appears here. Patients are codes only.
+# Columns: patient code / plan last written / most recent change in condition / assigned nurse code
+
+P-001 / 2026-06-30 / none                              / RN-A
+P-002 / 2026-07-28 / none                              / RN-B
+P-003 / 2026-05-15 / fall at home (2026-08-02)         / RN-A
+P-004 / 2026-07-31 / none                              / RN-C
+P-005 / 2026-08-10 / discharged from hospital (2026-08-08) / RN-B
+P-006 / 2026-04-20 / none                              / RN-C
+P-007 / 2026-07-01 / medication change (2026-08-12)    / RN-A
+P-008 / 2026-08-05 / none                              / RN-B
+P-009 / 2026-06-11 / none                              / RN-C
+P-010 / 2026-08-12 / new admission (2026-08-12)        / RN-A

@@ -13,8 +13,8 @@
 **PySide6 を読み込まない。** 机の窓と web の窓は同じ手を受け取るが、
 互いを知らない——クラウドの器に画面の道具を載せないため。
 
-日本語を読まない人のために、用語集の識別子を併記する（人に見えるもの §5）。
-**訳は作らない**——出すのは用語集に載っている識別子そのまま。
+**出すのは用語集の識別子の欄**（人に見えるもの §5）——机の窓が語の欄を出すのに対して、
+web の窓は識別子の欄を出す。**訳はここで作らない**——橋に無い語は出せない（`語` が落ちる）。
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
 from app.dto.today_row import TodayRow
-from ui.words import ACTION_WORDS, STATE_GLOSS, TEXT_FIELDS, 併記
+from ui.words import 操作, 状態, 語, 読める
 
 
 class 読む手(Protocol):
@@ -143,23 +143,26 @@ th { font-size: 13px; opacity: .6; font-weight: 500; }
 .wrap { overflow-x: auto; }
 """
 
-_画面 = (("今日", "today"), ("予定", "schedule"), ("履歴", "history"), ("検索", "search"))
+_画面 = ("today", "schedule", "history", "search")
+
+#: 書く欄の見出し。**用語集の語ではない**——押すときの手がかりなので、そのまま英語で置く。
+_書く欄 = {"answer": "Answer", "send_back": "Reason", "abandon": "Reason"}
 
 
 def _頁(見出し: str, 中身: str, viewer: str, 断り: str | None = None) -> str:
     """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。"""
     tabs = "".join(
         f'<a class="{"on" if 識別子 == 見出し else ""}" href="/{識別子}">'
-        f"{escape(併記(語, 識別子))}</a>"
-        for 語, 識別子 in _画面
+        f"{escape(読める(識別子))}</a>"
+        for 識別子 in _画面
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     return (
-        "<!doctype html><html lang='ja'><head><meta charset='utf-8'>"
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        f"<title>Troupe — {escape(見出し)}</title><style>{_STYLE}</style></head><body>"
+        f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
         f"<header><span class='name'>Troupe</span><nav>{tabs}</nav>"
-        f"<span class='who'>見る人: {escape(viewer)}</span></header>"
+        f"<span class='who'>Viewer: {escape(viewer)}</span></header>"
         f"<main>{警告}{中身}</main></body></html>"
     )
 
@@ -172,12 +175,12 @@ def _欄(組: list[tuple[str, str | None]]) -> str:
     return f"<dl>{行}</dl>" if 行 else ""
 
 
-def _押せること(操作: tuple[str, ...], job_id: str, 戻り: str) -> str:
+def _押せること(押せる: tuple[str, ...], job_id: str, 戻り: str) -> str:
     """押せることを並べる。**組むのは domain の仕様**——ここは入っているものを出すだけ。"""
     out = []
-    for what in 操作:
-        語 = 併記(ACTION_WORDS.get(what, what), what)
-        欄 = TEXT_FIELDS.get(what)
+    for what in 押せる:
+        名 = 操作(what)
+        欄 = _書く欄.get(what)
         書く = (
             f"<input type='text' name='text' placeholder='{escape(欄)}' required>"
             if 欄
@@ -188,23 +191,22 @@ def _押せること(操作: tuple[str, ...], job_id: str, 戻り: str) -> str:
             f"<input type='hidden' name='what' value='{escape(what)}'>"
             f"<input type='hidden' name='id' value='{escape(job_id)}'>"
             f"<input type='hidden' name='back' value='{escape(戻り)}'>"
-            f"{書く}<button>{escape(語)}</button></form>"
+            f"{書く}<button>{escape(名)}</button></form>"
         )
     return "".join(out)
 
 
-def _状態(語: str) -> str:
-    return f"<span class='state'>{escape(併記(語, STATE_GLOSS.get(語)))}</span>"
+def _状態(名: str) -> str:
+    return f"<span class='state'>{escape(状態(名))}</span>"
 
 
 def _今日(rows: tuple[TodayRow, ...]) -> str:
     if not rows:
-        r = "今日は空です。判断が要るものはありません。"
-        return f"<p class='empty'>{r}<br>Nothing needs your judgment today.</p>"
+        return "<p class='empty'>Nothing needs your judgment today.</p>"
     out = []
     for r in rows:
         見出し = r.rule or r.request_head or ""
-        使った = f"{r.spent_calls}/{r.budget_calls} 回・{r.spent_seconds}/{r.budget_seconds} 秒"
+        使った = f"{r.spent_calls}/{r.budget_calls} calls, {r.spent_seconds}/{r.budget_seconds} s"
         見立て = "\n".join(f"{本文}（{理由}）" for 本文, 理由 in r.assessments)
         out.append(
             f"<div class='row'><div class='head'>"
@@ -213,17 +215,17 @@ def _今日(rows: tuple[TodayRow, ...]) -> str:
             f"</div>"
             + _欄(
                 [
-                    ("やること", r.instruction),
-                    ("期日", r.due),
-                    ("担当", r.assignee_name),
-                    ("質問", r.question_body),
-                    ("回答", r.answer_body),
-                    ("成果", r.result_body),
-                    ("根拠", r.evidence_quote),
-                    ("見立て", 見立て),
-                    ("確かめ期日", r.recheck_at),
-                    ("やり直し", "尽きています" if r.retries_exhausted else None),
-                    ("使った量", 使った),
+                    (語("やること"), r.instruction),
+                    (語("期日"), r.due),
+                    (語("担当"), r.assignee_name),
+                    (語("質問"), r.question_body),
+                    (語("回答"), r.answer_body),
+                    (語("成果"), r.result_body),
+                    (語("根拠"), r.evidence_quote),
+                    (語("見立て"), 見立て),
+                    (語("確かめ期日"), r.recheck_at),
+                    ("Retries", "exhausted" if r.retries_exhausted else None),
+                    (語("使った量"), 使った),
                 ]
             )
             + _押せること(r.actions, r.id, "/today")
@@ -234,8 +236,8 @@ def _今日(rows: tuple[TodayRow, ...]) -> str:
 
 def _詳細(view: DetailView | None) -> str:
     if view is None:
-        return "<p class='empty'>その仕事は見つかりませんでした。</p>"
-    問答 = "\n".join(f"問: {q}\n答: {a or '（まだ）'}" for q, a in view.questions)
+        return "<p class='empty'>No such job.</p>"
+    問答 = "\n".join(f"Q: {q}\nA: {a or '(not yet)'}" for q, a in view.questions)
     見立て = "\n".join(f"{本文}（{理由}）" for 本文, 理由 in view.assessments)
     出来事 = "".join(
         f"<tr><td>{escape(e.at)}</td><td>{escape(e.by)}</td><td>{escape(e.what)}</td></tr>"
@@ -247,18 +249,18 @@ def _詳細(view: DetailView | None) -> str:
         f"<span class='id'>{escape(view.id)}</span></div>"
         + _欄(
             [
-                ("期日", view.due),
-                ("担当", view.assignee_name),
-                ("成果", view.result_body),
-                ("根拠", view.evidence_quote),
-                ("確かめ期日", view.recheck_at),
-                ("問答", 問答),
-                ("見立て", 見立て),
+                (語("期日"), view.due),
+                (語("担当"), view.assignee_name),
+                (語("成果"), view.result_body),
+                (語("根拠"), view.evidence_quote),
+                (語("確かめ期日"), view.recheck_at),
+                (f'{語("質問")} / {語("回答")}', 問答),
+                (語("見立て"), 見立て),
             ]
         )
         + _押せること(view.actions, view.id, f"/detail?id={view.id}")
         + "</div>"
-        + "<div class='wrap'><table><tr><th>いつ</th><th>誰が</th><th>何が起きたか</th></tr>"
+        + "<div class='wrap'><table><tr><th>When</th><th>Who</th><th>What happened</th></tr>"
         + 出来事
         + "</table></div>"
     )
@@ -278,11 +280,11 @@ def _予定(rules: tuple[ScheduleRow, ...], jobs: tuple[SearchRow, ...]) -> str:
         for j in jobs
     )
     return (
-        "<h3>業務ルール</h3><div class='wrap'><table>"
-        "<tr><th>業務ルール</th><th>やること</th><th>版</th><th>有効な版</th>"
-        "<th>次の対象期間</th></tr>" + 決まり + "</table></div>"
-        "<h3>いま動いている仕事</h3><div class='wrap'><table>"
-        "<tr><th>識別子</th><th>見出し</th><th>対象期間</th><th>状態</th><th>期日</th></tr>"
+        f"<h3>{語('業務ルール')}</h3><div class='wrap'><table>"
+        "<tr><th>Rule</th><th>Instruction</th><th>Version</th><th>Active version</th>"
+        "<th>Next period</th></tr>" + 決まり + "</table></div>"
+        "<h3>Jobs in flight</h3><div class='wrap'><table>"
+        "<tr><th>Id</th><th>Title</th><th>Period</th><th>State</th><th>Due date</th></tr>"
         + 仕事
         + "</table></div>"
     )
@@ -295,8 +297,8 @@ def _履歴(rows: tuple[HistoryRow, ...]) -> str:
         for r in rows
     )
     return (
-        "<div class='wrap'><table><tr><th>いつ</th><th>誰が</th><th>何が起きたか</th>"
-        "<th>どの仕事か</th></tr>" + 行 + "</table></div>"
+        "<div class='wrap'><table><tr><th>When</th><th>Who</th><th>What happened</th>"
+        "<th>Job</th></tr>" + 行 + "</table></div>"
     )
 
 
@@ -311,9 +313,9 @@ def _検索(rows: tuple[SearchRow, ...], keyword: str) -> str:
     return (
         "<form method='get' action='/search'>"
         f"<input type='text' name='keyword' value='{escape(keyword)}' "
-        "placeholder='キーワード'> <button>検索する</button></form>"
-        "<div class='wrap'><table><tr><th>識別子</th><th>見出し</th><th>対象期間</th>"
-        "<th>状態</th><th>期日</th><th>担当</th></tr>" + 行 + "</table></div>"
+        "placeholder='keyword'> <button>Search</button></form>"
+        "<div class='wrap'><table><tr><th>Id</th><th>Title</th><th>Period</th>"
+        "<th>State</th><th>Due date</th><th>Assignee</th></tr>" + 行 + "</table></div>"
     )
 
 

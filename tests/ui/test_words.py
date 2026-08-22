@@ -1,19 +1,44 @@
-"""操作の語と状態の語の橋の壊しかた。設計/人に見えるもの.md §3・§5。
+"""語の橋の壊しかた。設計/人に見えるもの.md §3・§5。
 
 **橋は1枚**——画面ごとに言い換えを持たない。
-状態の語の写し（`STATE_GLOSS`）は domain の `STATE_WORDS` と1行ずつ照合する。
-**画面は domain を知らない**（依存の契約）ので写しが要るが、
-写しである以上ずれうる。だからここが突合になる。
+そのうえで写しが2つある（用語集と状態の語）。写しである以上ずれうるので、
+どちらも突合が正本と1行ずつ照合する:
+
+- `GLOSS` ↔ 設計/仕事とは何か.md §2 の用語集（**設計が正本**）
+- `STATE_GLOSS` ↔ domain の `STATE_WORDS`（**domain が正本**。画面は domain を知らない）
 """
 
 from __future__ import annotations
 
+import pathlib
+import re
+
 from domain.aggregates.job.life import STATE_WORDS
-from ui.words import ACTION_WORDS, STATE_GLOSS, TEXT_FIELDS, 併記
+from ui.words import ACTION_WORDS, GLOSS, STATE_GLOSS, TEXT_FIELDS, 操作, 状態, 語, 読める
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
 
-def test_状態の語の写しが用語集と1行ずつ一致する() -> None:
-    """**正本は domain。** 語を増やしても減らしても、写し忘れたらここが赤くなる。"""
+def _用語集() -> dict[str, str]:
+    """設計 §2 の表から「語 → 識別子」を読む。**正本はここ。**"""
+    doc = (ROOT / "設計" / "仕事とは何か.md").read_text(encoding="utf-8")
+    body = doc.split("## 2. 語", 1)[1].split("## 3.", 1)[0]
+    出た: dict[str, str] = {}
+    for line in body.splitlines():
+        m = re.match(r"\|\s*\*{0,2}(.+?)\*{0,2}\s*\|.*\|\s*`([A-Za-z_]+)`\s*\|\s*$", line.strip())
+        if m and m.group(1) != "語":
+            出た[m.group(1)] = m.group(2)
+    assert 出た, "設計から用語集が1行も読めませんでした"
+    return 出た
+
+
+def test_語の橋が用語集と1行ずつ一致する() -> None:
+    """**正本は設計。** 語を足しても消しても改名しても、写し忘れたらここが赤くなる。"""
+    assert GLOSS == _用語集()
+
+
+def test_状態の語の写しがdomainと1行ずつ一致する() -> None:
+    """**正本は domain。** 画面は domain を import できないので写しが要る。"""
     assert STATE_GLOSS == STATE_WORDS
 
 
@@ -22,11 +47,33 @@ def test_書く欄が要る操作は操作の語に載っている() -> None:
     assert set(TEXT_FIELDS) <= set(ACTION_WORDS)
 
 
-def test_併記は用語集の識別子をそのまま出す() -> None:
-    assert 併記(ACTION_WORDS["approve"], "approve") == "承認する（approve）"
-    assert 併記("承認待ち", STATE_GLOSS["承認待ち"]) == "承認待ち（AwaitingApproval）"
+# --- 識別子の側から読める形にする。**訳は作らない** ---
 
 
-def test_橋が無い語は語だけを出す() -> None:
-    """**無い訳をここで発明しない。** 用語集に載っていないものは、載っていないと出す。"""
-    assert 併記("なにか", None) == "なにか"
+def test_識別子は切れ目で割れて頭が大きくなるだけ() -> None:
+    assert 読める("send_back") == "Send back"
+    assert 読める("AwaitingApproval") == "Awaiting approval"
+    assert 読める("approve") == "Approve"
+    assert 読める("RecheckDate") == "Recheck date"
+
+
+def test_用語集の語は識別子の側から読める() -> None:
+    assert 語("成果") == "Result"
+    assert 語("根拠") == "Evidence"
+    assert 語("やること") == "Instruction"
+    assert 状態("承認待ち") == "Awaiting approval"
+    assert 操作("send_back") == "Send back"
+
+
+def test_橋に無い語は出せない() -> None:
+    """**訳をその場で発明させない。** 足したければ、まず用語集に行を足す。"""
+    try:
+        語("そんな語は無い")
+    except KeyError:
+        return
+    raise AssertionError("橋に無い語が出てしまいました")
+
+
+def test_橋に無い状態は語をそのまま出す() -> None:
+    """状態は帳簿から来る——古い帳簿の語を、無い訳で塗りつぶさない。"""
+    assert 状態("見たことのない状態") == "見たことのない状態"

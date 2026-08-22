@@ -1,0 +1,12 @@
+{
+  "instruction": "Read the physician order register in the source. List every order that has already expired, and every order that expires within the reporting period named in the acceptance criteria. For each one write: patient code, ordering practice, date signed, expiry date, and days remaining. Put the already-expired ones first. A visit made under an expired order cannot be billed, so a miss here is a direct revenue loss for the agency.",
+  "source": "file:custom/Physician Order Expiry Check/orders.txt",
+  "required_terms": ["{対象期間}", "expiry"],
+  "description": "Every expired order and every order expiring within the reporting period is listed. No patient code appears that is not in the register.",
+  "cycle": "monthly",
+  "days": 5,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 6
+}
