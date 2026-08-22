@@ -13,9 +13,9 @@ gcloud run services describe troupe-window --region="$REGION" --project="$PROJEC
   --format="value(status.url,status.conditions[0].status)"
 
 printf '\n\033[1m== 脈（直近のひと回り）==\033[0m\n'
-for 役 in tick agent; do
-  printf '%-14s ' "troupe-$役"
-  gcloud run jobs executions list --job="troupe-$役" --region="$REGION" \
+for role in tick agent; do
+  printf '%-14s ' "troupe-$role"
+  gcloud run jobs executions list --job="troupe-$role" --region="$REGION" \
     --project="$PROJECT" --limit=1 \
     --format="value(status.completionTime,status.succeededCount,status.failedCount)" 2>/dev/null \
     || echo "まだ回っていない"

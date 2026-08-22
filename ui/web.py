@@ -340,9 +340,12 @@ def make_app(開く: 手を開く, viewer: str) -> Any:
     def _根() -> Any:
         return RedirectResponse("/today")
 
-    @app.get("/healthz")
+    @app.get("/alive")
     def _生きているか() -> dict[str, str]:
-        """器が生きているかだけ。**帳簿は開かない**——脈ではない。"""
+        """器が生きているかだけ。**帳簿は開かない**——脈ではない。
+
+        （`/healthz` は載せる先の入口に取られるので使わない。）
+        """
         return {"status": "ok"}
 
     @app.get("/today", response_class=HTMLResponse)

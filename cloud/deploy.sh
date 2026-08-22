@@ -25,7 +25,8 @@ say() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 say "身元 — 一座が名乗る先"
 gcloud iam service-accounts create troupe-runtime --project="$PROJECT" \
   --display-name="Troupe runtime" 2>/dev/null || echo "  既に在る"
-for role in roles/aiplatform.user roles/cloudsql.client \
+# run.invoker は**心拍が脈を起こすため**——これが無いと Scheduler は一度も試みない
+for role in roles/aiplatform.user roles/cloudsql.client roles/run.invoker \
             roles/secretmanager.secretAccessor roles/logging.logWriter; do
   gcloud projects add-iam-policy-binding "$PROJECT" \
     --member="serviceAccount:${SA}" --role="$role" --condition=None \
@@ -59,9 +60,9 @@ gcloud builds submit --config cloud/cloudbuild.yaml \
   --substitutions=_IMAGE="$IMAGE" --project="$PROJECT" --quiet
 
 say "脈 — 時計のひと回りと AI のひと回り（**常駐する仕組みは買う**）"
-for 役 in tick agent; do
-  if [ "$役" = "agent" ]; then ARGS="agent,--name,一号"; else ARGS="tick"; fi
-  gcloud run jobs deploy "troupe-${役}" \
+for role in tick agent; do
+  if [ "$role" = "agent" ]; then ARGS="agent,--name,Nomi"; else ARGS="tick"; fi
+  gcloud run jobs deploy "troupe-${role}" \
     --image="$IMAGE" --region="$REGION" --project="$PROJECT" \
     --service-account="$SA" \
     --set-cloudsql-instances="$CONNECTION" \
@@ -69,7 +70,7 @@ for 役 in tick agent; do
     --set-env-vars="$MODEL_ENV" \
     --args="$ARGS" \
     --max-retries=0 --task-timeout=300s --quiet >/dev/null
-  echo "  troupe-${役}"
+  echo "  troupe-${role}"
 done
 
 say "窓 — web の器"
@@ -79,30 +80,30 @@ gcloud run deploy troupe-window \
   --set-cloudsql-instances="$CONNECTION" \
   --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest" \
   --set-env-vars="$MODEL_ENV" \
-  --args="serve,--viewer,管理者" \
+  --args="serve,--viewer,Director" \
   --allow-unauthenticated \
   --min-instances=0 --max-instances=3 --quiet >/dev/null
-窓=$(gcloud run services describe troupe-window --region="$REGION" \
+window_url=$(gcloud run services describe troupe-window --region="$REGION" \
   --project="$PROJECT" --format="value(status.url)")
-echo "  $窓"
+echo "  $window_url"
 
 say "心拍 — 60秒ごとに脈を起こす（**時計の表に「AI を起こす」は増えない**）"
-for 役 in tick agent; do
-  URL="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT}/jobs/troupe-${役}:run"
-  if gcloud scheduler jobs describe "troupe-${役}-beat" --location="$REGION" \
+for role in tick agent; do
+  URL="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT}/jobs/troupe-${role}:run"
+  if gcloud scheduler jobs describe "troupe-${role}-beat" --location="$REGION" \
        --project="$PROJECT" >/dev/null 2>&1; then
-    動詞=update
+    verb=update
   else
-    動詞=create
+    verb=create
   fi
-  gcloud scheduler jobs "$動詞" http "troupe-${役}-beat" \
+  gcloud scheduler jobs "$verb" http "troupe-${role}-beat" \
     --location="$REGION" --project="$PROJECT" \
     --schedule="* * * * *" --time-zone="Asia/Tokyo" \
     --uri="$URL" --http-method=POST \
     --oauth-service-account-email="$SA" --quiet >/dev/null
-  echo "  troupe-${役}-beat（毎分）"
+  echo "  troupe-${role}-beat（毎分）"
 done
 
 say "配線した"
-echo "窓: $窓"
+echo "窓: $window_url"
 echo "状態は: sh cloud/status.sh"
