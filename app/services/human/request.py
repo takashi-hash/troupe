@@ -19,8 +19,28 @@ from domain.aggregates.job import request as 依頼発
 from domain.repositories.job_repository import JobRepository
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.job.request import Request
-from app.services.human.add_version import copied_from
+from app.services.human.add_version import copied_from, form_from_fields
 from domain.value_objects.people.human import Human
+
+
+def request_from_fields(
+    jobs: JobRepository,
+    ids: IdPort,
+    clock: ClockPort,
+    by: str,
+    body: str,
+    fields: dict[str, str],
+) -> Refusal | None:
+    """欄の文字から組んで頼む。数に読めない欄は断りに変える——エラーは投げない。
+
+    欄は版を積むと同じ（`form_from_fields`——組み立ての正本は1つ）。
+    依頼発に題材は無いので、足りない欄はこの先の義務が「欄が足りません」と断る。
+    """
+    try:
+        form = form_from_fields(fields)
+    except ValueError as なぜ:
+        return Refusal(reason=str(なぜ))
+    return request(jobs, ids, clock, by, body, form)
 
 
 def request(
@@ -30,7 +50,7 @@ def request(
 
     **画面から渡るのは文字だけ**（設計 §1）——ui は domain を知らないので、
     値に組むのはここ。依頼発は題材の初期値が無い——欄はぜんぶ人が書く。
-    成功しても識別子は**返さない**——画面は常に帳簿から導出する（今日に出る）。
+    成功しても識別子は**返さない**——行方は履歴・検索から導出する（**判断が要るときだけ今日に出る**）。
     """
     try:
         req = Request(by=Human(name=by), at=clock.now(), body=body)

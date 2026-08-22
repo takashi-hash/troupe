@@ -67,6 +67,7 @@ from app.services.human.add_version import add_version, add_version_from_fields
 from app.services.human.answer import answer
 from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
+from app.services.human.request import request_from_fields
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
 from app.services.screen.gather_history import gather_history
@@ -253,8 +254,12 @@ def main() -> None:
         def 検索する(filter: RowFilter) -> tuple[object, ...]:
             return gather_search(za.search_hits, filter)
 
+        def 頼む(body: str, fields: dict[str, str]) -> str | None:
+            断り = request_from_fields(za.jobs, za.ids, za.clock, args.viewer, body, fields)
+            return None if 断り is None else 断り.reason
+
         raise SystemExit(
-            run(読む, 押す, 詳細, 予定を読む, 決まりを押す, 履歴を読む, 検索する)  # type: ignore[arg-type]
+            run(読む, 押す, 詳細, 予定を読む, 決まりを押す, 履歴を読む, 検索する, 頼む)  # type: ignore[arg-type]
         )
 
     if args.cmd == "tick":

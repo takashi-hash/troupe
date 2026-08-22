@@ -71,6 +71,49 @@ def copied_from(form: VersionForm, base: Copied | None) -> Copied:
 #: 周期の語 — 画面に出るのは用語集の語（週・月）、値が持つのは識別子。橋はここ。
 _周期の語 = {"週": "weekly", "月": "monthly"}
 
+#: 数の欄の識別子 → 用語集の語。断りは画面に出るので、語で言う。
+_欄の語 = {
+    "days": "終えるまでの日数",
+    "budget_calls": "使用上限（回数）",
+    "budget_seconds": "使用上限（秒）",
+    "max_retries": "やり直しの上限",
+}
+
+
+def form_from_fields(fields: dict[str, str]) -> VersionForm:
+    """欄の文字から版の欄を組む。数に読めない欄は ValueError——断りに変えるのは呼び手。
+
+    **画面から渡るのは文字だけ**（設計 §1）——数に読むのも、周期の語を
+    識別子に写すのも、値に組む側（ここ）の仕事。版を積むと頼むが同じ欄を使う。
+    """
+
+    def 数(名前: str) -> int | None:
+        if 名前 not in fields:
+            return None
+        try:
+            return int(fields[名前])
+        except ValueError:
+            語 = _欄の語.get(名前, 名前)
+            raise ValueError(f"数に読めません: {語}（{fields[名前]}）") from None
+
+    cycle = fields.get("cycle")
+    return VersionForm(
+        instruction=fields.get("instruction"),
+        source=fields.get("source"),
+        required_terms=(
+            tuple(t.strip() for t in fields["required_terms"].split("、") if t.strip())
+            if "required_terms" in fields
+            else None
+        ),
+        description=fields.get("description"),
+        cycle=_周期の語.get(cycle, cycle) if cycle is not None else None,
+        days=数("days"),
+        budget_calls=数("budget_calls"),
+        budget_seconds=数("budget_seconds"),
+        owner=fields.get("owner"),
+        max_retries=数("max_retries"),
+    )
+
 
 def add_version_from_fields(
     rules: RuleRepository,
@@ -80,38 +123,9 @@ def add_version_from_fields(
     by: str,
     fields: dict[str, str],
 ) -> Refusal | None:
-    """欄の文字から版の欄を組んで積む。数に読めない欄は断りに変える——エラーは投げない。
-
-    **画面から渡るのは文字だけ**（設計 §1）——数に読むのも、周期の語を
-    識別子に写すのも、値に組む側（ここ）の仕事。画面は文字を運ぶだけ。
-    """
-
-    def 数(名前: str) -> int | None:
-        if 名前 not in fields:
-            return None
-        try:
-            return int(fields[名前])
-        except ValueError:
-            raise ValueError(f"数に読めません: {名前}（{fields[名前]}）") from None
-
+    """欄の文字から版の欄を組んで積む。数に読めない欄は断りに変える——エラーは投げない。"""
     try:
-        cycle = fields.get("cycle")
-        form = VersionForm(
-            instruction=fields.get("instruction"),
-            source=fields.get("source"),
-            required_terms=(
-                tuple(t.strip() for t in fields["required_terms"].split("、") if t.strip())
-                if "required_terms" in fields
-                else None
-            ),
-            description=fields.get("description"),
-            cycle=_周期の語.get(cycle, cycle) if cycle is not None else None,
-            days=数("days"),
-            budget_calls=数("budget_calls"),
-            budget_seconds=数("budget_seconds"),
-            owner=fields.get("owner"),
-            max_retries=数("max_retries"),
-        )
+        form = form_from_fields(fields)
     except ValueError as なぜ:
         return Refusal(reason=str(なぜ))
     return add_version(rules, topics, clock, name, by, form)

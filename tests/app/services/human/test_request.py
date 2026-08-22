@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from app.dto.version_form import VersionForm
-from app.services.human.request import request
+from app.services.human.request import request, request_from_fields
 from domain.aggregates.job.life import Created
 from domain.events.job.job_created import JobCreated
 from domain.events.job.job_requested import JobRequested
@@ -63,4 +63,35 @@ def test_欄が足りなければ断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
     断り = request(帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="棚卸しして", form=VersionForm())
     assert 断り is not None and "欄が足りません" in 断り.reason
+    assert not 帳簿.jobs and not 帳簿.events
+
+
+def test_欄の文字から組める_周期は用語集の語で書ける() -> None:
+    """窓の頼む小窓はここを通る——版を積むと同じ組み立て（正本は1つ）。"""
+    帳簿 = 帳簿の偽物()
+    断り = request_from_fields(
+        帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="今週の依存も棚卸しして",
+        fields={
+            "instruction": "依存の一覧を取り更新が来ているものを挙げる",
+            "source": "file:custom/deps.txt",
+            "required_terms": "2026-W34",
+            "cycle": "週",
+            "days": "3",
+            "budget_calls": "20",
+            "budget_seconds": "600",
+            "owner": 座長.name,
+            "max_retries": "20",
+        },
+    )
+    assert 断り is None
+    仕事 = next(iter(帳簿.jobs.values()))
+    assert 仕事.cycle.value == "weekly" and 仕事.instruction.text.startswith("依存の一覧")
+
+
+def test_数に読めない欄は断りに変わる_窓は落ちない() -> None:
+    帳簿 = 帳簿の偽物()
+    断り = request_from_fields(
+        帳簿, 連番の識別子(), 固定時計(), by=座長.name, body="棚卸しして", fields={"days": "三日"}
+    )
+    assert 断り is not None and "終えるまでの日数" in 断り.reason  # 断りも用語集の語で
     assert not 帳簿.jobs and not 帳簿.events

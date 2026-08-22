@@ -72,5 +72,5 @@ def test_数に読めない欄は断りに変わる_窓は落ちない() -> None
         帳簿, 題材の偽物(make_copied()), 固定時計(), 名.text, by=座長.name,
         fields={"days": "五日"},
     )
-    assert 断り is not None and "days" in 断り.reason
+    assert 断り is not None and "終えるまでの日数" in 断り.reason  # 断りも用語集の語で
     assert not 帳簿.rules and not 帳簿.events

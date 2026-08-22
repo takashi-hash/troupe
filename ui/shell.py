@@ -15,7 +15,7 @@ import sys
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget
 
 from ui.history import HistoryScreen, FetchHistory
-from ui.schedule import ScheduleScreen, FetchSchedule, PressRule
+from ui.schedule import RequestJob, ScheduleScreen, FetchSchedule, PressRule
 from ui.search import SearchScreen, SearchJobs
 from ui.today import TodayScreen, Press, FetchDetail, FetchToday
 
@@ -28,6 +28,7 @@ def make_window(
     schedule_act: PressRule | None = None,
     history_fetch: FetchHistory | None = None,
     search: SearchJobs | None = None,
+    request: RequestJob | None = None,
 ) -> QMainWindow:
     """窓。注がれた手のぶんだけ画面を挟む——押しつけは今日だけ、残りは引き出し（タブ）。"""
     window = QMainWindow()
@@ -37,7 +38,7 @@ def make_window(
     if fetch is not None and act is not None:
         tabs.addTab(TodayScreen(fetch, act, detail), "今日")
     if schedule_fetch is not None and schedule_act is not None:
-        tabs.addTab(ScheduleScreen(schedule_fetch, schedule_act), "予定")
+        tabs.addTab(ScheduleScreen(schedule_fetch, schedule_act, request), "予定")
     if history_fetch is not None:
         tabs.addTab(HistoryScreen(history_fetch, act, detail), "履歴")
     if search is not None:
@@ -55,8 +56,11 @@ def run(
     schedule_act: PressRule | None = None,
     history_fetch: FetchHistory | None = None,
     search: SearchJobs | None = None,
+    request: RequestJob | None = None,
 ) -> int:
     app = QApplication(sys.argv)
-    window = make_window(fetch, act, detail, schedule_fetch, schedule_act, history_fetch, search)
+    window = make_window(
+        fetch, act, detail, schedule_fetch, schedule_act, history_fetch, search, request
+    )
     window.show()
     return app.exec()

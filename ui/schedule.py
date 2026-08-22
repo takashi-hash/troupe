@@ -3,8 +3,8 @@
 設計: 設計/人に見えるもの.md §1「予定」・§3。
 
 **引き出しの画面**（押しつけは今日だけ）。業務ルールの一覧と次の対象期間、
-未作成のものが見える（F1）。押せるのは 版を積む・有効にする・止める——
-人なら誰でも。版の欄は書かなければ**題材のデータが初期値**。
+未作成のものが見える（F1）。押せるのは 版を積む・有効にする・止める・**頼む**——
+人なら誰でも。版の欄は書かなければ**題材のデータが初期値**（依頼発に題材は無い）。
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -36,6 +37,12 @@ class FetchSchedule(Protocol):
 class PressRule(Protocol):
     def __call__(self, what: str, name: str, version: int, fields: dict[str, str]) -> str | None:
         """通れば None、断られたら理由。fields は版の欄（空欄は題材の初期値）。"""
+        ...
+
+
+class RequestJob(Protocol):
+    def __call__(self, body: str, fields: dict[str, str]) -> str | None:
+        """頼む——一度きりの仕事。通れば None、断られたら理由。"""
         ...
 
 
@@ -74,13 +81,46 @@ class VersionFormDialog(QDialog):
         return {k: e.text().strip() for k, e in self._inputs.items() if e.text().strip()}
 
 
+class RequestFormDialog(QDialog):
+    """頼む小窓。頼む中身と版の欄ぜんぶ——**依頼発に題材は無い、欄はぜんぶ人が書く**。"""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("頼む — 一度きりの仕事")
+        form = QFormLayout()
+        self._body = QPlainTextEdit()
+        self._body.setPlaceholderText("頼む中身")
+        form.addRow("頼む中身", self._body)
+        self._inputs: dict[str, QLineEdit] = {}
+        for key, label in VersionFormDialog.欄:
+            if key == "required_terms":
+                label = "必ず含む語（読点区切り。依頼発に {対象期間} は書けない）"
+            edit = QLineEdit()
+            edit.setPlaceholderText("依頼発に題材は無い——書く")
+            self._inputs[key] = edit
+            form.addRow(label, edit)
+        頼む = QPushButton("頼む")
+        頼む.clicked.connect(self.accept)
+        form.addRow(頼む)
+        self.setLayout(form)
+
+    def body(self) -> str:
+        return self._body.toPlainText().strip()
+
+    def fields(self) -> dict[str, str]:
+        return {k: e.text().strip() for k, e in self._inputs.items() if e.text().strip()}
+
+
 class ScheduleScreen(QWidget):
     """予定の画面。読む手と押す手を注がれて並べるだけ。"""
 
-    def __init__(self, fetch: FetchSchedule, act: PressRule) -> None:
+    def __init__(
+        self, fetch: FetchSchedule, act: PressRule, request: RequestJob | None = None
+    ) -> None:
         super().__init__()
         self._fetch = fetch
         self._act = act
+        self._request = request
         self._word = QLabel()
         self._word.setWordWrap(True)
         self._rows_box = QVBoxLayout()
@@ -114,6 +154,10 @@ class ScheduleScreen(QWidget):
             新規 = QPushButton("版を積む（新しい業務ルール）")
             新規.clicked.connect(lambda: self._add_version(""))
             self._rows_box.addWidget(新規)
+            if self._request is not None:
+                頼む = QPushButton(f"{ACTION_WORDS['request']}（一度きりの仕事）")
+                頼む.clicked.connect(self._ask_request)
+                self._rows_box.addWidget(頼む)
             return
         self._word.setText(f"業務ルール: {len(rows)}件")
         for row in rows:
@@ -121,6 +165,10 @@ class ScheduleScreen(QWidget):
         新規 = QPushButton("版を積む（新しい業務ルール）")
         新規.clicked.connect(lambda: self._add_version(""))
         self._rows_box.addWidget(新規)
+        if self._request is not None:
+            頼む = QPushButton(f"{ACTION_WORDS['request']}（一度きりの仕事）")
+            頼む.clicked.connect(self._ask_request)
+            self._rows_box.addWidget(頼む)
 
     def _card(self, row: ScheduleRow) -> QFrame:
         card = QFrame()
@@ -168,11 +216,24 @@ class ScheduleScreen(QWidget):
             return
         self._press("add_version", 名前, 0, 欄.fields())
 
+    def _ask_request(self) -> None:
+        if self._request is None:
+            return
+        小窓 = RequestFormDialog(parent=self)
+        if not 小窓.exec():
+            return
+        断り = self._request(小窓.body(), 小窓.fields())
+        if not 断り:
+            self.refresh()  # 開き直しが先——結果の言葉を上書きで消さない
+        self._word.setText(
+            f"断り: {断り}" if 断り else f"{ACTION_WORDS['request']} — できた（行方は履歴・検索に）"
+        )
+
     def _press(self, action: str, name: str, version: int, fields: dict[str, str]) -> None:
         断り = self._act(action, name, version, fields)
-        self._word.setText(f"断り: {断り}" if 断り else f"{ACTION_WORDS.get(action, action)} — できた")
         if not 断り:
-            self.refresh()
+            self.refresh()  # 開き直しが先——結果の言葉を上書きで消さない
+        self._word.setText(f"断り: {断り}" if 断り else f"{ACTION_WORDS.get(action, action)} — できた")
 
 
 def _bold(text: str) -> QLabel:

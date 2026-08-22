@@ -13,6 +13,7 @@ ACTION_WORDS = {
     "approve": "承認する",
     "send_back": "差し戻す",
     "abandon": "打ち切る",
+    "request": "頼む",
     "add_version": "版を積む",
     "activate": "有効にする",
     "deactivate": "止める",
