@@ -150,15 +150,15 @@ def _頁(見出し: str, 中身: str, viewer: str, 断り: str | None = None) ->
     """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。"""
     tabs = "".join(
         f'<a class="{"on" if 識別子 == 見出し else ""}" href="/{識別子}">'
-        f"{escape(語)}</a>"
+        f"{escape(併記(語, 識別子))}</a>"
         for 語, 識別子 in _画面
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     return (
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        f"<title>Troupe（一座）— {escape(見出し)}</title><style>{_STYLE}</style></head><body>"
-        f"<header><span class='name'>Troupe（一座）</span><nav>{tabs}</nav>"
+        f"<title>Troupe — {escape(見出し)}</title><style>{_STYLE}</style></head><body>"
+        f"<header><span class='name'>Troupe</span><nav>{tabs}</nav>"
         f"<span class='who'>見る人: {escape(viewer)}</span></header>"
         f"<main>{警告}{中身}</main></body></html>"
     )
@@ -325,7 +325,7 @@ def make_app(開く: 手を開く, viewer: str) -> Any:
     from fastapi import FastAPI, Form
     from fastapi.responses import HTMLResponse, RedirectResponse
 
-    app = FastAPI(title="Troupe（一座）", docs_url=None, redoc_url=None)
+    app = FastAPI(title="Troupe", docs_url=None, redoc_url=None)
 
     def 見せる(見出し: str, 描く: Callable[[手], str], 断り: str | None = None) -> HTMLResponse:
         手たち = 開く()
