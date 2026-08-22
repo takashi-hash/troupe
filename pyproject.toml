@@ -9,8 +9,8 @@ dependencies = ["pydantic>=2.9"]
 dev = ["pytest>=8", "pyright>=1.1.380", "import-linter>=2.0"]
 
 [tool.pyright]
-include = ["domain", "tests"]
-strict = ["domain"]
+include = ["domain", "app", "tests"]
+strict = ["domain", "app"]
 reportMissingTypeStubs = false
 # pyright は pydantic の frozen を hashable と見ない（明示した __hash__ も見ない）。
 # 値オブジェクトはすべて frozen なので、この規則はここでは必ず偽陽性になる。
@@ -21,8 +21,13 @@ reportUnhashable = "none"
 testpaths = ["tests"]
 
 [tool.importlinter]
-root_packages = ["domain"]
+root_packages = ["domain", "app"]
 include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "依存は内向きのみ（app → domain）"
+type = "layers"
+layers = ["app", "domain"]
 
 # domain の中も依存は内向き。出来事と仕様は互いを知らない。
 [[tool.importlinter.contracts]]

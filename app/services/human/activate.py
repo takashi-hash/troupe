@@ -1,0 +1,33 @@
+"""有効にする — 人が始めるもの。
+
+設計: 設計/仕事が回る筋道.md §1「人が始めるもの」。
+| 有効にする | `activate` | その版で仕事を生してよいと決める |
+
+アプリケーションサービスの形はいつも同じ——**読む → domain の操作 → 書く**。
+業務の判断はしない——決めるのは人で、ここは運ぶだけ。
+無い業務ルール・無い版は**断りに変えるだけ**。
+"""
+
+from __future__ import annotations
+
+from app.ports.clock_port import ClockPort
+from app.services.refusal import Refusal
+from domain.aggregates.rule import activate as 有効化
+from domain.ledger.rule_repository import RuleRepository
+from domain.values.people.human import Human
+from domain.values.rule.rule_name import RuleName
+
+
+def activate(
+    rules: RuleRepository, clock: ClockPort, name: RuleName, version: int, by: Human
+) -> Refusal | None:
+    """通れば None。断られたら理由。エラーは投げない——版の列に傷をつけない。"""
+    rule = rules.load(name)
+    if rule is None:
+        return Refusal(reason="その業務ルールはありません")
+    try:
+        next_rule, event = 有効化.activate(rule, version, by=by, now=clock.now())
+    except ValueError as なぜ:
+        return Refusal(reason=str(なぜ))
+    rules.save(next_rule, (event,))
+    return None

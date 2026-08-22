@@ -12,29 +12,37 @@ import pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
-def _domain_files() -> set[pathlib.Path]:
-    return {
-        p.relative_to(ROOT / "domain")
-        for p in (ROOT / "domain").rglob("*.py")
-        if p.name != "__init__.py"
-    }
+#: 鏡に映す層。adapters と ui は実装なので、統合の試験が別に見る。
+層 = ("domain", "app")
+
+
+def _watched() -> set[pathlib.Path]:
+    found: set[pathlib.Path] = set()
+    for layer in 層:
+        for p in (ROOT / layer).rglob("*.py"):
+            if p.name != "__init__.py":
+                found.add(p.relative_to(ROOT))
+    return found
 
 
 def _mirror(rel: pathlib.Path) -> pathlib.Path:
-    return ROOT / "tests" / rel.parent / f"test_{rel.name}"
+    parts = rel.parts
+    if parts[0] == "domain":
+        parts = parts[1:]
+    return ROOT / "tests" / pathlib.Path(*parts[:-1]) / f"test_{parts[-1]}"
 
 
-def test_domain_の1ファイルに_tests_の鏡がある() -> None:
-    欠け = [str(rel) for rel in sorted(_domain_files()) if not _mirror(rel).exists()]
+def test_見張る層の1ファイルに_tests_の鏡がある() -> None:
+    欠け = [str(rel) for rel in sorted(_watched()) if not _mirror(rel).exists()]
     assert not 欠け, "鏡のテストが無い概念:\n" + "\n".join(欠け)
 
 
-def test_tests_の鏡に_domain_の実物がある() -> None:
+def test_tests_の鏡に実物がある() -> None:
     """親を亡くしたテストは、消えた概念の亡霊。"""
-    実物 = {_mirror(rel) for rel in _domain_files()}
+    実物 = {_mirror(rel) for rel in _watched()}
     亡霊 = [
         str(p.relative_to(ROOT))
         for p in (ROOT / "tests").rglob("test_*.py")
         if p.parent != ROOT / "tests" and p not in 実物
     ]
-    assert not 亡霊, "domain に実物の無いテスト:\n" + "\n".join(亡霊)
+    assert not 亡霊, "実物の無いテスト:\n" + "\n".join(亡霊)

@@ -1,0 +1,35 @@
+"""頼む — 人が始めるもの。
+
+設計: 設計/仕事が回る筋道.md §1「人が始めるもの」・§3。
+| 頼む | `request` | 依頼を読んで仕事を作る |
+
+アプリケーションサービスの形はいつも同じ——**読む → domain の操作 → 書く**。
+ここは読む仕事がまだ無い——代わりに `IdPort` で識別子を振る（`JobId` は**立てた者が振る**。
+採番はファクトリの外）。依頼と写すものの束は人が書いた値のまま domain へ運ぶ。
+業務の判断はしない。義務が拒んだら**断りに変えるだけ**。
+"""
+
+from __future__ import annotations
+
+from app.ports.clock_port import ClockPort
+from app.ports.id_port import IdPort
+from app.services.refusal import Refusal
+from domain.aggregates.job import request as 依頼発
+from domain.ledger.job_repository import JobRepository
+from domain.values.job.job_id import JobId
+from domain.values.job.request import Request
+from domain.values.rule.copied import Copied
+
+
+def request(
+    jobs: JobRepository, ids: IdPort, clock: ClockPort, req: Request, copied: Copied
+) -> Refusal | None:
+    """通れば None。断られたら理由。エラーは投げない——一生に傷をつけない。"""
+    id = JobId(text=ids.new_id())
+    request_id = ids.new_id()
+    try:
+        job, requested, created = 依頼発.request(id, request_id, req, copied, now=clock.now())
+    except ValueError as なぜ:
+        return Refusal(reason=str(なぜ))
+    jobs.save(job, (requested, created))
+    return None
