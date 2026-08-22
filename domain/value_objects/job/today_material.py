@@ -63,8 +63,9 @@ class TodayMaterial(Value):
     #: 見立て — 本文とそう読んだ理由。そのまま届く。
     assessments: tuple[Assessment, ...]
 
-    #: やり直しが尽きたか。
-    retries_exhausted: bool
+    #: やり直した回数と上限 — 尽きたかは下の導出が言う（式の正本はここ1つ）。
+    retried: int
+    max_retries: int
 
     #: 使った量と上限。
     spent: Spent
@@ -72,3 +73,8 @@ class TodayMaterial(Value):
 
     #: 受け持ちの人。
     owner: Owner
+
+    @property
+    def retries_exhausted(self) -> bool:
+        """やり直しが尽きたか——今日の行の欄はここから導く。"""
+        return self.retried >= self.max_retries

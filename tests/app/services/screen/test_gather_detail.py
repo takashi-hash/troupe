@@ -24,7 +24,7 @@ class 今日読みの偽物:
 class 詳細読みの偽物:
     def read(self, id: JobId) -> DetailMaterial:
         return DetailMaterial(
-            events=(("2026-08-22 09:00", "時計", "JobCreated"), ("2026-08-22 09:01", "一号", "JobStarted")),
+            events=(("2026-08-22 09:00", "clock", None, "JobCreated"), ("2026-08-22 09:01", "agent", "一号", "JobStarted")),
             questions=(("どちらの依存ですか", "手元です"),),
         )
 
@@ -33,6 +33,7 @@ def test_出来事が用語集の語で全部出る() -> None:
     view = gather_detail(今日読みの偽物(make_material()), 詳細読みの偽物(), 固定時計(), "座長", "J-0001")
     assert view is not None
     assert [e.what for e in view.events] == ["仕事が作られた", "着手された"]
+    assert [e.by for e in view.events] == ["時計", "一号"]  # 名が無ければ起こす者の語
     assert view.state_name == "承認待ち"  # 画面に出るのは用語集の語そのまま
 
 

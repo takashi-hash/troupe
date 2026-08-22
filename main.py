@@ -5,15 +5,16 @@
 帳簿は SQLite（data/ichiza.db）、LLM はローカル（Ollama）、源はファイル、
 題材は custom/ のフォルダ。注ぎ先はすべて宣言（Protocol）——中身は誰も知らない。
 
-窓は `window`（今日・予定・詳細）。CLI のコマンドは同じ入り口を文字で呼ぶ——
+窓は `window`（今日・予定・履歴・検索——詳細は行から開く）。CLI は同じ入り口を文字で呼ぶ——
 画面から渡るのは文字だけ、という決まりを引数がそのまま守る。
 
-    uv run python main.py window --viewer 座長    窓（今日・予定・詳細）
+    uv run python main.py window --viewer 座長    窓（今日・予定・履歴・検索）
     uv run python main.py tick                    時計のひと回り
     uv run python main.py agent --name 一号       AI のひと回り（着手→LLM に問う→巡回）
     uv run python main.py today --viewer 座長     今日を文字で
     uv run python main.py rule-add --name 週次の依存の棚卸し --by 座長
     uv run python main.py rule-activate --name 週次の依存の棚卸し --version 1 --by 座長
+    uv run python main.py rule-deactivate --name 週次の依存の棚卸し --by 座長
     uv run python main.py act approve --id J-1 --by 座長
 """
 

@@ -8,8 +8,8 @@
 - 断られたら断られたと出す——**押して何も起きないのが一番わるい**
 - 画面は常に導出——「更新」は開き直しと同じ。帳簿には書かない
 
-app を直接 import しない——窓の組み立て（main.py）が「読む」「押す」の
-2つの手を注ぐ。画面は手の中身を知らない。
+app を直接 import しない——窓の組み立て（main.py）が手（読む・押す・詳細を読む）を
+注ぐ。画面は手の中身を知らない。
 """
 
 from __future__ import annotations
@@ -29,20 +29,20 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.today_row import TodayRow
-from ui.words import 操作の語, 書く欄
+from ui.words import ACTION_WORDS, TEXT_FIELDS
 
 
-class 読む手(Protocol):
+class FetchToday(Protocol):
     def __call__(self) -> tuple[TodayRow, ...]: ...
 
 
-class 押す手(Protocol):
+class Press(Protocol):
     def __call__(self, what: str, id: str, text: str) -> str | None:
         """通れば None、断られたら理由の文字。"""
         ...
 
 
-class 詳細を読む手(Protocol):
+class FetchDetail(Protocol):
     def __call__(self, id: str) -> object | None:
         """1件の詳細（DetailView）。無ければ None。"""
         ...
@@ -53,9 +53,9 @@ class TodayScreen(QWidget):
 
     def __init__(
         self,
-        fetch: 読む手,
-        act: 押す手,
-        detail: 詳細を読む手 | None = None,
+        fetch: FetchToday,
+        act: Press,
+        detail: FetchDetail | None = None,
         refresh_seconds: int = 60,
     ) -> None:
         super().__init__()
@@ -121,17 +121,25 @@ class TodayScreen(QWidget):
             box.addWidget(_para(f"根拠: {row.evidence_quote}"))
         for finding, reason in row.assessments:
             box.addWidget(_para(f"見立て: {finding}（{reason}）"))
+        if row.recheck_at:
+            box.addWidget(_para(f"確かめ期日: {row.recheck_at}"))
+        box.addWidget(
+            _para(
+                f"使った量: {row.spent_calls}回・{row.spent_seconds}秒"
+                f"（上限 {row.budget_calls}回・{row.budget_seconds}秒）"
+            )
+        )
         if row.retries_exhausted:
             box.addWidget(_para("やり直しは尽きています"))
 
         buttons = QHBoxLayout()
         text_input = QLineEdit()
-        needs_text = [w for a in row.actions if (w := 書く欄.get(a))]
+        needs_text = [w for a in row.actions if (w := TEXT_FIELDS.get(a))]
         if needs_text:
             text_input.setPlaceholderText("・".join(needs_text))
             buttons.addWidget(text_input, stretch=1)
         for action in row.actions:
-            button = QPushButton(操作の語.get(action, action))
+            button = QPushButton(ACTION_WORDS.get(action, action))
             button.clicked.connect(
                 lambda _=False, a=action, r=row.id, t=text_input: self._press(a, r, t.text())
             )
@@ -157,7 +165,7 @@ class TodayScreen(QWidget):
 
     def _press(self, action: str, id: str, text: str) -> None:
         断り = self._act(action, id, text)
-        self._word.setText(f"断り: {断り}" if 断り else f"{操作の語.get(action, action)} — できた")
+        self._word.setText(f"断り: {断り}" if 断り else f"{ACTION_WORDS.get(action, action)} — できた")
         if not 断り:
             self.refresh()
 

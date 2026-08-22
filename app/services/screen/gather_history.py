@@ -13,11 +13,13 @@ from __future__ import annotations
 from app.dto.history_row import HistoryRow
 from app.ports.history_reader import HistoryReader
 from domain.events.event import EVENT_WORDS
+from domain.value_objects.people.actor import ACTOR_WORDS
 
 _出来事の語 = {ident: word for word, ident in EVENT_WORDS.items()}
+_起こす者の語 = {ident: word for word, ident in ACTOR_WORDS.items()}
 
 
-def 見出し(rule: str | None, period: str | None, instruction: str) -> str:
+def heading(rule: str | None, period: str | None, instruction: str) -> str:
     """どの仕事かの見出し。業務ルールと対象期間、無ければやることの先頭。"""
     if rule is not None:
         return f"{rule}　{period}" if period else rule
@@ -29,10 +31,10 @@ def gather_history(history: HistoryReader, limit: int = 200) -> tuple[HistoryRow
     return tuple(
         HistoryRow(
             at=e.at,
-            by=e.by,
+            by=e.by_name if e.by_name else _起こす者の語.get(e.by_kind, e.by_kind),
             what=_出来事の語.get(e.name, e.name),
             job_id=e.job_id,
-            head=見出し(e.rule, e.period, e.instruction),
+            head=heading(e.rule, e.period, e.instruction),
         )
         for e in history.read_latest(limit)
     )

@@ -19,8 +19,9 @@ from domain.value_objects.job.job_id import JobId
 class DetailMaterial(Value):
     """詳細の材料 — 文字と ID だけ。振る舞いを持たない。"""
 
-    #: 出来事の列 — （時刻, 誰が, 何が起きたか）。出来事の行の欄そのまま。
-    events: tuple[tuple[str, str, str], ...]
+    #: 出来事の列 — （時刻, 起こす者の種別, 名（無ければ None）, 何が起きたか）。
+    #: 語に写すのは app（誰がの橋は1つ——`ACTOR_WORDS`）。
+    events: tuple[tuple[str, str, str | None, str], ...]
 
     #: 問答の対の全列 — （質問の本文, 回答の本文）。まだ答えが無ければ None。
     questions: tuple[tuple[str, str | None], ...]

@@ -27,7 +27,8 @@ def test_欄は今日の行から押せることを除いたもの() -> None:
         "question_body",
         "answer_body",
         "assessments",
-        "retries_exhausted",
+        "retried",
+        "max_retries",
         "spent",
         "budget",
         "owner",
@@ -46,3 +47,8 @@ def test_作ったあと書き換えられない() -> None:
 def test_知らない欄では作れない() -> None:
     with pytest.raises(ValidationError):
         make_material(actions=("approve",))
+
+
+def test_やり直しが尽きたかは回数から導く_式の正本は1つ() -> None:
+    assert not make_material(retried=2, max_retries=3).retries_exhausted
+    assert make_material(retried=3, max_retries=3).retries_exhausted

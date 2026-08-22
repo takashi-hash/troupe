@@ -25,10 +25,10 @@ from PySide6.QtWidgets import (
 
 from app.dto.row_filter import RowFilter
 from app.dto.search_row import SearchRow
-from ui.today import 押す手, 詳細を読む手
+from ui.today import Press, FetchDetail
 
 
-class 検索する手(Protocol):
+class SearchJobs(Protocol):
     def __call__(self, filter: RowFilter) -> tuple[SearchRow, ...]: ...
 
 
@@ -37,9 +37,9 @@ class SearchScreen(QWidget):
 
     def __init__(
         self,
-        search: 検索する手,
-        act: 押す手 | None = None,
-        detail: 詳細を読む手 | None = None,
+        search: SearchJobs,
+        act: Press | None = None,
+        detail: FetchDetail | None = None,
     ) -> None:
         super().__init__()
         self._search = search

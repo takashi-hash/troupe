@@ -13,7 +13,7 @@ from __future__ import annotations
 from app.dto.row_filter import RowFilter
 from app.dto.search_row import SearchRow
 from app.ports.search_reader import SearchReader
-from app.services.screen.gather_history import 見出し
+from app.services.screen.gather_history import heading
 from domain.aggregates.job.life import STATE_WORDS
 
 _状態の語 = {ident: word for word, ident in STATE_WORDS.items()}
@@ -25,7 +25,7 @@ def gather_search(search: SearchReader, filter: RowFilter) -> tuple[SearchRow, .
     return tuple(
         SearchRow(
             id=hit.id,
-            head=見出し(hit.rule, hit.period, hit.instruction),
+            head=heading(hit.rule, hit.period, hit.instruction),
             period=hit.period,
             instruction=hit.instruction,
             state_name=_状態の語.get(hit.state_name, hit.state_name),

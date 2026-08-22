@@ -18,9 +18,10 @@ from domain.obligations import Value
 class HistoryEntry(Value):
     """履歴の材料 — 出来事1件と、どの仕事かの見出しの材料。文字と ID だけ。"""
 
-    #: 時刻・誰が・何が起きたか（出来事の識別子——語に写すのは app）。
+    #: 時刻・起こす者（種別と名——語に写すのは app）・何が起きたか（出来事の識別子）。
     at: str
-    by: str
+    by_kind: str
+    by_name: str | None
     name: str
 
     #: どの仕事か。

@@ -21,10 +21,12 @@ from domain.aggregates.job.life import STATE_WORDS
 from domain.events.event import EVENT_WORDS
 from domain.services.allowed import allowed
 from domain.value_objects.job.job_id import JobId
+from domain.value_objects.people.actor import ACTOR_WORDS
 from domain.value_objects.people.human import Human
 
 _状態の語 = {ident: word for word, ident in STATE_WORDS.items()}
 _出来事の語 = {ident: word for word, ident in EVENT_WORDS.items()}
+_起こす者の語 = {ident: word for word, ident in ACTOR_WORDS.items()}
 
 
 def gather_detail(
@@ -45,7 +47,12 @@ def gather_detail(
     actions = allowed(material, 人, clock.now())
     d = details.read(鍵)
     events = tuple(
-        EventRow(at=at, by=by, what=_出来事の語.get(name, name)) for at, by, name in d.events
+        EventRow(
+            at=at,
+            by=by_name if by_name else _起こす者の語.get(by_kind, by_kind),
+            what=_出来事の語.get(name, name),
+        )
+        for at, by_kind, by_name, name in d.events
     )
     return DetailView(
         id=material.id.text,

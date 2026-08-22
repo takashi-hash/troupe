@@ -14,7 +14,7 @@ from domain.value_objects.job.job_id import JobId
 
 def _材料() -> DetailMaterial:
     return DetailMaterial(
-        events=(("2026-08-18 09:02", "座長", "承認された"),),
+        events=(("2026-08-18 09:02", "human", "座長", "Approved"),),
         questions=(("どの源ですか", "8月分の置き場です"), ("締めはいつですか", None)),
     )
 
@@ -33,7 +33,7 @@ def test_欄は設計の2つだけ() -> None:
 
 def test_文字とIDだけで_domainの値は出ない() -> None:
     hints = get_type_hints(DetailMaterial)
-    assert hints["events"] == tuple[tuple[str, str, str], ...]
+    assert hints["events"] == tuple[tuple[str, str, str | None, str], ...]
     assert hints["questions"] == tuple[tuple[str, str | None], ...]
 
 

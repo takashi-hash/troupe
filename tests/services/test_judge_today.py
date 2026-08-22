@@ -64,7 +64,7 @@ def test_確かめ期日が来た自己申告は出る() -> None:
 
 
 def test_やり直しが尽きて残っているは出る() -> None:
-    material = make_material(state_name="Failed", assignee_name=None, retries_exhausted=True)
+    material = make_material(state_name="Failed", assignee_name=None, retried=3)
     assert judge_today(material, ("send_back", "abandon"), いま) is True
 
 
@@ -102,5 +102,5 @@ def test_終わった仕事と打ち切った仕事は出ない() -> None:
 
 def test_押せることが空なら必ず偽() -> None:
     """各行が「人がいま押せること」を1つ以上持つ。持たない行は出さない。"""
-    material = make_material(state_name="AwaitingApproval", retries_exhausted=True)
+    material = make_material(state_name="AwaitingApproval", retried=3)
     assert judge_today(material, (), 期日の翌朝) is False

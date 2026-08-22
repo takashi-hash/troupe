@@ -1,11 +1,11 @@
 """源への口 — 腐敗防止層。
 
 設計: 設計/仕事が回る筋道.md §4。
-| `SourcePort` | Port | 源から読む。**源の言葉を業務の語へ翻訳**（腐敗防止層）。
-出口は**引用・読めなかった理由**の2つ | **app** | adapters |
-`consult`・`submit`・**`confirm`**（根拠の引用を取る） |
+| `SourcePort` | Port | 源から読む。**源の言葉を業務の語へ翻訳**（腐敗防止層＝ACL）。
+出口は**引用・読めなかった理由**の2つ——読めた中身は引用が兼ねる（**返す者の居ない出口は
+置かない**） | **app** | adapters | `consult`・`submit`・**`confirm`**（根拠の引用を取る） |
 
-**出口の3すくみは domain の値ではない**——業務の一生に残る前の、読みの結果だから。
+**出口は domain の値ではない**——業務の一生に残る前の、読みの結果だから。
 だから app のここに置く。引用だけは `Evidence` を運ぶ——**AI の言葉は根拠にならない**ので、
 源から読んだ引用がここで根拠の形になってから中へ入る。
 読めなければ理由が残る——**読めなければ `fail` へ**（§1 `consult`）の材料。
@@ -41,11 +41,11 @@ class Unreadable(Value):
         return self
 
 
-#: 出口の3すくみ — 材料・引用・読めなかった理由。**4つ目は無い。**
+#: 出口の2択 — 引用・読めなかった理由。**3つ目は無い**（読めた中身は引用が兼ねる）。
 SourceOutcome = Annotated[Quote | Unreadable, Field(discriminator="kind")]
 
 
 class SourcePort(Protocol):
     def read(self, source: Source) -> SourceOutcome:
-        """源から読む。出口は3つだけ——どれかを名乗って返る。"""
+        """源から読む。出口は2つだけ——どちらかを名乗って返る。"""
         ...

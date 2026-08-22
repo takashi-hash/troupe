@@ -26,7 +26,7 @@ uv run python main.py today --viewer 座長             # 今日 — 判断が�
 uv run python main.py act approve --id <識別子> --by 座長
 uv run python main.py rule-add --name <業務ルール> --by 座長   # 題材: custom/<名>/topic.json
 uv run python main.py rule-activate --name <業務ルール> --version 1 --by 座長
-uv run python main.py window --viewer 座長            # 窓 — 今日・予定・詳細（判断は画面から押せる）
+uv run python main.py window --viewer 座長            # 窓 — 今日・予定・履歴・検索（詳細は行から開く）
 ```
 
 要件: macOS / uv / Ollama＋`gpt-oss:20b`（13GB。初回に `ollama pull gpt-oss:20b`）。

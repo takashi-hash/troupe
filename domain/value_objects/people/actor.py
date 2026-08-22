@@ -19,3 +19,7 @@ from domain.value_objects.people.human import Human
 
 #: 起こす者 — 人・AI・時計のどれか。**4つ目は無い。**
 Actor = Annotated[Human | Agent | Clock, Field(discriminator="kind")]
+
+
+#: 日本語⇄識別子の橋（人に見えるもの §2「出来事の行」の誰が）。画面の詰め替えが使う。
+ACTOR_WORDS: dict[str, str] = {"人": "human", "AI": "agent", "時計": "clock"}

@@ -1,4 +1,4 @@
-"""操作の語 — 識別子と用語集の語の橋。**正本は1つ**。
+"""操作の語（`ACTION_WORDS`）と書く欄（`TEXT_FIELDS`）— 識別子と用語集の語の橋。**正本は1つ**。
 
 設計: 設計/人に見えるもの.md §3・どう作るか §5。
 画面に出るのは用語集の語そのまま——画面ごとに言い換えを持つと、
@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 #: 操作の識別子 → 用語集の語。画面で言い換えない。
-操作の語 = {
+ACTION_WORDS = {
     "answer": "答える",
     "approve": "承認する",
     "send_back": "差し戻す",
@@ -19,4 +19,4 @@ from __future__ import annotations
 }
 
 #: 書く欄が要る操作と、その欄の名。
-書く欄 = {"answer": "答え", "send_back": "差し戻す理由", "abandon": "打ち切る理由"}
+TEXT_FIELDS = {"answer": "答え", "send_back": "差し戻す理由", "abandon": "打ち切る理由"}

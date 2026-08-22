@@ -229,7 +229,8 @@ class SqliteToday:
             question_body=question_body,
             answer_body=answer_body,
             assessments=assessments,
-            retries_exhausted=job.retried >= job.max_retries,
+            retried=job.retried,
+            max_retries=job.max_retries,
             spent=job.spent,
             budget=job.budget,
             owner=job.owner,
@@ -243,13 +244,14 @@ class SqliteDetail:
         self._conn = conn
 
     def read(self, id: JobId) -> DetailMaterial:
-        events: list[tuple[str, str, str]] = []
+        events: list[tuple[str, str, str | None, str]] = []
         for at, kind, name, ev_name in self._conn.execute(
             "SELECT at, by_kind, by_name, name FROM job_events WHERE job_id = ? ORDER BY seq",
             (id.text,),
         ).fetchall():
-            誰が = str(name) if name else {"clock": "時計"}.get(str(kind), str(kind))
-            events.append((str(at)[:16].replace("T", " "), 誰が, str(ev_name)))
+            events.append(
+                (str(at)[:16].replace("T", " "), str(kind), str(name) if name else None, str(ev_name))
+            )
         questions: list[tuple[str, str | None]] = []
         asked: list[str] = []
         for ev_name, body in read_events(self._conn, id):
@@ -277,11 +279,11 @@ class SqliteHistory:
             " ORDER BY e.at DESC, e.seq DESC LIMIT ?",
             (limit,),
         ).fetchall():
-            誰が = str(name) if name else {"clock": "時計"}.get(str(kind), str(kind))
             out.append(
                 HistoryEntry(
                     at=str(at)[:16].replace("T", " "),
-                    by=誰が,
+                    by_kind=str(kind),
+                    by_name=str(name) if name else None,
                     name=str(ev_name),
                     job_id=str(job_id),
                     rule=str(rule) if rule else None,

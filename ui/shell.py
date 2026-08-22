@@ -14,20 +14,20 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget
 
-from ui.history import HistoryScreen, 履歴を読む手
-from ui.schedule import ScheduleScreen, 予定を読む手, 決まりを押す手
-from ui.search import SearchScreen, 検索する手
-from ui.today import TodayScreen, 押す手, 詳細を読む手, 読む手
+from ui.history import HistoryScreen, FetchHistory
+from ui.schedule import ScheduleScreen, FetchSchedule, PressRule
+from ui.search import SearchScreen, SearchJobs
+from ui.today import TodayScreen, Press, FetchDetail, FetchToday
 
 
 def make_window(
-    fetch: 読む手 | None = None,
-    act: 押す手 | None = None,
-    detail: 詳細を読む手 | None = None,
-    schedule_fetch: 予定を読む手 | None = None,
-    schedule_act: 決まりを押す手 | None = None,
-    history_fetch: 履歴を読む手 | None = None,
-    search: 検索する手 | None = None,
+    fetch: FetchToday | None = None,
+    act: Press | None = None,
+    detail: FetchDetail | None = None,
+    schedule_fetch: FetchSchedule | None = None,
+    schedule_act: PressRule | None = None,
+    history_fetch: FetchHistory | None = None,
+    search: SearchJobs | None = None,
 ) -> QMainWindow:
     """窓。注がれた手のぶんだけ画面を挟む——押しつけは今日だけ、残りは引き出し（タブ）。"""
     window = QMainWindow()
@@ -48,13 +48,13 @@ def make_window(
 
 
 def run(
-    fetch: 読む手 | None = None,
-    act: 押す手 | None = None,
-    detail: 詳細を読む手 | None = None,
-    schedule_fetch: 予定を読む手 | None = None,
-    schedule_act: 決まりを押す手 | None = None,
-    history_fetch: 履歴を読む手 | None = None,
-    search: 検索する手 | None = None,
+    fetch: FetchToday | None = None,
+    act: Press | None = None,
+    detail: FetchDetail | None = None,
+    schedule_fetch: FetchSchedule | None = None,
+    schedule_act: PressRule | None = None,
+    history_fetch: FetchHistory | None = None,
+    search: SearchJobs | None = None,
 ) -> int:
     app = QApplication(sys.argv)
     window = make_window(fetch, act, detail, schedule_fetch, schedule_act, history_fetch, search)

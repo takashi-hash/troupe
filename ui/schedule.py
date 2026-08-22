@@ -26,14 +26,14 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.schedule_row import ScheduleRow
-from ui.words import 操作の語
+from ui.words import ACTION_WORDS
 
 
-class 予定を読む手(Protocol):
+class FetchSchedule(Protocol):
     def __call__(self) -> tuple[ScheduleRow, ...]: ...
 
 
-class 決まりを押す手(Protocol):
+class PressRule(Protocol):
     def __call__(self, what: str, name: str, version: int, fields: dict[str, str]) -> str | None:
         """通れば None、断られたら理由。fields は版の欄（空欄は題材の初期値）。"""
         ...
@@ -77,7 +77,7 @@ class VersionFormDialog(QDialog):
 class ScheduleScreen(QWidget):
     """予定の画面。読む手と押す手を注がれて並べるだけ。"""
 
-    def __init__(self, fetch: 予定を読む手, act: 決まりを押す手) -> None:
+    def __init__(self, fetch: FetchSchedule, act: PressRule) -> None:
         super().__init__()
         self._fetch = fetch
         self._act = act
@@ -133,7 +133,7 @@ class ScheduleScreen(QWidget):
             box.addWidget(_para(f"次の対象期間: {row.next_period}"))
         buttons = QHBoxLayout()
         for action in row.actions:
-            button = QPushButton(操作の語.get(action, action))
+            button = QPushButton(ACTION_WORDS.get(action, action))
             if action == "add_version":
                 button.clicked.connect(lambda _=False, r=row.rule: self._add_version(r))
             else:
@@ -170,7 +170,7 @@ class ScheduleScreen(QWidget):
 
     def _press(self, action: str, name: str, version: int, fields: dict[str, str]) -> None:
         断り = self._act(action, name, version, fields)
-        self._word.setText(f"断り: {断り}" if 断り else f"{操作の語.get(action, action)} — できた")
+        self._word.setText(f"断り: {断り}" if 断り else f"{ACTION_WORDS.get(action, action)} — できた")
         if not 断り:
             self.refresh()
 

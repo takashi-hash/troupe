@@ -20,7 +20,7 @@ def test_受け持ちの人にだけ() -> None:
         ("AwaitingApproval", {}),
         ("AwaitingAnswer", {}),
         ("InProgress", {"assessments": (見立て,)}),
-        ("Failed", {"assignee_name": None, "retries_exhausted": True}),
+        ("Failed", {"assignee_name": None, "retried": 3}),
     ):
         material = make_material(state_name=state, **over)
         assert allowed(material, 座長, いま), f"{state} で受け持ちの人に何も出ない"
@@ -51,7 +51,7 @@ def test_失敗は見立てかやり直しが尽きてから差し戻すか打�
     assert allowed(make_material(state_name="Failed", assignee_name=None), 座長, いま) == ()
     書かれた = make_material(state_name="Failed", assignee_name=None, assessments=(見立て,))
     assert allowed(書かれた, 座長, いま) == ("send_back", "abandon")
-    尽きた = make_material(state_name="Failed", assignee_name=None, retries_exhausted=True)
+    尽きた = make_material(state_name="Failed", assignee_name=None, retried=3)
     assert allowed(尽きた, 座長, いま) == ("send_back", "abandon")
 
 

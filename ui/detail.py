@@ -20,14 +20,14 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.detail_view import DetailView
-from ui.today import 押す手
-from ui.words import 操作の語, 書く欄
+from ui.today import Press
+from ui.words import ACTION_WORDS, TEXT_FIELDS
 
 
 class DetailDialog(QDialog):
-    """詳細の窓。読み終わった DetailView を並べ、押す手で押す。"""
+    """詳細の窓。読み終わった DetailView を並べ、押す手（`Press`）で押す。"""
 
-    def __init__(self, view: DetailView, act: 押す手, parent: QWidget | None = None) -> None:
+    def __init__(self, view: DetailView, act: Press, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(f"詳細 — {view.id}")
         self.resize(640, 560)
@@ -66,12 +66,12 @@ class DetailDialog(QDialog):
 
         buttons = QHBoxLayout()
         self._text = QLineEdit()
-        needs = [w for a in view.actions if (w := 書く欄.get(a))]
+        needs = [w for a in view.actions if (w := TEXT_FIELDS.get(a))]
         if needs:
             self._text.setPlaceholderText("・".join(needs))
             buttons.addWidget(self._text, stretch=1)
         for action in view.actions:
-            button = QPushButton(操作の語.get(action, action))
+            button = QPushButton(ACTION_WORDS.get(action, action))
             button.clicked.connect(lambda _=False, a=action: self._press(a))
             buttons.addWidget(button)
 

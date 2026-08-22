@@ -21,10 +21,10 @@ from PySide6.QtWidgets import (
 )
 
 from app.dto.history_row import HistoryRow
-from ui.today import 押す手, 詳細を読む手
+from ui.today import Press, FetchDetail
 
 
-class 履歴を読む手(Protocol):
+class FetchHistory(Protocol):
     def __call__(self) -> tuple[HistoryRow, ...]: ...
 
 
@@ -33,9 +33,9 @@ class HistoryScreen(QWidget):
 
     def __init__(
         self,
-        fetch: 履歴を読む手,
-        act: 押す手 | None = None,
-        detail: 詳細を読む手 | None = None,
+        fetch: FetchHistory,
+        act: Press | None = None,
+        detail: FetchDetail | None = None,
     ) -> None:
         super().__init__()
         self._fetch = fetch

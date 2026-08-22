@@ -14,7 +14,8 @@ from app.ports.history_reader import HistoryEntry, HistoryReader
 def _材料() -> HistoryEntry:
     return HistoryEntry(
         at="2026-08-22 09:00",
-        by="時計",
+        by_kind="clock",
+        by_name=None,
         name="JobCreated",
         job_id="J-0001",
         rule="週次の依存の棚卸し",
@@ -33,7 +34,7 @@ def test_読みは新しい順に上限つき() -> None:
 def test_欄は出来事と見出しの材料だけ() -> None:
     """時刻・誰が・何が・仕事の識別子・業務ルール・対象期間・やること。"""
     assert set(HistoryEntry.model_fields) == {
-        "at", "by", "name", "job_id", "rule", "period", "instruction",
+        "at", "by_kind", "by_name", "name", "job_id", "rule", "period", "instruction",
     }
 
 

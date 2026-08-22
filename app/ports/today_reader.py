@@ -23,5 +23,5 @@ class TodayReader(Protocol):
         ...
 
     def read_all(self) -> tuple[TodayMaterial, ...]:
-        """今日の材料をぜんぶ。絞るのは Reader ではなく `judge_today`。"""
+        """一覧——**終点は運ばない**（今日に終点は出ない。それ以外を絞るのは `judge_today`）。"""
         ...
