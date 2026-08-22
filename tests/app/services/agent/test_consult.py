@@ -59,7 +59,8 @@ def _進める(
     根拠 = 根拠置き場の偽物()
     見立て = 見立て置き場の偽物()
     断り = consult(
-        帳簿, 材料読み or 材料読みの偽物(), 源, llm, 質問, 成果, 根拠, 見立て, 固定時計(), 仕事.id
+        帳簿, 材料読み or 材料読みの偽物(), 源, llm, 質問, 成果, 根拠, 見立て, 固定時計(), 仕事.id,
+        by=働き手,
     )
     return 断り, 質問, 成果, 根拠, 見立て
 
@@ -159,3 +160,17 @@ def test_無い仕事は断りに変わる() -> None:
     llm = LLMの偽物(Reply(mark=Mark.QUESTION, body="どの環境ですか"))
     断り, _, _, _, _ = _進める(帳簿, 仕事, 源の偽物(材料), llm)
     assert 断り is not None and not 帳簿.events
+
+
+def test_別のAIの名乗りは断られる() -> None:
+    """I13 — 姿を変えられるのは自分が担当の仕事だけ。名乗り＝担当を検める。"""
+    from domain.value_objects.people.agent import Agent
+
+    帳簿, 仕事 = _実行中の仕事()
+    llm = LLMの偽物(Reply(mark=Mark.QUESTION, body="呼ばれないはず"))
+    断り = consult(
+        帳簿, 材料読みの偽物(), 源の偽物(材料), llm, 質問置き場の偽物(), 成果置き場の偽物(),
+        根拠置き場の偽物(), 見立て置き場の偽物(), 固定時計(), 仕事.id, by=Agent(name="二号"),
+    )
+    assert 断り is not None and "担当ではありません" in 断り.reason
+    assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events  # 一生に傷をつけない

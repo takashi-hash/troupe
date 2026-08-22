@@ -157,7 +157,7 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:05 源が読めない → 落ちる（進める LLM は呼ばれない）
     時計.set(時(17, 9, 5))
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id) is None
+    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
     落ちた = jobs.load(id)
     assert 落ちた is not None and type(落ちた.state).__name__ == "Failed"
 
@@ -171,7 +171,7 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
     # 月09:12 AI が取り直す → また読めない → 落ちる（やり直しが尽きた）
     時計.set(時(17, 9, 12))
     assert start(jobs, states, 時計, by=一号) == id
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id) is None
+    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
 
     # 月09:15 仕分け → 残す（何度見ても残る）
     時計.set(時(17, 9, 15))

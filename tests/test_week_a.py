@@ -176,7 +176,7 @@ def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:02 詰まる → 人に尋ねる（判断は求めない。材料の不足だけ）
     時計.set(時(17, 9, 2))
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id) is None
+    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
     行 = gather_today(today, 時計, viewer="座長")
     assert [r for r in 行 if r.id == id.text and "answer" in r.actions], "答えるが今日に出る"
 
@@ -190,7 +190,7 @@ def test_週Aが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:35 成果を出す（根拠は源から——AI の言葉は根拠にならない）
     時計.set(時(17, 9, 35))
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id) is None
+    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
 
     # 月09:36 機械が検査する → 通る（担当が受け持ちの人へ移る）
     時計.set(時(17, 9, 36))

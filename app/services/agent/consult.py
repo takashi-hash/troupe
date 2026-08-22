@@ -9,6 +9,7 @@
 使った量は `spend` が積む——**上限で止まったら（I14）`exhaust` へ**。
 各 domain の操作ごとに `save(job, events)` の対で書く。
 業務の判断はしない——姿が合わなければ断りに変えるだけ。
+**名乗りは担当と検める**（I13）——姿を変えられるのは自分が担当の仕事だけ。
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ def consult(
     assessments: AssessmentStore,
     clock: ClockPort,
     id: JobId,
+    by: Agent,
 ) -> Refusal | None:
     """1歩進めたら None。姿が合わなければ断り。"""
     job = jobs.load(id)
@@ -60,6 +62,11 @@ def consult(
     assignee = job.state.assignee
     if not isinstance(assignee, Agent):
         return Refusal(reason="実行中の担当が AI ではありません（LLM に問うのは AI の操作です）")
+    if assignee != by:
+        return Refusal(
+            reason=f"担当ではありません（担当: {assignee.name}、名乗り: {by.name}）"
+            "——姿を変えられるのは自分が担当の仕事だけです"
+        )
 
     # 源を読む — 読めなければ fail へ（落ちた中身＝読めなかった理由）。
     outcome = source.read(job.source)

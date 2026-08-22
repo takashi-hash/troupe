@@ -148,6 +148,7 @@ def _agent(za: Ichiza, name: str) -> None:
             za.assessments,
             za.clock,
             took,
+            by=ai,
         )
         print(f"進めた: {took.text}" if outcome is None else f"断り: {outcome.reason}")
     visited = patrol(

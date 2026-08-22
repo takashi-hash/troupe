@@ -15,7 +15,7 @@ def test_担当を外して着手できるへ() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(InProgress(assignee=働き手))
     帳簿.jobs[仕事.id] = 仕事
-    断り = release(帳簿, 固定時計(), 仕事.id)
+    断り = release(帳簿, 固定時計(), 仕事.id, by=働き手)
     assert 断り is None
     assert isinstance(帳簿.jobs[仕事.id].state, Ready)
     assert [type(e) for e in 帳簿.events] == [JobReleased]
@@ -26,7 +26,7 @@ def test_実行中でなければ断りに変わる() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(Ready())
     帳簿.jobs[仕事.id] = 仕事
-    断り = release(帳簿, 固定時計(), 仕事.id)
+    断り = release(帳簿, 固定時計(), 仕事.id, by=働き手)
     assert 断り is not None and "実行中ではありません" in 断り.reason
     assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events
 
@@ -34,5 +34,17 @@ def test_実行中でなければ断りに変わる() -> None:
 def test_無い仕事は断りに変わる() -> None:
     from domain.value_objects.job.job_id import JobId
 
-    断り = release(帳簿の偽物(), 固定時計(), JobId(text="J-9999"))
+    断り = release(帳簿の偽物(), 固定時計(), JobId(text="J-9999"), by=働き手)
     assert 断り is not None
+
+
+def test_別のAIの名乗りは断られる() -> None:
+    """I13 — 手放せるのは自分が担当の仕事だけ。名乗り＝担当を検める。"""
+    from domain.value_objects.people.agent import Agent
+
+    帳簿 = 帳簿の偽物()
+    仕事 = make_job(InProgress(assignee=働き手))
+    帳簿.jobs[仕事.id] = 仕事
+    断り = release(帳簿, 固定時計(), 仕事.id, by=Agent(name="二号"))
+    assert 断り is not None and "担当ではありません" in 断り.reason
+    assert 帳簿.jobs[仕事.id] == 仕事 and not 帳簿.events
