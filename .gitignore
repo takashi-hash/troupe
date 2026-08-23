@@ -1,7 +1,21 @@
+# 実行時のもの——帳簿と作業場（設計/どう作るか §5「実行時の帳簿は data/——コミットしない」）
 tmp/
 data/
+
+# python の道具が置いていくもの
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-uv.lock
+.import_linter_cache/
+
+# 機械のもの
+.DS_Store
+.claude/worktrees/
+
+# 秘密——1つも入っていない。入れないための壁
+.env
+.env.*
+*.pem
+*.p12
+*-key.json

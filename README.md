@@ -78,6 +78,10 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
 
 ## Architecture
 
+![Troupe on Google Cloud: two Cloud Scheduler beats drive two Cloud Run Jobs (the clock's round and the AI's round); a Cloud Run service serves the window; Gemini 3.5 Flash is reached through Vertex AI with workload identity and no API key; one Cloud SQL for PostgreSQL instance holds two databases — the ledger and the medical record — and Secret Manager holds the connection strings.](architecture.svg)
+
+The same thing in text, for a terminal:
+
 ```
  Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-tick
    create · hand out · check · sort failures · confirm · mark overdue · audit
@@ -117,6 +121,19 @@ Inside the container, dependencies point inward only:
 
 ---
 
+## What it runs on
+
+| What is asked for | What Troupe uses | Where to look |
+|---|---|---|
+| **Gemini 3.5 or newer**, through the Gemini API or Vertex AI | `gemini-3.5-flash` on **Vertex AI**, reached with the workload's own identity — **no API key exists anywhere** | [`adapters/acl/llm.py`](adapters/acl/llm.py) · `MODEL_ENV` in [`cloud/deploy.sh`](cloud/deploy.sh) |
+| **A Google agent framework** (ADK, GenAI SDK, Antigravity SDK, GenKit) | The **Google GenAI SDK** (`google-genai`) — the only model dependency the project has | [`pyproject.toml`](pyproject.toml) · [`adapters/acl/llm.py`](adapters/acl/llm.py) |
+| **At least one Google Cloud infrastructure service** | **Cloud Run Jobs** (the two 60-second pulses) · **Cloud Run service** (the window) · **Cloud SQL for PostgreSQL** (two databases, one boundary) · **Cloud Scheduler** · **Secret Manager** · **Artifact Registry** · **Cloud Build** | [`cloud/deploy.sh`](cloud/deploy.sh) |
+| **A hosted URL to judge and test** | https://troupe-window-834978405023.asia-northeast1.run.app — running now, with the demo pilot keeping it moving | the banner on every page says the pilot is on |
+| **An architecture diagram** | [`architecture.svg`](architecture.svg) | above |
+| **Spin-up instructions** | one script, safe to run again | [Running it](#running-it) |
+
+---
+
 ## The parts worth looking at
 
 **The AI is inside the domain, not outside it.** It is a worker with an assignment, a budget, and a retry limit — not a general-purpose oracle bolted onto a workflow. That is why "which operations may the AI perform" is a table in the design and a folder in the code, rather than a prompt.
@@ -147,6 +164,8 @@ Synthetic patients, synthetic director — and both say so.
 
 The five design documents in [`設計/`](設計/) are the source of truth, and they are written in Japanese — that is the language the design was thought in. What matters is that they are not decoration: **the test suite reads them and fails when the code and the documents disagree.**
 
+A full English translation of all five lives in [`design/`](design/) — [what must never happen](design/what-must-never-happen.md) · [what a job is](design/what-a-job-is.md) · [how work moves](design/how-work-moves.md) · [what people see](design/what-people-see.md) · [how we build it](design/how-we-build.md). It is a translation and never the canon: the suite reads the Japanese, so the Japanese is what the code is held to.
+
 | what is checked | against |
 |---|---|
 | the state machine (states, transitions, terminal states) | the transition table in the design |
@@ -170,7 +189,20 @@ uv run python tests/break_check.py
 
 ## Running it
 
-**On Google Cloud** — one script wires everything and is safe to re-run:
+**On Google Cloud** — one script wires everything and is safe to re-run.
+
+Three things have to exist first, because `deploy.sh` deliberately never creates them — a database instance and a browser key are money and blast radius, so a human makes those:
+
+```bash
+gcloud sql instances create troupe-ledger --database-version=POSTGRES_17 \
+    --tier=db-f1-micro --region=asia-northeast1 --project=<your-project>
+gcloud sql users set-password postgres --instance=troupe-ledger --password=<a password>
+printf '%s' '<the same password>' > /tmp/troupe-dbpw   # the deploy scripts read it here
+printf '%s' '<a Maps JavaScript API key>' \
+  | gcloud secrets create troupe-maps-key --data-file=- --project=<your-project>
+```
+
+`PROJECT`, `REGION`, `INSTANCE` and `DB` are environment variables with defaults; export them to point the scripts at your own project. Then:
 
 ```bash
 sh cloud/deploy.sh          # service account, Cloud SQL database, image, jobs, service, schedules
@@ -207,4 +239,4 @@ Troupe will not approve its own work, and it cannot be configured to. Approving,
 
 ---
 
-Japanese README: [README.ja.md](README.ja.md) · Design documents (Japanese): [`設計/`](設計/)
+Japanese README: [README.ja.md](README.ja.md) · Design documents: [`設計/`](設計/) (Japanese, canonical) · [`design/`](design/) (English translation) · Licence: [MIT](LICENSE)

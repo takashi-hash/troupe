@@ -93,6 +93,12 @@ uv run python tests/break_check.py  # 義務68個を1つずつ壊して、全部
 設計とコードは突合テストが繋いでいる——遷移表・出来事・値オブジェクト・操作表・interface 表は、
 **設計の表を壊してもコードを壊しても赤くなる**。ずれたまま進めない。
 
+5枚の英訳が [`design/`](design/) にある。**正本は `設計/`**——突合が読むのは和文だけなので、ずれたら和文が正しい。
+
+## 配線の図
+
+![Google Cloud 上の一座——60秒の心拍2本が Cloud Run Jobs を起こし、窓は Cloud Run サービス、頭脳は Vertex AI の Gemini 3.5 Flash（鍵は持たない）、帳簿と診療録は1つの Cloud SQL の中の2つのデータベース](architecture.svg)
+
 ---
 
-English README: [README.md](README.md)
+English README: [README.md](README.md) · ライセンス: [MIT](LICENSE)
