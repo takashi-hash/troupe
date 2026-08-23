@@ -11,17 +11,16 @@ import re as _re
 
 def _soap分解(body: str) -> dict[str, str] | None:
     """下書きから S/O/A/P を最善努力で切り出す。切れなければ None——発明しない。"""
+    # 尻は「空白・米印・コロン」の混在を許す——LLM は `**S (Subjective):**` のように
+    # コロンを太字の内側に置くことがある(Gemini の実物で確認)
     見出し = _re.compile(
-        r"^\s*(?:#+\s*)?\**\(?(S|O|A|P)\)?\**\s*(?:\(Subjective\)|\(Objective\)|\(Assessment\)|\(Plan\))?\**\s*[:：]?\s*$",
+        r"^\s*(?:#+\s*)?\**\(?(S|O|A|P)\)?\**\s*(?:\(Subjective\)|\(Objective\)|\(Assessment\)|\(Plan\))?[*:：\s]*$",
         _re.M,
     )
     切れ目 = [(m.group(1), m.end()) for m in 見出し.finditer(body)]
     if [k for k, _ in 切れ目] != ["S", "O", "A", "P"]:
         return None
     out: dict[str, str] = {}
-    for i, (k, start) in enumerate(切れ目):
-        end = 切れ目[i + 1][1] - len(body[切れ目[i + 1][1]:]) if False else (
-            見出し.finditer(body) and None)
     # 位置で切る
     位置 = [start for _, start in 切れ目] + [len(body)]
     始まりの行 = [m.start() for m in 見出し.finditer(body)] + [len(body)]
