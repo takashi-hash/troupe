@@ -40,7 +40,7 @@ def test_誰の判断か空なら断り() -> None:
 
 def test_欄が空なら断り() -> None:
     断り = add_pattern(取り決めの偽物(), "P-001", " ", "Dr-A", "weekly", "2026-08-25", by="Director")
-    assert 断り is not None and "曜日" in 断り.reason
+    assert 断り is not None and "Weekday" in 断り.reason
 
 
 def test_診療録の断りは理由ごと届く() -> None:

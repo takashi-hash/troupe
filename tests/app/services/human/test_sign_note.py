@@ -36,7 +36,7 @@ def test_下書きなしの白紙署名もできる() -> None:
 def test_SOAPのどれかが空なら断り() -> None:
     口 = 訪問の終わりの偽物()
     断り = sign_note(口, "7", "Dr-A", "s", " ", "a", "p", "", by="Dr-A")
-    assert 断り is not None and "O" in 断り.reason
+    assert 断り is not None and "O is empty" in 断り.reason
     assert 口.署名 == []
 
 

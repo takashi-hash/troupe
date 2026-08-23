@@ -14,7 +14,22 @@ import pathlib
 import re
 
 from domain.aggregates.job.life import STATE_WORDS
-from ui.words import ACTION_WORDS, GLOSS, STATE_GLOSS, TEXT_FIELDS, 操作, 状態, 語, 読める
+from domain.events.event import EVENT_WORDS
+from domain.value_objects.people.actor import ACTOR_WORDS
+from ui.words import (
+    ACTION_WORDS,
+    ACTOR_GLOSS,
+    EVENT_GLOSS,
+    GLOSS,
+    STATE_GLOSS,
+    TEXT_FIELDS,
+    出来事,
+    操作,
+    状態,
+    起こす者,
+    語,
+    読める,
+)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
@@ -77,3 +92,17 @@ def test_橋に無い語は出せない() -> None:
 def test_橋に無い状態は語をそのまま出す() -> None:
     """状態は帳簿から来る——古い帳簿の語を、無い訳で塗りつぶさない。"""
     assert 状態("見たことのない状態") == "見たことのない状態"
+
+
+def test_出来事の語の写しがdomainと1行ずつ一致する() -> None:
+    """**正本は domain。** 出来事を足して写し忘れたらここが赤くなる。"""
+    assert EVENT_GLOSS == EVENT_WORDS
+
+
+def test_起こす者の語の写しがdomainと1行ずつ一致する() -> None:
+    assert ACTOR_GLOSS == ACTOR_WORDS
+
+
+def test_出来事は識別子の側から読める() -> None:
+    assert 出来事("下書きが配達された") == "Draft delivered"
+    assert 起こす者("時計") == "Clock"

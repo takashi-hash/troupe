@@ -32,10 +32,11 @@ from app.dto.search_row import SearchRow
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
 from app.dto.visit_view import VisitView
+from app.services.screen.gather_route import _km
 from app.dto.route_stop import RouteStop
 from app.dto.patient_view import PatientView
 from app.dto.today_row import TodayRow
-from ui.words import 操作, 状態, 語, 読める
+from ui.words import 出来事, 操作, 状態, 語, 起こす者, 読める
 
 
 class 読む手(Protocol):
@@ -152,51 +153,477 @@ class 手を開く(Protocol):
 # --- 見せかた。ここから下は「入っているものを出す」だけ ---
 
 _STYLE = """
-:root { color-scheme: light dark; }
+/* ================================================================
+   Troupe — style.css  ·  design “clinical calm”
+   ui/web.py の _STYLE を丸ごと置き換える1枚。
+   外部アセットなし・システムフォントのみ・JSはGoogle Maps スロットだけ。
+   ライト/ダーク: color-scheme + Canvas/CanvasText + color-mix（現行方式踏襲）。
+
+   原則:
+     · 色は状態にだけ使う。
+         緑  = 署名済み / 承認済み / 完了
+         琥珀 = 下書き / あなたの判断待ち / 期限接近
+         赤  = 破壊的操作 / 失敗 / 期限切れ
+         青  = 情報（下書き準備済み / AI稼働中）・唯一の塗りボタン
+         灰  = 不活性（中止・未着手・使用済み）
+     · 塗りつぶしボタンは Sign / Approve（質問カードの Reply）だけ。
+     · 階層は余白・罫線・字の大きさで作る。飾りは作らない。
+     · チップの記号（✓ / ⚠）は HTML 側の文字として入れる（白黒印刷でも残る）。
+
+   目次:
+     0. tokens & reset        8. Visit (/visit)
+     1. shell（header/nav/page） 9. Inbox
+     2. text & links         10. Patient chart
+     3. cards & folds        11. Agreements · Automations
+     4. chips·badges·seals   12. markdown (.md)
+     5. buttons & forms      13. banners · refusal · empty
+     6. tables               14. focus & a11y
+     7. My Day (/day)        15. print（day sheet）
+   ================================================================ */
+
+/* ---------- 0. tokens & reset ---------- */
+:root {
+  color-scheme: light dark;
+
+  /* 状態の色相 — UI に存在する有彩色はこの5つだけ */
+  --ok:      #15803d;
+  --warn:    #b45309;
+  --danger:  #b91c1c;
+  --info:    #2563eb;
+  --primary: #1f5f9e;   /* 唯一の塗りつぶし: Sign / Approve / Reply */
+
+  /* 無彩色はすべて Canvas/CanvasText から導出（両テーマ自動対応） */
+  --line:        color-mix(in srgb, CanvasText 14%, transparent);
+  --line-strong: color-mix(in srgb, CanvasText 30%, transparent);
+  --muted:       color-mix(in srgb, CanvasText 75%, Canvas); /* 二次テキストは75%が下限 */
+  --faint:       color-mix(in srgb, CanvasText 4%, Canvas);  /* うっすらした地 */
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
 * { box-sizing: border-box; }
-body { margin: 0; font: 15px/1.7 -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
-       background: Canvas; color: CanvasText; }
-header { padding: 14px 20px; border-bottom: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
-         display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap; }
-header .name { font-weight: 700; letter-spacing: .02em; }
-header .who { opacity: .65; font-size: 13px; }
-nav a { margin-right: 14px; text-decoration: none; color: inherit; opacity: .6; }
-nav a.on { opacity: 1; font-weight: 600; border-bottom: 2px solid currentColor; }
-main { padding: 20px; max-width: 900px; }
-.row { border: 1px solid color-mix(in srgb, CanvasText 15%, transparent); border-radius: 10px;
-       padding: 14px 16px; margin-bottom: 14px; }
-.head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
-.head .title { font-weight: 600; }
-.state { font-size: 12px; padding: 2px 8px; border-radius: 999px;
-         background: color-mix(in srgb, CanvasText 10%, transparent); }
-.id { font-size: 12px; opacity: .5; font-family: ui-monospace, monospace; }
-dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 0; }
-dt { opacity: .6; font-size: 13px; }
+body {
+  margin: 0;
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  background: Canvas; color: CanvasText;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- 1. shell — header / nav / page ---------- */
+.app-header {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--line);
+}
+.brand { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+.nav { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.nav__label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted);
+  margin: 0 6px 0 2px; user-select: none;
+}
+.nav__sep { width: 1px; height: 18px; background: var(--line-strong); margin: 0 12px; }
+.nav a {
+  text-decoration: none; color: var(--muted);
+  font-size: 14px; padding: 6px 10px; border-radius: 7px;
+}
+.nav a:hover { color: CanvasText; background: var(--faint); }
+.nav a[aria-current="page"], .nav a.is-active {
+  color: CanvasText; font-weight: 600;
+  box-shadow: inset 0 -2px 0 0 CanvasText;
+  border-radius: 7px 7px 0 0; background: none;
+}
+.whoami { margin-left: auto; font-size: 13px; color: var(--muted); }
+.whoami strong { color: CanvasText; font-weight: 600; }
+
+main, .page { max-width: 960px; margin: 0 auto; padding: 26px 28px 48px; }
+.page-title { font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin: 0 0 4px; }
+.page-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 22px; max-width: 68ch; }
+.section-title { font-size: 15px; font-weight: 650; margin: 30px 0 10px; }
+.crumbs { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+.crumbs a { color: inherit; }
+
+/* ---------- 2. text & links ---------- */
+a { color: inherit; }
+main a { text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
+main a:hover { text-decoration-color: currentColor; }
+.link-action { text-decoration: none; font-weight: 550; white-space: nowrap; }
+.link-action:hover { text-decoration: underline; }
+.sub { font-size: 13px; color: var(--muted); }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.id { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---------- 3. cards & folds ---------- */
+.card, .row {
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 14px; background: Canvas;
+}
+.card__head, .head {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.card__title, .head .title, .ref-name { font-weight: 600; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 16px; margin: 8px 0 0; }
+dt { font-size: 13px; color: var(--muted); }
 dd { margin: 0; white-space: pre-wrap; }
-form.act { display: inline-flex; gap: 6px; margin: 10px 8px 0 0; align-items: center; }
-button { font: inherit; padding: 5px 14px; border-radius: 8px; cursor: pointer;
-         border: 1px solid color-mix(in srgb, CanvasText 30%, transparent); background: transparent;
-         color: inherit; }
-button:hover { background: color-mix(in srgb, CanvasText 8%, transparent); }
-input[type=text] { font: inherit; padding: 5px 8px; border-radius: 8px;
-                   border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
-                   background: transparent; color: inherit; }
-.refusal { border-left: 3px solid #c0392b; padding: 10px 14px; margin-bottom: 16px;
-           background: color-mix(in srgb, #c0392b 8%, transparent); border-radius: 0 8px 8px 0; }
-.empty { opacity: .55; padding: 30px 0; }
-.sub { opacity: .6; font-size: 13px; }
-.row.draft { border-style: dashed; border-color: color-mix(in srgb, #b45309 55%, transparent); }
-.state-draft { background: color-mix(in srgb, #b45309 18%, transparent); font-weight: 600; }
-.state-final { background: color-mix(in srgb, #15803d 15%, transparent); font-weight: 600; }
-.brief { padding: 10px 16px; margin-bottom: 18px; border-radius: 10px; font-size: 13.5px;
-         background: color-mix(in srgb, CanvasText 5%, transparent);
-         border: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
-.brief a { color: inherit; }
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid
-         color-mix(in srgb, CanvasText 12%, transparent); vertical-align: top; }
-th { font-size: 13px; opacity: .6; font-weight: 500; }
+.fold { margin-top: 10px; }
+.fold > summary {
+  cursor: pointer; user-select: none; font-size: 13px; color: var(--muted);
+  padding: 3px 0; width: max-content;
+}
+.fold > summary:hover { color: CanvasText; }
+.fold[open] > summary { margin-bottom: 6px; }
+
+/* ---------- 4. chips · badges · seals ----------
+   chip  = 状態。色を持つ唯一の常連。記号は HTML の文字で: “Signed ✓” “⚠ Needs your answer”
+   badge = 種類（Visit note / Weekly report / Request / Task）。常に無彩色の枠。
+   seal  = 記録の印（DRAFT / SIGNED / USED）。カルテと下書きパネルの見出しに捺す。 */
+.chip {
+  --c: CanvasText;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600; line-height: 1.5;
+  padding: 1.5px 9px; border-radius: 999px; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 70%, CanvasText);
+  background: color-mix(in srgb, var(--c) 9%, Canvas);
+  border: 1px solid color-mix(in srgb, var(--c) 32%, transparent);
+}
+a.chip { text-decoration: none; }
+a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
+/* 状態 → 色。この対応が正本 */
+.chip--signed, .chip--approved, .chip--done      { --c: var(--ok); }
+.chip--draft-ready, .chip--working               { --c: var(--info); }
+.chip--needs-approval, .chip--needs-answer,
+.chip--expiring                                  { --c: var(--warn); }
+.chip--failed, .chip--expired                    { --c: var(--danger); }
+/* 無彩色のまま: scheduled / queued / submitted / no-draft / used / cancelled / stopped */
+.chip--no-draft, .chip--used { color: var(--muted); font-weight: 500; }
+.chip--cancelled, .chip--stopped {
+  color: var(--muted); font-weight: 500; text-decoration: line-through;
+}
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase;
+  padding: 1px 7px; border-radius: 4px;
+  color: var(--muted); border: 1px solid var(--line-strong); background: transparent;
+}
+.seal {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  letter-spacing: .09em; padding: 1.5px 8px; border-radius: 4px;
+}
+.seal--draft, .state-draft {
+  color: color-mix(in srgb, var(--warn) 70%, CanvasText);
+  background: color-mix(in srgb, var(--warn) 13%, Canvas);
+}
+.seal--signed, .state-final {
+  color: color-mix(in srgb, var(--ok) 70%, CanvasText);
+  background: color-mix(in srgb, var(--ok) 12%, Canvas);
+}
+.seal--used { color: var(--muted); background: var(--faint); }
+/* 旧 .state 互換 — 無彩チップとして残す */
+.state {
+  font-size: 12px; padding: 1.5px 9px; border-radius: 999px;
+  background: color-mix(in srgb, CanvasText 9%, Canvas);
+}
+
+/* ---------- 5. buttons & forms ----------
+   3階層:  primary(塗り) = Sign / Approve / Reply だけ
+           secondary(枠) = 既定。それ以外の操作すべて
+           destructive(赤テキスト) = 取り消し系。2段階目は .is-confirm を付ける */
+button, .btn {
+  font: inherit; font-size: 14px; font-weight: 500;
+  padding: 6px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: Canvas; color: inherit;
+}
+button:hover, .btn:hover { background: var(--faint); }
+.btn--small { padding: 3.5px 11px; font-size: 13px; }
+.btn--primary {
+  background: var(--primary); border-color: var(--primary);
+  color: #fff; font-weight: 600;
+}
+.btn--primary:hover {
+  background: color-mix(in srgb, var(--primary) 86%, black);
+  border-color: color-mix(in srgb, var(--primary) 86%, black);
+}
+.btn--primary.is-confirm {
+  background: color-mix(in srgb, var(--primary) 80%, black);
+  border-color: color-mix(in srgb, var(--primary) 80%, black);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.btn--destructive {
+  border-color: transparent; background: none; padding: 6px 6px;
+  color: color-mix(in srgb, var(--danger) 72%, CanvasText);
+}
+.btn--destructive:hover { background: none; text-decoration: underline; }
+.btn--destructive.is-confirm {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  background: color-mix(in srgb, var(--danger) 9%, Canvas);
+  padding: 6px 14px; text-decoration: none; font-weight: 600;
+}
+.btn--destructive.is-confirm:hover {
+  background: color-mix(in srgb, var(--danger) 14%, Canvas);
+}
+.confirm-note { font-size: 12.5px; color: color-mix(in srgb, var(--danger) 70%, CanvasText); }
+input[type=text], input[type=date], input[type=number], select, textarea {
+  font: inherit; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--line-strong); background: Canvas; color: inherit;
+}
+textarea { width: 100%; min-height: 112px; line-height: 1.6; padding: 10px 12px; resize: vertical; }
+input[type=checkbox] { accent-color: var(--primary); width: 15px; height: 15px; }
+.field { display: grid; gap: 4px; align-content: start; }
+.field > label { font-size: 13px; font-weight: 600; }
+.field .hint { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+form.act { display: inline-flex; gap: 8px; margin: 0; align-items: center; } /* 旧互換 */
+.actions, .card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-actions { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.push { margin-left: auto; }
+
+/* ---------- 6. tables ---------- */
 .wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th {
+  text-align: left; font-size: 11.5px; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+  padding: 8px 10px; border-bottom: 1px solid var(--line-strong);
+}
+td {
+  padding: 9px 10px; border-bottom: 1px solid var(--line);
+  vertical-align: top; font-variant-numeric: tabular-nums;
+}
+tbody tr:hover { background: var(--faint); }
+.cell-danger { color: color-mix(in srgb, var(--danger) 75%, CanvasText); font-weight: 600; }
+
+/* ---------- 7. My Day (/day) ---------- */
+.day-bar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.day-nav { font-size: 14px; }
+.day-nav strong { font-weight: 650; }
+.filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.filter-chip {
+  font-size: 13.5px; padding: 3.5px 14px; border-radius: 999px;
+  border: 1px solid var(--line-strong); color: var(--muted); text-decoration: none;
+}
+.filter-chip:hover { color: CanvasText; background: var(--faint); }
+.filter-chip.is-on, .filter-chip[aria-current="true"] {
+  background: color-mix(in srgb, CanvasText 88%, Canvas); color: Canvas;
+  border-color: transparent; font-weight: 600;
+}
+.progress-band, .brief {
+  padding: 10px 16px; margin: 0 0 16px; border-radius: 10px; font-size: 13.5px;
+  background: var(--faint); border: 1px solid var(--line);
+}
+.progress-band a, .brief a { color: inherit; }
+.map-slot, #gmap {
+  width: 100%; max-width: 680px; height: 440px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--faint);
+}
+.map-slot--placeholder {
+  display: grid; place-items: center; border-style: dashed;
+  color: var(--muted); font-size: 13px;
+}
+.route-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 6px; max-width: 72ch; }
+.clinician-day { margin: 28px 0 6px; }
+.clinician-day__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.clinician-day__head h3 { font-size: 15px; font-weight: 650; margin: 0; }
+.clinician-day__stats { font-size: 13px; color: var(--muted); }
+.stop-list { list-style: none; margin: 10px 0 8px; padding: 0; display: grid; gap: 8px; }
+.stop-card {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+}
+.stop-card__seq {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, CanvasText 85%, Canvas); color: Canvas;
+  font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.stop-card__main { flex: 1 1 230px; min-width: 0; }
+.stop-card__patient { font-weight: 600; }
+.stop-card__patient a { text-decoration: none; }
+.stop-card__patient a:hover { text-decoration: underline; }
+.stop-card__place { font-size: 13px; color: var(--muted); }
+.stop-card__status { flex: none; }
+.stop-card__leg {
+  flex: none; width: 64px; text-align: right;
+  font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.stop-card__open { flex: none; font-size: 13.5px; }
+.stop-card--next {
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  background: color-mix(in srgb, var(--primary) 4%, Canvas);
+}
+.stop-card--cancelled { opacity: .62; }
+.stop-card--cancelled .stop-card__patient { text-decoration: line-through; }
+.stop-return {
+  display: flex; align-items: center; gap: 14px;
+  border: 1px dashed var(--line-strong); border-radius: 10px;
+  padding: 8px 14px; font-size: 13.5px; color: var(--muted);
+}
+.stop-return .stop-card__seq {
+  background: transparent; color: var(--muted);
+  border: 1px dashed var(--line-strong);
+}
+
+/* ---------- 8. Visit (/visit) ---------- */
+.visit-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
+.visit-head .page-title { margin: 0; }
+.visit-head__meta { font-size: 13.5px; color: var(--muted); }
+.snapshot {
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--faint); padding: 14px 18px; margin: 0 0 18px;
+}
+.snapshot__head {
+  display: flex; align-items: baseline; gap: 10px;
+  justify-content: space-between; flex-wrap: wrap;
+}
+.snapshot__title {
+  font-size: 12px; font-weight: 650; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted);
+}
+.checklist { border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin: 0 0 18px; }
+.checklist__title { font-size: 14px; font-weight: 650; margin: 0 0 6px; }
+.checklist label {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 3px 0; font-size: 14px; cursor: pointer;
+}
+.checklist__note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.draft-panel {
+  border: 1.5px dashed color-mix(in srgb, var(--warn) 55%, transparent);
+  border-radius: 10px; padding: 16px 18px; margin: 0 0 22px;
+  background: color-mix(in srgb, var(--warn) 3%, Canvas);
+}
+.draft-panel__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.draft-panel__kicker {
+  font-size: 13px; font-weight: 600;
+  color: color-mix(in srgb, var(--warn) 70%, CanvasText);
+}
+.draft-panel__from { font-size: 13px; color: var(--muted); }
+.draft-panel__body { user-select: text; }
+.draft-panel__actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.draft-panel--used { opacity: .65; border-color: var(--line-strong); background: var(--faint); }
+.vitals { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 22px; }
+.vitals .field input { width: 110px; }
+.note-editor { display: grid; gap: 20px; margin: 0 0 8px; }
+.note-field > label { display: block; font-size: 14px; font-weight: 650; }
+.note-field .hint { display: block; font-size: 12.5px; color: var(--muted); margin: 1px 0 7px; }
+.cancel-zone {
+  display: flex; justify-content: flex-end; align-items: baseline; gap: 4px;
+  border-top: 1px solid var(--line); margin-top: 28px; padding: 12px 0 4px;
+  font-size: 13.5px; color: var(--muted);
+}
+.sign-bar {
+  position: sticky; bottom: 0; z-index: 10;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: Canvas; border-top: 1px solid var(--line-strong);
+  padding: 12px 0; margin-top: 10px;
+}
+.sign-bar__meta { font-size: 13.5px; color: var(--muted); }
+.sign-bar__actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sign-bar__actions label { font-size: 13px; color: var(--muted); }
+
+/* ---------- 9. Inbox ---------- */
+.patient-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  padding: 1.5px 10px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid var(--line-strong); text-decoration: none;
+}
+.patient-chip:hover { background: var(--faint); }
+.draft-preview {
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;
+  overflow: hidden; margin: 10px 0 0;
+}
+.question-body { margin: 10px 0 0; white-space: pre-wrap; }
+.effort { font-size: 12.5px; color: var(--muted); }
+.ledger-ref { font-family: var(--mono); font-size: 12px; color: var(--muted); user-select: all; }
+
+/* ---------- 10. Patient chart (/patient · /patients) ---------- */
+.patient-head .card__title { font-size: 17px; }
+.note-card {
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 14px;
+}
+.note-card--draft {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+  background: color-mix(in srgb, var(--warn) 3%, Canvas);
+}
+.note-card--signed { border-color: var(--line); } /* 無地=正記録。印(.seal--signed)が語る */
+.note-card__meta { font-size: 12.5px; color: var(--muted); }
+.note-card__foot { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+.soap dt { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--muted); }
+
+/* ---------- 11. Agreements · Automations ---------- */
+.agreement-row--ended td { color: var(--muted); }
+.form-card {
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px; margin-top: 28px; max-width: 760px;
+}
+.form-card__title { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+.form-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px; margin-top: 14px;
+}
+.form-actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* ---------- 12. markdown (.md) — サーバ側最小レンダラの出力 ---------- */
+.md { max-width: 72ch; }
+.md h4, .md h5, .md h6 { margin: 14px 0 6px; line-height: 1.4; }
+.md h4 { font-size: 14.5px; }
+.md h5 { font-size: 13.5px; }
+.md h6 { font-size: 13px; color: var(--muted); }
+.md p { margin: 8px 0; }
+.md ul, .md ol { margin: 8px 0; padding-left: 22px; }
+.md li { margin: 3px 0; }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+.md strong { font-weight: 650; }
+
+/* ---------- 13. banners · refusal · empty ---------- */
+.banner {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  border-radius: 10px; padding: 10px 16px; margin: 0 0 18px;
+  font-size: 14px; border: 1px solid var(--line);
+}
+.banner--success {
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  background: color-mix(in srgb, var(--ok) 7%, Canvas);
+  color: color-mix(in srgb, var(--ok) 65%, CanvasText);
+}
+.refusal {
+  border-left: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, Canvas);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 16px; margin: 0 0 18px;
+}
+.empty { color: var(--muted); padding: 36px 0; }
+
+/* ---------- 14. focus & a11y ---------- */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 75%, CanvasText);
+  outline-offset: 2px;
+}
+::selection { background: color-mix(in srgb, var(--primary) 22%, Canvas); }
+
+/* ---------- 15. print — day sheet ---------- */
+@media print {
+  .app-header, .filter-chips, .map-slot, #gmap, .sign-bar, .cancel-zone,
+  button, .btn, form, .banner, .fold { display: none !important; }
+  main, .page { max-width: none; padding: 0; }
+  body { font-size: 12px; }
+  a { text-decoration: none; color: #000; }
+  .chip, .seal, .badge, .patient-chip, .state {
+    background: none !important; color: #000 !important;
+    border: 1px solid #000 !important;
+  }
+  .chip--cancelled, .chip--stopped { text-decoration: line-through !important; }
+  .stop-card, .note-card, .card, .row { break-inside: avoid; border-color: #999; }
+  .stop-card--next { background: none; }
+  .clinician-day { break-after: page; }
+  .clinician-day:last-of-type { break-after: auto; }
+}
+
 """
 
 #: CARE（現場）が先、BACK OFFICE（監督）が後——2ペルソナのナビ。
@@ -208,18 +635,25 @@ _書く欄 = {"answer": "Answer", "send_back": "Reason", "abandon": "Reason"}
 
 def _頁(見出し: str, 中身: str, viewer: str, 断り: str | None = None) -> str:
     """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。"""
-    tabs = "".join(
-        f'<a class="{"on" if 識別子 == 見出し else ""}" href="/{識別子}">'
-        f"{escape(読める(識別子))}</a>"
-        for 識別子 in _画面
+    def _tab(識別子: str) -> str:
+        現在 = " aria-current='page'" if 識別子 == 見出し else ""
+        return f"<a href='/{識別子}'{現在}>{escape(読める(識別子))}</a>"
+
+    tabs = (
+        "<span class='nav__label'>Care</span>"
+        + "".join(_tab(t) for t in ("day", "patients"))
+        + "<span class='nav__sep' role='separator'></span>"
+        + "<span class='nav__label'>Back office</span>"
+        + "".join(_tab(t) for t in ("inbox", "agreements", "automations", "activity", "search"))
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
-        f"<header><span class='name'>Troupe</span><nav>{tabs}</nav>"
-        f"<span class='who'>Viewer: {escape(viewer)}</span></header>"
+        f"<header class='app-header'><span class='brand'>Troupe</span>"
+        f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
+        f"<span class='whoami'>Signed in as: <strong>{escape(viewer)}</strong></span></header>"
         f"<main>{警告}{中身}</main></body></html>"
     )
 
@@ -234,21 +668,28 @@ def _欄(組: list[tuple[str, str | None]]) -> str:
 
 def _押せること(押せる: tuple[str, ...], job_id: str, 戻り: str) -> str:
     """押せることを並べる。**組むのは domain の仕様**——ここは入っているものを出すだけ。"""
+    階層 = {"approve": "btn btn--primary", "answer": "btn btn--primary",
+            "abandon": "btn btn--destructive"}
+    語感 = {"approve": "Approve", "answer": "Reply", "send_back": "Send back",
+            "abandon": "Abandon"}
     out = []
     for what in 押せる:
-        名 = 操作(what)
+        名 = 語感.get(what, 操作(what))
         欄 = _書く欄.get(what)
         書く = (
-            f"<input type='text' name='text' placeholder='{escape(欄)}' required>"
+            f"<input type='text' name='text' aria-label='{escape(欄)}'"
+            f" placeholder='{escape(欄)}' required>"
             if 欄
             else ""
         )
+        確認 = (" onclick=\"return confirm('Abandon this job? This is final.')\""
+                if what == "abandon" else "")
         out.append(
             f"<form class='act' method='post' action='/act'>"
             f"<input type='hidden' name='what' value='{escape(what)}'>"
             f"<input type='hidden' name='id' value='{escape(job_id)}'>"
             f"<input type='hidden' name='back' value='{escape(戻り)}'>"
-            f"{書く}<button>{escape(名)}</button></form>"
+            f"{書く}<button class='{階層.get(what, 'btn')}'{確認}>{escape(名)}</button></form>"
         )
     return "".join(out)
 
@@ -275,9 +716,19 @@ def _帯(rows: tuple[TodayRow, ...], in_flight: int) -> str:
         f"<strong>{承認}</strong> awaiting your approval",
         f"<strong>{回答}</strong> awaiting an answer",
         f"<strong>{in_flight}</strong> job{'s' if in_flight != 1 else ''} in flight"
-        " — <a href='/schedule'>schedule</a>",
+        " — <a href='/automations'>automations</a>",
     ]
     return f"<div class='brief'>{' · '.join(組)}</div>"
+
+
+def _参照名(r: TodayRow) -> tuple[str, str, str | None]:
+    """（種類バッジ, 人間参照名, 患者記号）——UUIDの代わりに人が呼べる名。"""
+    if r.rule and r.rule.startswith("Visit Note Draft"):
+        code = r.rule.rsplit("— ", 1)[-1].strip()
+        return "Visit note", f"{code} · Visit note · {r.period or ''}".strip(), code
+    if r.rule:
+        return "Report", f"{r.rule} · {r.period or ''}".strip(), None
+    return "Request", (r.request_head or "Request"), None
 
 
 def _今日(rows: tuple[TodayRow, ...]) -> str:
@@ -285,31 +736,44 @@ def _今日(rows: tuple[TodayRow, ...]) -> str:
         return "<p class='empty'>Nothing needs your judgment today.</p>"
     out = []
     for r in rows:
-        見出し = r.rule or r.request_head or ""
-        使った = f"{r.spent_calls}/{r.budget_calls} calls, {r.spent_seconds}/{r.budget_seconds} s"
+        badge, 参照, code = _参照名(r)
+        chip = ("<span class='chip chip--needs-answer'>⚠ Needs your answer</span>"
+                if "answer" in r.actions else
+                "<span class='chip chip--needs-approval'>Needs your approval</span>"
+                if "approve" in r.actions else
+                f"<span class='chip'>{escape(状態(r.state_name))}</span>")
+        患者 = (f"<a class='patient-chip' href='/patient?code={quote(code)}'>{escape(code)} →</a>"
+                if code else "")
+        中身 = ""
+        if r.question_body:
+            中身 = f"<p class='question-body'>{escape(r.question_body)}</p>"
+            if r.answer_body:
+                中身 += f"<dl><dt>Answer</dt><dd>{escape(r.answer_body)}</dd></dl>"
+        elif r.result_body:
+            中身 = (f"<div class='draft-preview md'>{_md(r.result_body)}</div>"
+                    f"<details class='fold'><summary>Show full draft</summary>"
+                    f"<div class='md'>{_md(r.result_body)}</div></details>")
         見立て = "\n".join(f"{本文}（{理由}）" for 本文, 理由 in r.assessments)
+        詳細 = (
+            "<details class='fold'><summary>Details</summary><dl>"
+            f"<dt>Brief</dt><dd>{escape(r.instruction)}</dd>"
+            + (f"<dt>Source quoted</dt><dd>{escape(r.evidence_quote)}</dd>" if r.evidence_quote else "")
+            + (f"<dt>Assessment</dt><dd>{escape(見立て)}</dd>" if 見立て else "")
+            + (f"<dt>Recheck</dt><dd>{escape(r.recheck_at)}</dd>" if r.recheck_at else "")
+            + f"<dt>AI effort</dt><dd><span class='effort'>{r.spent_calls} of {r.budget_calls}"
+            f" calls · {r.spent_seconds} of {r.budget_seconds} s</span></dd>"
+            f"<dt>Ledger ref</dt><dd><span class='ledger-ref'>{escape(r.id)}</span>"
+            f" · <a class='link-action' href='/detail?id={quote(r.id)}'>Full history →</a></dd>"
+            "</dl></details>"
+        )
+        操作 = _押せること(r.actions, r.id, "/inbox")
         out.append(
-            f"<div class='row'><div class='head'>"
-            f"<span class='title'>{escape(見出し)} {escape(r.period or '')}</span>"
-            f"{_状態(r.state_name)}<a class='id' href='/detail?id={escape(r.id)}'>{escape(r.id)}</a>"
-            f"</div>"
-            + _欄(
-                [
-                    (語("やること"), r.instruction),
-                    (語("期日"), r.due),
-                    (語("担当"), r.assignee_name),
-                    (語("質問"), r.question_body),
-                    (語("回答"), r.answer_body),
-                    (語("成果"), r.result_body),
-                    (語("根拠"), r.evidence_quote),
-                    (語("見立て"), 見立て),
-                    (語("確かめ期日"), r.recheck_at),
-                    ("Retries", "exhausted" if r.retries_exhausted else None),
-                    (語("使った量"), 使った),
-                ]
-            )
-            + _押せること(r.actions, r.id, "/today")
-            + "</div>"
+            f"<article class='card'><div class='card__head'>"
+            f"<span class='badge'>{badge}</span>"
+            f"<span class='ref-name'>{escape(参照)}</span>{chip}"
+            f"<span class='push sub'>due {escape(r.due)}</span></div>"
+            + 患者 + 中身 + 詳細
+            + f"<div class='card-actions'>{操作}</div></article>"
         )
     return "".join(out)
 
@@ -319,8 +783,8 @@ def _詳細(view: DetailView | None) -> str:
         return "<p class='empty'>No such job.</p>"
     問答 = "\n".join(f"Q: {q}\nA: {a or '(not yet)'}" for q, a in view.questions)
     見立て = "\n".join(f"{本文}（{理由}）" for 本文, 理由 in view.assessments)
-    出来事 = "".join(
-        f"<tr><td>{escape(e.at)}</td><td>{escape(e.by)}</td><td>{escape(e.what)}</td></tr>"
+    出来事の列 = "".join(
+        f"<tr><td>{escape(e.at)}</td><td>{escape(起こす者(e.by))}</td><td>{escape(出来事(e.what))}</td></tr>"
         for e in view.events
     )
     return (
@@ -341,7 +805,7 @@ def _詳細(view: DetailView | None) -> str:
         + _押せること(view.actions, view.id, f"/detail?id={view.id}")
         + "</div>"
         + "<div class='wrap'><table><tr><th>When</th><th>Who</th><th>What happened</th></tr>"
-        + 出来事
+        + 出来事の列
         + "</table></div>"
     )
 
@@ -374,7 +838,7 @@ def _予定(rules: tuple[ScheduleRow, ...], jobs: tuple[SearchRow, ...]) -> str:
 
 def _履歴(rows: tuple[HistoryRow, ...]) -> str:
     行 = "".join(
-        f"<tr><td>{escape(r.at)}</td><td>{escape(r.by)}</td><td>{escape(r.what)}</td>"
+        f"<tr><td>{escape(r.at)}</td><td>{escape(起こす者(r.by))}</td><td>{escape(出来事(r.what))}</td>"
         f"<td><a class='id' href='/detail?id={escape(r.job_id)}'>{escape(r.head)}</a></td></tr>"
         for r in rows
     )
@@ -401,18 +865,26 @@ def _検索(rows: tuple[SearchRow, ...], keyword: str) -> str:
     )
 
 
-def _患者たち(rows: tuple[PatientRow, ...]) -> str:
+def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
     """患者の一覧 — 診療録の写し。**よその語のまま並べる**（翻訳しない）。"""
     if not rows:
         return (
             "<p class='empty'>The agency EMR is not wired (ICHIZA_EMR_DSN), "
             "or holds no patients.</p>"
         )
+    def _期限(r: PatientRow) -> str:
+        if not r.order_expires:
+            return "<td>—</td>"
+        if today and r.order_expires < today:
+            return (f"<td class='cell-danger'><span class='chip chip--expired'>"
+                    f"Expired {escape(r.order_expires)}</span></td>")
+        return f"<td>{escape(r.order_expires)}</td>"
+
     行 = "".join(
-        f"<tr><td><a class='id' href='/patient?code={quote(r.code)}'>{escape(r.code)}</a></td>"
+        f"<tr><td><a class='patient-chip' href='/patient?code={quote(r.code)}'>{escape(r.code)}</a></td>"
         f"<td>{escape(r.age)}</td><td>{escape(r.diagnosis)}</td>"
         f"<td>{escape(r.living)}</td><td>{escape(r.next_visit or '—')}</td>"
-        f"<td>{escape(r.order_expires or '—')}</td></tr>"
+        + _期限(r) + "</tr>"
         for r in rows
     )
     return (
@@ -427,22 +899,23 @@ def _患者(view: PatientView | None) -> str:
     if view is None:
         return "<p class='empty'>No such patient.</p>"
     下書き = "".join(
-        f"<div class='row draft'><div class='head'>"
-        f"<span class='state state-draft'>DRAFT</span>"
-        f"<span class='title'>delivered {escape(d.delivered_at[:16])}</span>"
-        f"<a class='id' href='/detail?id={escape(d.job_id)}'>from job {escape(d.job_id[:8])}…</a></div>"
-        f"<div style='white-space:pre-wrap'>{escape(d.body)}</div>"
-        "<p class='sub'>A proposal from Troupe. A doctor rewrites and signs it in the EMR — "
-        "this never becomes the record by itself.</p></div>"
+        f"<article class='card note-card note-card--draft{' draft-panel--used' if d.used else ''}'>"
+        f"<div class='card__head'>"
+        f"<span class='seal {'seal--used' if d.used else 'seal--draft'}'>{'USED' if d.used else 'DRAFT'}</span>"
+        f"<span class='note-card__meta'>delivered {escape(d.delivered_at[:16])}"
+        f" · <a class='link-action' href='/detail?id={quote(d.job_id)}'>AI history →</a></span></div>"
+        f"<div class='md'>{_md(d.body)}</div>"
+        "<p class='note-card__foot sub'>A proposal from Troupe. A doctor rewrites and signs —"
+        " this never becomes the record by itself.</p></article>"
         for d in view.drafts
     )
     記録 = "".join(
-        f"<div class='row'><div class='head'>"
-        f"<span class='state state-final'>SIGNED</span>"
-        f"<span class='title'>Note {escape(n.at)}</span>"
-        f"<span class='id'>{escape(n.clinician)} · signed {escape(n.signed_at[:16])}</span></div>"
-        + _欄([("S", n.s), ("O", n.o), ("A", n.a), ("P", n.p)])
-        + "</div>"
+        f"<article class='card note-card note-card--signed'><div class='card__head'>"
+        f"<span class='seal seal--signed'>SIGNED</span>"
+        f"<span class='card__title'>Note {escape(n.at)}</span>"
+        f"<span class='note-card__meta push'>{escape(n.clinician)} · signed {escape(n.signed_at[:16])}</span></div>"
+        f"<dl class='soap'><dt>S</dt><dd>{escape(n.s)}</dd><dt>O</dt><dd>{escape(n.o)}</dd>"
+        f"<dt>A</dt><dd>{escape(n.a)}</dd><dt>P</dt><dd>{escape(n.p)}</dd></dl></article>"
         for n in view.notes
     )
     return (
@@ -611,55 +1084,115 @@ def _道順(
     道順ごと: dict[str, tuple[RouteStop, ...]],
     base: tuple[float, float] | None,
     maps_key: str | None = None,
+    who: str | None = None,
+    signed: str | None = None,
 ) -> str:
     from datetime import date, timedelta
 
     d = date.fromisoformat(day)
     前日, 翌日 = (d - timedelta(days=1)).isoformat(), (d + timedelta(days=1)).isoformat()
-    nav = (f"<p><a href='/day?day={前日}'>← {前日}</a> · <strong>{escape(day)}</strong>"
-           f" · <a href='/day?day={翌日}'>{翌日} →</a></p>")
+    who_q = f"&who={quote(who)}" if who else ""
+    nav = (
+        "<div class='day-bar'><span class='day-nav'>"
+        f"<a href='/day?day={前日}{who_q}'>← {前日[5:]}</a> · <strong>{escape(day)}</strong>"
+        f" · <a href='/day?day={翌日}{who_q}'>{翌日[5:]} →</a></span>"
+        "<button class='btn btn--small push' onclick='print()'>Print day sheet</button></div>"
+    )
+    バナー = (
+        f"<div class='banner banner--success'>✓ Signed: {escape(signed)}</div>" if signed else ""
+    )
     if not 道順ごと:
-        return nav + "<p class='empty'>No visits scheduled this day.</p>"
+        return バナー + nav + "<p class='empty'>No visits scheduled this day.</p>"
+
+    医師たち = sorted(道順ごと)
+    絞り = {who: 道順ごと[who]} if who in 道順ごと else 道順ごと
+    フィルタ = (
+        "<div class='filter-chips'>"
+        + f"<a class='filter-chip{' is-on' if not who else ''}' href='/day?day={day}'>All</a>"
+        + "".join(
+            f"<a class='filter-chip{' is-on' if who == 名 else ''}'"
+            f" href='/day?day={day}&who={quote(名)}'>{escape(名)}</a>"
+            for 名 in 医師たち
+        )
+        + "</div>"
+    )
     地図 = (
-        _本物の地図(道順ごと, base, maps_key) if maps_key else _地図(道順ごと, base)
+        _本物の地図(絞り, base, maps_key) if maps_key else _地図(絞り, base)
     )
-    とび = " · ".join(
-        f"<a href='#{escape(担当)}'>{escape(担当)}</a>" for 担当 in sorted(道順ごと)
-    )
-    表たち = [f"<p class='sub'>Jump to: {とび}</p>"] if len(道順ごと) > 1 else []
-    for i, (担当, stops) in enumerate(sorted(道順ごと.items())):
-        色 = _色[i % len(_色)]
-        行 = "".join(
-            f"<tr class='stop--{s.status}'><td>{s.seq if s.seq else '✓' if s.status == 'done' else '—'}</td>"
-            f"<td><a class='id' href='/patient?code={quote(s.patient)}'>{escape(s.patient)}</a></td>"
-            f"<td>{escape(s.place)}</td><td>{escape(s.purpose)}</td><td>{escape(s.leg_km)} km</td>"
-            f"<td><span class='{_CHIP[s.prep][0]}'>{_CHIP[s.prep][1]}</span>"
-            f"{'<span class=chip>cancelled</span>' if s.status == 'cancelled' else ''}</td>"
-            f"<td><a class='btn-open' href='/visit?id={quote(s.visit_id)}'>Open visit</a></td></tr>"
-            for s in stops
+    but = ("<p class='route-note'>Distances are straight-line estimates — not driving"
+           " distance. Addresses are public landmarks standing in for homes —"
+           " no real residence appears.</p>")
+
+    節たち = []
+    for i, (担当, stops) in enumerate(sorted(絞り.items())):
+        予定 = [st for st in stops if st.seq]
+        済み休み = [st for st in stops if not st.seq]
+        署名済 = sum(1 for st in stops if st.prep == "signed")
+        中止 = sum(1 for st in stops if st.status == "cancelled")
+        次 = next((st for st in 予定 if st.prep != "signed" and st.status == "scheduled"), None)
+        合計 = sum(float(st.leg_km) for st in 予定)
+        帰路 = 0.0
+        if base and 予定:
+            末 = 予定[-1]
+            帰路 = _km(末.lat, 末.lng, base[0], base[1])
+        帯 = (
+            f"<div class='progress-band'><strong>{escape(担当)}:</strong>"
+            f" {署名済} of {len(stops)} signed"
+            + (f" · {中止} cancelled" if 中止 else "")
+            + (f" · next: {escape(次.patient)}" if 次 else " · round complete")
+            + "</div>"
         )
         地点 = ([f"{base[0]},{base[1]}"] if base else []) + [
-            f"{s.lat},{s.lng}" for s in stops if s.seq
-        ]
-        gmap = "https://www.google.com/maps/dir/" + "/".join(地点) if 地点 else ""
-        合計 = sum(float(s.leg_km) for s in stops if s.seq)
-        表たち.append(
-            f"<h3 id='{escape(担当)}' style='color:{色}'>{escape(担当)}"
-            f" <span class='sub'>{len(stops)} visits · {合計:.1f} km"
+            f"{st.lat},{st.lng}" for st in 予定
+        ] + ([f"{base[0]},{base[1]}"] if base and 予定 else [])
+        gmap = "https://www.google.com/maps/dir/" + "/".join(地点) if 予定 else ""
+
+        def _card(st: RouteStop) -> str:
+            打消 = " stop-card--cancelled" if st.status == "cancelled" else ""
+            強調 = " stop-card--next" if 次 is not None and st.visit_id == 次.visit_id else ""
+            番号 = str(st.seq) if st.seq else ("✓" if st.status == "done" else "—")
+            chip = (
+                "<span class='chip chip--cancelled'>Cancelled</span>"
+                if st.status == "cancelled"
+                else f"<span class='{_CHIP[st.prep][0]}'>{_CHIP[st.prep][1]}</span>"
+            )
+            距離 = f"<span class='stop-card__leg'>{escape(st.leg_km)} km</span>" if st.seq else ""
+            return (
+                f"<li class='stop-card{打消}{強調}'>"
+                f"<span class='stop-card__seq'>{番号}</span>"
+                f"<span class='stop-card__main'><span class='stop-card__patient'>"
+                f"<a class='patient-chip' href='/patient?code={quote(st.patient)}'>{escape(st.patient)}</a>"
+                f" {escape(st.purpose)}</span>"
+                f"<span class='stop-card__place sub'>{escape(st.place)}</span></span>"
+                f"{chip}{距離}"
+                f"<a class='link-action stop-card__open' href='/visit?id={quote(st.visit_id)}'>Open visit →</a>"
+                "</li>"
+            )
+
+        節たち.append(
+            f"<section class='clinician-day'><div class='clinician-day__head'>"
+            f"<h3 id='{escape(担当)}' style='color:{_色[i % len(_色)]}'>{escape(担当)}</h3>"
+            f"<span class='clinician-day__stats'>{len(予定)} stops · "
+            f"{合計 + 帰路:.1f} km incl. return"
             + (f" · <a href='{escape(gmap)}'>open in Google Maps</a>" if gmap else "")
-            + "</span></h3>"
-            "<div class='wrap'><table><tr><th>#</th><th>Patient</th><th>Place (public stand-in)"
-            "</th><th>Purpose</th><th>Leg</th><th>Prep</th><th></th></tr>" + 行 + "</table></div>"
+            + "</span></div>"
+            + 帯
+            + "<ol class='stop-list'>"
+            + "".join(_card(st) for st in stops)
+            + "</ol>"
+            + (f"<div class='stop-return'>⌂ Return to clinic · {帰路:.1f} km</div>" if base and 予定 else "")
+            + "</section>"
         )
-    return (nav + 地図
-            + "<p class='sub'>Stops are greedy nearest-neighbour from the clinic."
-              " Addresses are public landmarks standing in for homes — no real residence appears.</p>"
-            + "".join(表たち))
+    return バナー + nav + フィルタ + f"<div class='map-slot'>{地図}</div>" + but + "".join(節たち)
 
 
-def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
+def _取り決めたち(rows: tuple[PatternRow, ...], added: str | None = None) -> str:
+    バナー = (f"<div class='banner banner--success'>✓ {escape(added)}</div>" if added else "")
     行 = "".join(
-        f"<tr><td>{escape(r.patient)}</td><td>{escape(r.weekday)}</td>"
+        f"<tr{' class=agreement-row--ended' if r.active_to else ''}>"
+        f"<td><a class='patient-chip' href='/patient?code={quote(r.patient)}'>{escape(r.patient)}</a></td>"
+        f"<td>{escape(r.weekday)}</td>"
+        f"<td>{'every week' if r.every_weeks == '1' else f'every {escape(r.every_weeks)} weeks'}</td>"
         f"<td>{escape(r.clinician)}</td><td>{escape(r.purpose)}</td>"
         f"<td>{escape(r.active_from)}</td>"
         f"<td>{escape(r.active_to) if r.active_to else '—'}</td>"
@@ -667,7 +1200,9 @@ def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
             f"<form class='act' method='post' action='/patterns/act'>"
             f"<input type='hidden' name='what' value='end_pattern'>"
             f"<input type='hidden' name='id' value='{escape(r.id)}'>"
-            f"<button>{escape(操作('end_pattern'))}</button></form>" if r.active_to is None else ""
+            f"<button class='btn btn--destructive btn--small'"
+            " onclick=\"return confirm('End this agreement? Its future planned visits will be cancelled.')\">End</button></form>"
+            if r.active_to is None else ""
         ) + "</td></tr>"
         for r in rows
     )
@@ -691,22 +1226,31 @@ def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
     )
 
 
-_CHIP = {"signed": ("chip chip--signed", "Signed"),
-         "draft": ("chip chip--ready", "Draft ready"),
-         "none": ("chip chip--none", "No draft")}
+_CHIP = {"signed": ("chip chip--signed", "Signed ✓"),
+         "draft": ("chip chip--draft-ready", "Draft ready ✓"),
+         "none": ("chip chip--no-draft", "No draft yet")}
 
 
 def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
     if view is None:
         return "<p class='empty'>No such visit.</p>"
     pt = view.patient
+    期限 = ""
+    if pt.order_expires:
+        期限 = (f"<dt>Physician order</dt><dd>expires "
+                f"<span class='chip chip--expiring'>{escape(pt.order_expires)}</span></dd>")
     頭 = (
-        f"<div class='visit-head'><h2>{escape(pt.code)} · {escape(view.visit_date)}</h2>"
-        f"<p class='sub'>{escape(pt.diagnosis)} · age {escape(pt.age)} · {escape(pt.living)}"
-        + (f" · <strong class='warn'>order expires {escape(pt.order_expires)}</strong>"
-           if pt.order_expires else "")
-        + f"</p><p class='sub'>{escape(view.purpose)} · {escape(view.clinician)}"
-        f" · <a href='/patient?code={quote(pt.code)}'>Open chart →</a></p></div>"
+        f"<p class='crumbs'><a href='/day?day={quote(view.visit_date)}'>My Day</a>"
+        f" → {escape(pt.code)} · Visit</p>"
+        f"<div class='visit-head'><h1 class='page-title'>{escape(pt.code)} · Visit</h1>"
+        f"<span class='chip'>{escape(view.status.capitalize())}</span>"
+        f"<span class='visit-head__meta'>{escape(view.visit_date)} · {escape(view.clinician)}</span></div>"
+        f"<div class='card snapshot'><div class='snapshot__head'>"
+        f"<span class='snapshot__title'>Patient snapshot</span>"
+        f"<a class='link-action push' href='/patient?code={quote(pt.code)}'>Full chart →</a></div>"
+        f"<dl><dt>Diagnosis</dt><dd>{escape(pt.diagnosis)}</dd>"
+        f"<dt>Age · Living</dt><dd>{escape(pt.age)} · {escape(pt.living)}</dd>"
+        f"<dt>Purpose</dt><dd>{escape(view.purpose)}</dd>{期限}</dl></div>"
     )
     if view.status != "scheduled":
         済み = "".join(
@@ -722,18 +1266,24 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
     下書きパネル = ""
     if draft:
         下書きパネル = (
-            "<details class='draft-panel' open><summary>"
-            f"<span class='state state-draft'>DRAFT</span> AI draft · delivered {escape(draft.delivered_at)}"
-            "</summary>"
-            f"<div class='md'>{_md(draft.body)}</div>"
-            "<p class='sub'>The draft below is prefilled into the editor"
-            + ("" if 分解 else " — could not be split into S/O/A/P, copy what you need")
+            "<details class='fold draft-panel' open><summary>"
+            f"<span class='seal seal--draft'>DRAFT</span>"
+            "<span class='draft-panel__kicker'> A proposal, not the record</span>"
+            f"<span class='sub'> · delivered {escape(draft.delivered_at)}</span></summary>"
+            f"<div class='draft-panel__body md'>{_md(draft.body)}</div>"
+            "<p class='sub'>"
+            + ("Prefilled into the editor below"
+               if 分解 else "Could not be split into S/O/A/P — copy what you need")
             + ". The doctor rewrites and signs; the draft is never the record.</p></details>"
         )
+    説明 = {"s": "What the patient reports.", "o": "What you observe and measure.",
+            "a": "Your clinical judgment.", "p": "What happens next — checks first."}
+
     def 欄(名: str, key: str) -> str:
         中身 = (分解 or {}).get(key, "")
-        return (f"<label class='note-field'><span>{名}</span>"
-                f"<textarea name='{key}' rows='5' required>{escape(中身)}</textarea></label>")
+        return (f"<div class='note-field'><label for='f-{key}'>{名}</label>"
+                f"<p class='hint'>{説明[key]}</p>"
+                f"<textarea id='f-{key}' name='{key}' rows='6' required>{escape(中身)}</textarea></div>")
     署名者 = "".join(
         f"<option{' selected' if c == view.clinician else ''}>{escape(c)}</option>"
         for c in view.clinicians
@@ -745,19 +1295,24 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
         + (f"<input type='hidden' name='draft_id' value='{escape(draft.id)}'>" if draft else "")
         + 欄("S — Subjective", "s") + 欄("O — Objective", "o")
         + 欄("A — Assessment", "a") + 欄("P — Plan", "p")
-        + "<div class='sign-bar'><label>Signing as <select name='signer'>"
+        + "<div class='sign-bar'><span class='sign-bar__meta'>"
+        f"{escape(pt.code)} · {escape(view.visit_date)} — a signed note is permanent"
+        " and cannot be edited</span>"
+        "<span class='sign-bar__actions'><label>Signing as <select name='signer'>"
         + 署名者 + "</select></label>"
-        "<button class='btn-primary' onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
-        "Sign &amp; complete visit</button></div></form>"
+        "<button class='btn btn--primary' onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
+        "Sign and complete visit</button></span></div></form>"
     )
     休み = (
-        "<details class='cancel-box'><summary>Skip this visit (one time)</summary>"
+        "<div class='cancel-zone'><details class='fold'>"
+        "<summary>This visit didn't happen?</summary>"
         f"<form class='act' method='post' action='/visit/act'>"
         f"<input type='hidden' name='what' value='cancel_visit'>"
         f"<input type='hidden' name='id' value='{escape(view.id)}'>"
         "<label>Reason <input type='text' name='reason' required></label>"
-        "<button class='btn-destructive'>Cancel this visit</button></form>"
-        "<p class='sub'>The agreement stays — only this one visit is cancelled.</p></details>"
+        "<button class='btn btn--destructive' onclick=\"return confirm('Cancel this one visit? The agreement stays.')\">Cancel this visit only</button></form>"
+        "<p class='sub'>The agreement stays — only this one visit is cancelled.</p>"
+        "</details></div>"
     )
     return 頭 + 下書きパネル + 編集 + 休み
 
@@ -826,14 +1381,18 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
 
     @app.get("/automations", response_class=HTMLResponse)
     def _予定の頁() -> HTMLResponse:
-        return 見せる("automations", lambda h: _予定(h.schedule_fetch(), h.upcoming()))
+        副題 = ("<p class='page-sub'>Troupe's own work schedule — AI routines and their runs."
+                " Patient visits live in <a href='/day'>My Day</a>.</p>")
+        return 見せる("automations", lambda h: 副題 + _予定(h.schedule_fetch(), h.upcoming()))
 
     @app.get("/activity", response_class=HTMLResponse)
     def _履歴の頁() -> HTMLResponse:
         return 見せる("activity", lambda h: _履歴(h.history_fetch()))
 
     @app.get("/day", response_class=HTMLResponse)
-    def _道順の頁(day: str | None = None) -> HTMLResponse:
+    def _道順の頁(
+        day: str | None = None, who: str | None = None, signed: str | None = None
+    ) -> HTMLResponse:
         from datetime import date
 
         def 描く(h: 手) -> str:
@@ -843,13 +1402,13 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
             except ValueError:
                 対象 = h.today()  # 壊れた日付は今日に倒す——500 は出さない
             拠点, 道順ごと = h.route(対象)
-            return _道順(対象, 道順ごと, 拠点, maps_key)
+            return _道順(対象, 道順ごと, 拠点, maps_key, who, signed)
 
         return 見せる("day", 描く)
 
     @app.get("/agreements", response_class=HTMLResponse)
-    def _取り決めの頁(refused: str | None = None) -> HTMLResponse:
-        return 見せる("agreements", lambda h: _取り決めたち(h.patterns()), refused)
+    def _取り決めの頁(refused: str | None = None, added: str | None = None) -> HTMLResponse:
+        return 見せる("agreements", lambda h: _取り決めたち(h.patterns(), added), refused)
 
     @app.post("/patterns/act")
     def _取り決めを押す(
@@ -857,6 +1416,7 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
         id: str = Form(""),
         patient: str = Form(""),
         weekday: str = Form(""),
+        every_weeks: str = Form("1"),
         clinician: str = Form(""),
         purpose: str = Form(""),
         start: str = Form(""),
@@ -866,11 +1426,16 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
             断り = 手たち.pattern_act(
                 what,
                 {"id": id, "patient": patient, "weekday": weekday,
+                 "every_weeks": every_weeks,
                  "clinician": clinician, "purpose": purpose, "start": start},
             )
         finally:
             手たち.close()
-        戻り = "/agreements" if 断り is None else f"/agreements?refused={quote(断り)}"
+        if 断り is None:
+            戻り = ("/agreements?added=" + quote("Agreement added — visits will appear shortly")
+                    if what == "add_pattern" else "/agreements")
+        else:
+            戻り = f"/agreements?refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/visit", response_class=HTMLResponse)
@@ -899,14 +1464,17 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
         finally:
             手たち.close()
         if 断り is None:
-            戻り = f"/visit?id={quote(id)}" if what == "sign_note" else "/day"
+            if what == "sign_note":
+                戻り = f"/day?signed={quote('Visit ' + id)}"
+            else:
+                戻り = "/day"
         else:
             戻り = f"/visit?id={quote(id)}&refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/patients", response_class=HTMLResponse)
     def _患者たちの頁() -> HTMLResponse:
-        return 見せる("patients", lambda h: _患者たち(h.patients()))
+        return 見せる("patients", lambda h: _患者たち(h.patients(), h.today()))
 
     @app.get("/patient", response_class=HTMLResponse)
     def _患者の頁(code: str) -> HTMLResponse:

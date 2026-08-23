@@ -18,10 +18,10 @@ def cancel_visit(
 ) -> Refusal | None:
     """通れば None。断られたら理由。"""
     if not by.strip():
-        return Refusal(reason="誰の判断かが空です")
+        return Refusal(reason="No one is making this judgment — the name is blank")
     if not visit_id.strip():
-        return Refusal(reason="どの訪問かが空です")
+        return Refusal(reason="Which visit? The id is blank")
     if not reason.strip():
-        return Refusal(reason="理由が空です——理由なしでは休めません")
+        return Refusal(reason="A reason is required — a skipped visit must say why")
     なぜ = visits.cancel(visit_id.strip(), reason.strip())
     return None if なぜ is None else Refusal(reason=なぜ)

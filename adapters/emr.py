@@ -133,7 +133,8 @@ class PostgresPatients:
             (code,),
         ).fetchall()
         drafts = conn.execute(
-            "SELECT (delivered_at AT TIME ZONE 'Asia/Tokyo')::text, body, based_on_job FROM note_drafts"
+            "SELECT (delivered_at AT TIME ZONE 'Asia/Tokyo')::text, body, based_on_job,"
+                " used_at IS NOT NULL FROM note_drafts"
             " WHERE patient = %s ORDER BY delivered_at DESC",
             (code,),
         ).fetchall()
@@ -149,8 +150,8 @@ class PostgresPatients:
             meds=tuple(m[0] for m in meds),
             events=tuple(e[0] for e in events),
             drafts=tuple(
-                PatientDraft(delivered_at=str(at), body=str(b), job_id=str(j))
-                for at, b, j in drafts
+                PatientDraft(delivered_at=str(at), body=str(b), job_id=str(j), used=bool(u))
+                for at, b, j, u in drafts
             ),
             notes=tuple(
                 PatientNote(
@@ -245,15 +246,15 @@ class PostgresPatterns:
         every_weeks: str = "1",
     ) -> str | None:
         if self._dsn is None:
-            return "診療録が繋がっていません"
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         if weekday not in _WEEKDAYS:
-            return f"曜日は {'/'.join(_WEEKDAYS)} のどれかです"
+            return f"Weekday must be one of {'/'.join(_WEEKDAYS)}"
         if not every_weeks.isdigit() or not 1 <= int(every_weeks) <= 12:
-            return "週の間隔は 1〜12 です"
+            return "Frequency must be between 1 and 12 weeks"
         try:
             conn = _connect(self._dsn, self._connect)
         except Exception:
-            return "診療録に届きませんでした"
+            return "Could not reach the EMR — try again in a moment"
         try:
             conn.execute(
                 "INSERT INTO visit_patterns"
@@ -264,17 +265,17 @@ class PostgresPatterns:
             )
             return None
         except Exception as なぜ:
-            return "載せられませんでした——その患者が診療録に居ないか、日付の形が違います"
+            return "Could not add — the patient (or clinician) is not in the EMR, or the date is malformed"
         finally:
             conn.close()
 
     def end(self, pattern_id: str, on: str) -> str | None:
         if self._dsn is None:
-            return "診療録が繋がっていません"
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         try:
             conn = _connect(self._dsn, self._connect)
         except Exception:
-            return "診療録に届きませんでした"
+            return "Could not reach the EMR — try again in a moment"
         try:
             cur = conn.execute(
                 "UPDATE visit_patterns SET active_to = %s::date"
@@ -293,7 +294,7 @@ class PostgresPatterns:
             )
             return None
         except Exception:
-            return "終えられませんでした"
+            return "Could not end the agreement"
         finally:
             conn.close()
 
@@ -408,11 +409,11 @@ class EmrVisits:
         s: str, o: str, a: str, p: str, draft_id: str | None,
     ) -> str | None:
         if self._dsn is None:
-            return "診療録が繋がっていません"
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         try:
             conn = _connect(self._dsn, self._connect)
         except Exception:
-            return "診療録に届きませんでした"
+            return "Could not reach the EMR — try again in a moment"
         try:
             with conn.transaction():
                 done = conn.execute(
@@ -421,7 +422,7 @@ class EmrVisits:
                     (visit_id,),
                 )
                 if not done.rowcount:
-                    return "その訪問は予定のままではありません（実施済みか中止済み）"
+                    return "This visit is no longer scheduled (already done or cancelled)"
                 row = conn.execute(
                     "INSERT INTO clinical_notes"
                     "(patient, visit_id, note_date, clinician, s, o, a, p, signed_at)"
@@ -437,34 +438,34 @@ class EmrVisits:
                         (row[0], draft_id),
                     )
                     if not used.rowcount:
-                        return "その下書きは既に使われています——読み直してください"
+                        return "That draft has already been used — reload the page"
             return None
         except Exception as なぜ:
             名 = type(なぜ).__name__
             if "ForeignKey" in 名:
-                return "署名者が名簿にありません"
+                return "The signer is not on the clinician roster"
             if "Unique" in 名:
-                return "この訪問には既に署名済みの記録があります"
-            return "署名できませんでした——診療録が受けませんでした"
+                return "This visit already has a signed note"
+            return "Could not sign — the EMR refused the record"
         finally:
             conn.close()
 
     def cancel(self, visit_id: str, reason: str) -> str | None:
         if self._dsn is None:
-            return "診療録が繋がっていません"
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         try:
             conn = _connect(self._dsn, self._connect)
         except Exception:
-            return "診療録に届きませんでした"
+            return "Could not reach the EMR — try again in a moment"
         try:
             cur = conn.execute(
                 "UPDATE visits SET status = 'cancelled', cancelled_reason = %s"
                 " WHERE id = %s::bigint AND status = 'scheduled'",
                 (reason, visit_id),
             )
-            return None if cur.rowcount else "その訪問は予定のままではありません"
+            return None if cur.rowcount else "This visit is no longer scheduled"
         except Exception:
-            return "休めませんでした——診療録が受けませんでした"
+            return "Could not cancel — the EMR refused"
         finally:
             conn.close()
 

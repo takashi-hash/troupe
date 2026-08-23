@@ -114,3 +114,48 @@ def 状態(語: str) -> str:
 def 操作(識別子: str) -> str:
     """操作の語を、識別子の側から読める形で。押せることは識別子で届く。"""
     return 読める(識別子)
+
+
+#: 出来事の語 → 識別子。**正本は domain の `EVENT_WORDS`**——写し。ずれたら突合が赤くする。
+EVENT_GLOSS = {
+    "仕事が頼まれた": "JobRequested",
+    "仕事が作られた": "JobCreated",
+    "仕事が配られた": "JobHandedOut",
+    "着手された": "JobStarted",
+    "手放された": "JobReleased",
+    "時間切れで戻った": "JobTimedOut",
+    "成果が出された": "ResultSubmitted",
+    "検査に通った": "CheckPassed",
+    "検査で止まった": "CheckStopped",
+    "承認された": "Approved",
+    "差し戻された": "SentBack",
+    "終わった": "JobFinished",
+    "確かめ期日が先へ送られた": "RecheckDatePushed",
+    "打ち切られた": "JobAbandoned",
+    "期日を過ぎた": "DueDatePassed",
+    "下書きが配達された": "DraftDelivered",
+    "失敗した": "JobFailed",
+    "もう一度やった": "Retried",
+    "使った量が増えた": "SpentIncreased",
+    "質問された": "QuestionAsked",
+    "答えられた": "QuestionAnswered",
+    "見立てが書かれた": "AssessmentWritten",
+    "版が足された": "RuleVersionAdded",
+    "業務ルールが有効になった": "RuleActivated",
+    "業務ルールが止められた": "RuleDeactivated",
+}
+
+#: 起こす者の語 → 識別子。**正本は domain の `ACTOR_WORDS`**——写し。
+ACTOR_GLOSS = {"人": "human", "AI": "agent", "時計": "clock"}
+
+
+def 出来事(語: str) -> str:
+    """出来事の語を識別子の側から読める形で。橋に無ければ語をそのまま。"""
+    識別子 = EVENT_GLOSS.get(語)
+    return 読める(識別子) if 識別子 else 語
+
+
+def 起こす者(語: str) -> str:
+    """起こす者の語（名で無いとき）を識別子の側から読める形で。"""
+    識別子 = ACTOR_GLOSS.get(語)
+    return 読める(識別子) if 識別子 else 語

@@ -19,7 +19,7 @@ def _詳細(**over: object) -> PatientView:
         "meds": ("levodopa/carbidopa 100/25 tid",),
         "events": ("2026-08-02: fall at home",),
         "drafts": (
-            PatientDraft(delivered_at="2026-08-24 09:00", body="SOAP draft", job_id="J-1"),
+            PatientDraft(delivered_at="2026-08-24 09:00", body="SOAP draft", job_id="J-1", used=False),
         ),
         "notes": (
             PatientNote(

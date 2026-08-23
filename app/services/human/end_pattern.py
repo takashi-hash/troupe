@@ -16,8 +16,8 @@ def end_pattern(
 ) -> Refusal | None:
     """今日づけで終える。通れば None。"""
     if not by.strip():
-        return Refusal(reason="誰の判断かが空です")
+        return Refusal(reason="No one is making this judgment — the name is blank")
     if not pattern_id.strip():
-        return Refusal(reason="どの取り決めかが空です")
+        return Refusal(reason="Which agreement? The id is blank")
     なぜ = patterns.end(pattern_id.strip(), clock.now().date().isoformat())
     return None if なぜ is None else Refusal(reason=なぜ)

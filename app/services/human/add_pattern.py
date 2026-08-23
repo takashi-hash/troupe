@@ -23,10 +23,10 @@ def add_pattern(
 ) -> Refusal | None:
     """通れば None。断られたら理由。人の名が空なら判断の主が居ない——断り。"""
     if not by.strip():
-        return Refusal(reason="誰の判断かが空です")
-    for 欄, 値 in (("患者", patient), ("曜日", weekday), ("担当", clinician), ("目的", purpose), ("始まり", start)):
+        return Refusal(reason="No one is making this judgment — the name is blank")
+    for 欄, 値 in (("Patient", patient), ("Weekday", weekday), ("Clinician", clinician), ("Purpose", purpose), ("Start date", start)):
         if not 値.strip():
-            return Refusal(reason=f"{欄}が空です")
+            return Refusal(reason=f"{欄} is blank")
     なぜ = patterns.add(
         patient.strip(), weekday.strip(), clinician.strip(), purpose.strip(),
         start.strip(), every_weeks.strip() or "1",

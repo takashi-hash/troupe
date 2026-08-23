@@ -29,14 +29,14 @@ def sign_note(
 ) -> Refusal | None:
     """通れば None。断られたら理由。署名者が空なら判断の主が居ない——断り。"""
     if not by.strip():
-        return Refusal(reason="誰の判断かが空です")
+        return Refusal(reason="No one is making this judgment — the name is blank")
     if not visit_id.strip():
-        return Refusal(reason="どの訪問かが空です")
+        return Refusal(reason="Which visit? The id is blank")
     if not signer.strip():
-        return Refusal(reason="署名者が空です")
+        return Refusal(reason="The signer is blank")
     for 欄, 値 in (("S", s), ("O", o), ("A", a), ("P", p)):
         if not 値.strip():
-            return Refusal(reason=f"{欄} が空です——空の記録に署名はできません")
+            return Refusal(reason=f"{欄} is empty — an empty note cannot be signed")
     なぜ = visits.sign(
         visit_id.strip(), signer.strip(), s.strip(), o.strip(), a.strip(), p.strip(),
         draft_id.strip() or None,

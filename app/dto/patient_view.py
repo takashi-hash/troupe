@@ -35,6 +35,8 @@ class PatientDraft(BaseModel):
     body: str
     #: どの仕事から来たか——帳簿の側の一生（承認の出来事）に辿れる。
     job_id: str
+    #: 使用済みか——署名が消費した下書きは USED の印で残る（消さない）。
+    used: bool
 
 
 class PatientView(BaseModel):

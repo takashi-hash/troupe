@@ -193,7 +193,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         elif what == "abandon":
             断り = abandon(za.jobs, za.clock, id, viewer, text)
         else:
-            return f"知らない操作です: {what}"
+            return f"Unknown action: {what}"
         return None if 断り is None else 断り.reason
 
     def 詳細(id: str) -> DetailView | None:
@@ -214,7 +214,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         elif what == "deactivate":
             断り = deactivate(za.rules, za.clock, name, viewer)
         else:
-            return f"知らない操作です: {what}"
+            return f"Unknown action: {what}"
         return None if 断り is None else 断り.reason
 
     def 履歴を読む() -> tuple[HistoryRow, ...]:
@@ -245,12 +245,13 @@ def _手(za: Ichiza, viewer: str) -> 手:
                 za.patterns_port,
                 fields.get("patient", ""), fields.get("weekday", ""),
                 fields.get("clinician", ""), fields.get("purpose", ""),
-                fields.get("start", ""), by=viewer,
+                fields.get("start", ""), fields.get("every_weeks", "1"),
+                by=viewer,
             )
         elif what == "end_pattern":
             断り = end_pattern(za.patterns_port, za.clock, fields.get("id", ""), by=viewer)
         else:
-            return f"知らない操作です: {what}"
+            return f"Unknown action: {what}"
         return None if 断り is None else 断り.reason
 
     def 今日() -> str:
@@ -274,7 +275,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         elif what == "cancel_visit":
             断り = cancel_visit(za.visits_port, fields.get("id", ""), fields.get("reason", ""), by=viewer)
         else:
-            return f"知らない操作です: {what}"
+            return f"Unknown action: {what}"
         return None if 断り is None else 断り.reason
 
     def 道順を読む(
