@@ -1,0 +1,16 @@
+{
+  "cycle": "weekly",
+  "days": 2,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 6,
+  "required_terms": [
+    "{対象期間}",
+    "P-016",
+    "wound"
+  ],
+  "instruction": "Read the patient chart in the source. The signed notes are given oldest first - COMPARE them and write the direction of change into Assessment; never repeat the last note's Assessment unchanged. Draft the visit note for the visit scheduled in the reporting period, in SOAP form. Anything in 'recent events' must be reflected. Anything the doctor must verify on arrival goes first in Plan as a checklist. Leave Objective as labelled blanks - never invent a measurement. Begin with the patient code and the visit date. The doctor rewrites and signs - the draft is never the record. For this patient, track the wound measurements across the notes in cm: state the size trend week by week and whether the healing trajectory justifies keeping the current dressing protocol. If the chart lists no next visit, say so plainly in the draft and do not invent a date.",
+  "source": "db:chart/P-016",
+  "description": "SOAP form for the visit in the reporting period; the wound trend across the given notes is stated; Objective has no invented measurements."
+}
