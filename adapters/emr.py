@@ -652,6 +652,14 @@ class EmrServices:
                 return "No such visit"
             if str(ok[0][0]) != "scheduled":
                 return "The visit is already signed or cancelled — services are frozen"
+            種別 = conn.execute(
+                "SELECT kind FROM fee_schedule WHERE code = %s", (code,)
+            ).fetchall()
+            if not 種別:
+                return "That item is not on the fee schedule"
+            if str(種別[0][0]) in ("visit", "oncall", "monthly"):
+                return ("Visit fees and monthly tiers derive automatically — "
+                        "only what was done at the bedside is entered here")
             conn.execute(
                 "INSERT INTO visit_services(visit_id, code, qty, recorded_by)"
                 " VALUES (%s::bigint, %s, %s, %s)"
@@ -723,16 +731,23 @@ class EmrCharges:
                     "SELECT code, kind, points, price_yen, unit, weekly_cap FROM fee_schedule"
                 ).fetchall()
             }
+            # 窓は日付ではなく請求の状態——未確定の患者が1人でも居る月だけを導く
             months = [
                 str(m[0]) for m in conn.execute(
                     "SELECT DISTINCT to_char(v.visit_date, 'YYYY-MM') FROM visits v"
                     " JOIN clinical_notes n ON n.visit_id = v.id"
-                    f" WHERE v.status = 'done' AND v.visit_date > {TODAY} - 100"
+                    " WHERE v.status = 'done'"
+                    "   AND NOT EXISTS (SELECT 1 FROM claims cl WHERE cl.patient = v.patient"
+                    "     AND cl.month = to_char(v.visit_date, 'YYYY-MM')"
+                    "     AND cl.status = 'confirmed')"
                 ).fetchall()
             ]
             for month in sorted(months):
-                with conn.transaction():
-                    made += self._月を導く(conn, master, month)
+                try:
+                    with conn.transaction():
+                        made += self._月を導く(conn, master, month)
+                except Exception:
+                    continue  # 1月の故障で他の月を道連れにしない(F7: 黙って全部止まるが最悪)
             return tuple(made)
         except Exception:
             return ()
@@ -758,15 +773,34 @@ class EmrCharges:
              str(kind), str(b) if b is not None else None, bool(sv))
             for vid, pt, 日, kind, b, sv in rows
         ]
-        # 同一建物×同日の患者数(署名済みの中で)
+        # 同一建物×同日の患者数——**確定済みの隣人も数える**(書く先から外すだけで、判定からは外さない)
         建物日 = {}
-        for _, pt, 日, kind, b, _ in visits:
-            if b and kind == "regular":
-                建物日.setdefault((b, 日), set()).add(pt)
+        for b2, 日2, pt2 in conn.execute(
+            "SELECT p.building, v.visit_date, v.patient FROM visits v"
+            " JOIN clinical_notes n ON n.visit_id = v.id"
+            " JOIN patients p ON p.code = v.patient"
+            " WHERE v.status = 'done' AND v.kind = 'regular'"
+            "   AND p.building IS NOT NULL"
+            "   AND to_char(v.visit_date, 'YYYY-MM') = %s",
+            (month,),
+        ).fetchall():
+            日2 = 日2 if isinstance(日2, date) else date.fromisoformat(str(日2))
+            建物日.setdefault((str(b2), 日2), set()).add(str(pt2))
         # 同日の臨時(往診)を持つ患者×日
         臨時の日 = {(pt, 日) for _, pt, 日, kind, _, _ in visits if kind == "urgent"}
-        # 週ごとの定期訪問料の数え(患者別・日付順)
+        # 週ごとの定期訪問料の数え(患者別・日付順)。**月の継ぎ目を跨いで数える**——
+        # 隣の月に既に導出済みの同じ日曜週の行を初期値に足す(落とした行は数えない)
         週数: dict = {}
+        for pt0, 日0 in conn.execute(
+            "SELECT c.patient, c.day FROM charges c"
+            " WHERE c.code = ANY(%s) AND c.status <> 'dropped' AND c.month <> %s"
+            "   AND c.day BETWEEN (%s || '-01')::date - 6"
+            "   AND ((%s || '-01')::date + INTERVAL '1 month' + INTERVAL '5 days')::date",
+            (list(_訪問料), month, month, month),
+        ).fetchall():
+            日0 = 日0 if isinstance(日0, date) else date.fromisoformat(str(日0))
+            鍵0 = (str(pt0), _週の頭(日0))
+            週数[鍵0] = 週数.get(鍵0, 0) + 1
         for vid, pt, 日, kind, b, sv in visits:
             if kind == "urgent":
                 code = "NO01"
@@ -795,7 +829,14 @@ class EmrCharges:
                 "INSERT INTO charges(patient, month, day, visit_id, code, qty, points,"
                 " status, flag_reason)"
                 " VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s)"
-                " ON CONFLICT (visit_id, code) DO NOTHING RETURNING id",
+                " ON CONFLICT (visit_id, code) DO UPDATE SET"
+                "   points = EXCLUDED.points, status = EXCLUDED.status,"
+                "   flag_reason = EXCLUDED.flag_reason"
+                " WHERE charges.status = 'derived'"
+                "   AND (charges.points IS DISTINCT FROM EXCLUDED.points"
+                "     OR charges.status IS DISTINCT FROM EXCLUDED.status"
+                "     OR charges.flag_reason IS DISTINCT FROM EXCLUDED.flag_reason)"
+                " RETURNING id",
                 (pt, month, 日, vid, code, 点,
                  "flagged" if 旗 else "derived", 旗),
             ).fetchall()
@@ -821,10 +862,13 @@ class EmrCharges:
                 elif unit2 == "per_quarter":
                     dup = conn.execute(
                         "SELECT 1 FROM charges WHERE patient = %s AND code = %s"
-                        " AND status <> 'dropped' AND month <> %s"
+                        " AND status <> 'dropped'"
+                        " AND (visit_id IS NULL OR visit_id <> %s::bigint)"
                         " AND to_date(month || '-01', 'YYYY-MM-DD')"
-                        "     > to_date(%s || '-01', 'YYYY-MM-DD') - INTERVAL '3 months'",
-                        (pt, scode, month, month),
+                        "     > to_date(%s || '-01', 'YYYY-MM-DD') - INTERVAL '3 months'"
+                        " AND to_date(month || '-01', 'YYYY-MM-DD')"
+                        "     <= to_date(%s || '-01', 'YYYY-MM-DD')",
+                        (pt, scode, vid, month, month),
                     ).fetchall()
                     if dup:
                         旗2 = "Charged within the last 3 months (quarterly item) — needs a ruling"
@@ -833,7 +877,15 @@ class EmrCharges:
                     "INSERT INTO charges(patient, month, day, visit_id, code, qty, points,"
                     " status, flag_reason)"
                     " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                    " ON CONFLICT (visit_id, code) DO NOTHING RETURNING id",
+                    " ON CONFLICT (visit_id, code) DO UPDATE SET"
+                    "   qty = EXCLUDED.qty, points = EXCLUDED.points,"
+                    "   status = EXCLUDED.status, flag_reason = EXCLUDED.flag_reason"
+                    " WHERE charges.status = 'derived'"
+                    "   AND (charges.qty IS DISTINCT FROM EXCLUDED.qty"
+                    "     OR charges.points IS DISTINCT FROM EXCLUDED.points"
+                    "     OR charges.status IS DISTINCT FROM EXCLUDED.status"
+                    "     OR charges.flag_reason IS DISTINCT FROM EXCLUDED.flag_reason)"
+                    " RETURNING id",
                     (pt, month, 日, vid, scode, qty, 点2,
                      "flagged" if 旗2 else "derived", 旗2),
                 ).fetchall()
@@ -841,10 +893,12 @@ class EmrCharges:
                     made.append(f"{pt} {日} {scode}")
         # 月次の管理料(NC)——訪問料の数×重症×同一建物で区分。機械の行だけ置き直す
         counts = dict(conn.execute(
-            "SELECT patient, COUNT(*) FROM charges"
-            " WHERE month = %s AND code = ANY(%s) AND status IN ('derived','allowed')"
-            " GROUP BY patient",
-            (month, list(_訪問料)),
+            "SELECT c.patient, COUNT(*) FROM charges c"
+            " WHERE c.month = %s AND c.code = ANY(%s) AND c.status IN ('derived','allowed')"
+            "   AND NOT EXISTS (SELECT 1 FROM claims cl WHERE cl.patient = c.patient"
+            "     AND cl.month = %s AND cl.status = 'confirmed')"
+            " GROUP BY c.patient",
+            (month, list(_訪問料), month),
         ).fetchall())
         建物人数 = dict(conn.execute(
             "SELECT p.building, COUNT(DISTINCT c.patient) FROM charges c"
@@ -966,6 +1020,10 @@ class EmrClaims:
             return "Could not reach the EMR — try again in a moment"
         try:
             with conn.transaction():
+                conn.execute(
+                    "SELECT 1 FROM claims WHERE patient = %s AND month = %s FOR UPDATE",
+                    (patient, month),
+                )
                 今月 = str(conn.execute(
                     f"SELECT to_char({TODAY}, 'YYYY-MM')"
                 ).fetchall()[0][0])

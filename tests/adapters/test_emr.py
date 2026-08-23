@@ -262,13 +262,103 @@ def test_導出は何度回しても同じ() -> None:
     assert EmrCharges(dsn).derive() == ()  # 2度目は何も生まれない
 
 
+def _種の月(dsn: str) -> str:
+    """試験の月は時計ではなくデータから導く——締切の朝に空にならないため。"""
+    from adapters.emr import _connect
+
+    conn = _connect(dsn, None)
+    try:
+        row = conn.execute(
+            "SELECT max(to_char(v.visit_date, 'YYYY-MM')) FROM visits v"
+            " JOIN clinical_notes n ON n.visit_id = v.id WHERE v.status = 'done'"
+        ).fetchall()
+        return str(row[0][0])
+    finally:
+        conn.close()
+
+
+def test_導出は実りを生む() -> None:
+    """壊れた導出が全試験を素通りしないための、実りの検（種の月に請求と行が立つ）。"""
+    from adapters.emr import EmrCharges, PostgresBilling
+
+    dsn = _dsn()
+    EmrCharges(dsn).derive()
+    views = PostgresBilling(dsn).read_month(_種の月(dsn))
+    assert views, "種の月に請求が1枚も立たない"
+    assert any(v.charges for v in views), "算定行が1本も無い"
+    # 凍った種から独立に検算できる1点: P-003 の ND02 は 21.50円×7 → 2点×7 = 14
+    p3 = next((v for v in views if v.patient == "P-003"), None)
+    if p3 is not None and p3.status == "draft":
+        nd02 = [c for c in p3.charges if c.code == "ND02"]
+        if nd02:
+            assert nd02[0].points == 14
+
+
+def test_確定の錠は生きている() -> None:
+    """掟7: 壊して赤を見る——確定済みの月の行は UPDATE も DELETE も DB が拒む。"""
+    from adapters.emr import _connect
+
+    conn = _connect(_dsn(), None)
+    try:
+        row = conn.execute(
+            "SELECT c.id FROM charges c JOIN claims cl"
+            " ON cl.patient = c.patient AND cl.month = c.month"
+            " WHERE cl.status = 'confirmed' LIMIT 1"
+        ).fetchall()
+        if not row:
+            pytest.skip("確定済みの月が無い(白紙の帳簿)")
+        try:
+            conn.execute("UPDATE charges SET points = points + 1 WHERE id = %s", (row[0][0],))
+        except Exception as なぜ:
+            assert "confirmed" in str(なぜ) or "locked" in str(なぜ)
+        else:
+            raise AssertionError("確定済みの行が書き換えられてしまった——錠が死んでいる")
+    finally:
+        conn.close()
+
+
+def test_裁きの往復で点が蘇り合計が動く() -> None:
+    """旗を allow で裁くと点数表から点が蘇り、請求の合計も動く。終わったら旗に戻す。"""
+    from adapters.emr import EmrCharges, EmrClaims, PostgresBilling, _connect
+
+    dsn = _dsn()
+    EmrCharges(dsn).derive()
+    month = _種の月(dsn)
+    views = {v.patient: v for v in PostgresBilling(dsn).read_month(month)}
+    旗 = next(
+        (c for v in views.values() if v.status == "draft"
+         for c in v.charges if c.status == "flagged" and c.code == "NV01"),
+        None,
+    )
+    if 旗 is None:
+        pytest.skip("旗の行が無い(既に裁かれた帳簿)")
+    前 = views[旗.patient].total_points
+    assert EmrClaims(dsn).resolve(旗.id, "allow", "test exception ruling", "Director") is None
+    try:
+        後 = {v.patient: v for v in PostgresBilling(dsn).read_month(month)}[旗.patient]
+        通った = next(c for c in 後.charges if c.id == 旗.id)
+        assert 通った.status == "allowed" and 通った.points == 800
+        assert 後.total_points == 前 + 800
+    finally:
+        conn = _connect(dsn, None)
+        try:
+            conn.execute(
+                "UPDATE charges SET status = 'flagged', points = 0,"
+                " resolve_reason = NULL, resolved_by = NULL WHERE id = %s",
+                (旗.id,),
+            )
+        finally:
+            conn.close()
+        EmrCharges(dsn).derive()  # 合計を写し直す
+
+
 def test_請求の合計は算定行の和と一致する() -> None:
     """下書き請求の総点数 = 数えられる行(導出+通った)の和。負担金は点×割を10円丸め。"""
     from adapters.emr import EmrCharges, PostgresBilling
 
     dsn = _dsn()
     EmrCharges(dsn).derive()
-    month = __import__("datetime").date.today().strftime("%Y-%m")
+    month = _種の月(dsn)
     for view in PostgresBilling(dsn).read_month(month):
         if view.status != "draft":
             continue
@@ -282,7 +372,7 @@ def test_旗の行は0点で理由を持つ() -> None:
 
     dsn = _dsn()
     EmrCharges(dsn).derive()
-    month = __import__("datetime").date.today().strftime("%Y-%m")
+    month = _種の月(dsn)
     for view in PostgresBilling(dsn).read_month(month):
         for c in view.charges:
             if c.status == "flagged":

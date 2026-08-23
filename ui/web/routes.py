@@ -5,7 +5,9 @@ from typing import Any
 from ui.web.activity import _履歴
 from ui.web.agreements import _取り決めたち
 from ui.web.automations import _予定
+from ui.web.billing import _会計, _提出ファイル, _請求書
 from ui.web.day import _道順
+from ui.web.fees import _点数表
 from ui.web.detail import _詳細
 from ui.web.frame import _頁
 from ui.web.guide import _リンク, _写し, _案内, 往復を読む
@@ -151,7 +153,7 @@ def make_app(
 
     @app.get("/visit", response_class=HTMLResponse)
     def _訪問の頁(id: str, refused: str | None = None) -> HTMLResponse:
-        return 見せる("day", lambda h: _訪問(h.visit(id), refused), refused)
+        return 見せる("day", lambda h: _訪問(h.visit(id), refused, h.fees()), refused)
 
     @app.post("/visit/act")
     def _訪問を押す(
@@ -164,23 +166,87 @@ def make_app(
         p: str = Form(""),
         draft_id: str = Form(""),
         reason: str = Form(""),
+        code: str = Form(""),
+        qty: str = Form("1"),
     ) -> Any:
         手たち = 開く()
         try:
             断り = 手たち.visit_act(
                 what,
                 {"id": id, "signer": signer, "s": s, "o": o, "a": a, "p": p,
-                 "draft_id": draft_id, "reason": reason},
+                 "draft_id": draft_id, "reason": reason, "code": code, "qty": qty},
             )
         finally:
             手たち.close()
         if 断り is None:
             if what == "sign_note":
                 戻り = f"/day?signed={quote('Visit ' + id)}"
+            elif what in ("add_service", "remove_service"):
+                戻り = f"/visit?id={quote(id)}"  # 記帳は訪問の頁に戻る
             else:
                 戻り = "/day"
         else:
             戻り = f"/visit?id={quote(id)}&refused={quote(断り)}"
+        return RedirectResponse(戻り, status_code=303)
+
+    @app.get("/fees", response_class=HTMLResponse)
+    def _点数表の頁() -> HTMLResponse:
+        return 見せる("fees", lambda h: _点数表(h.fees()))
+
+    @app.get("/billing", response_class=HTMLResponse)
+    def _会計の頁(
+        month: str | None = None,
+        view: str | None = None,
+        invoice: str | None = None,
+        refused: str | None = None,
+        done: str | None = None,
+    ) -> HTMLResponse:
+        def 描く(h: 手) -> str:
+            from datetime import date as _date
+
+            today_month = h.today()[:7]
+            対象 = today_month
+            if month:
+                try:
+                    _date.fromisoformat(month + "-01")  # 壊れた月は今月に倒す——500 は出さない
+                    対象 = month
+                except ValueError:
+                    pass
+            views = h.billing(対象)
+            if view == "file":
+                return _提出ファイル(views, 対象)
+            if invoice:
+                v = next((x for x in views if x.patient == invoice), None)
+                if v is not None:
+                    return _請求書(v, 対象)
+            return _会計(views, 対象, today_month, refused, done)
+
+        return 見せる("billing", 描く)
+
+    @app.post("/billing/act")
+    def _会計を押す(
+        what: str = Form(...),
+        id: str = Form(""),
+        action: str = Form(""),
+        reason: str = Form(""),
+        patient: str = Form(""),
+        month: str = Form(""),
+    ) -> Any:
+        手たち = 開く()
+        try:
+            断り = 手たち.billing_act(
+                what,
+                {"id": id, "action": action, "reason": reason,
+                 "patient": patient, "month": month},
+            )
+        finally:
+            手たち.close()
+        if 断り is None:
+            伝え = ("Claim confirmed — it is now immutable"
+                    if what == "confirm_claim" else "Ruled — the totals moved with it")
+            戻り = f"/billing?month={quote(month)}&done={quote(伝え)}"
+        else:
+            戻り = f"/billing?month={quote(month)}&refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/guide", response_class=HTMLResponse)

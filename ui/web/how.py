@@ -44,15 +44,18 @@ so <a href='/activity'>Activity</a> can always answer "what happened, and who de
 <td>Clinicians in the (fully synthetic) EMR who carry out and sign visits.</td></tr>
 <tr><td><span class='chip'>Sim-Director</span></td>
 <td>A scripted stand-in that presses human buttons while judging is under way,
-so the demo keeps moving. Synthetic patients, synthetic director — and every
-press is labeled with this name in Activity.</td></tr>
+so the demo keeps moving: it approves finished work, signs delivered drafts,
+and confirms month-end claims once a month has ended and holds no flags.
+It never answers questions and never rules on a flagged charge — those wait
+for a person. Synthetic patients, synthetic director — and every press is
+labeled with this name in Activity.</td></tr>
 </table>
 </div>
 
 <div class='form-card'>
 <h2>The color grammar</h2>
-<p>Only three buttons in the whole product are ever filled solid:
-<strong>Sign</strong>, <strong>Approve</strong>, <strong>Reply</strong> —
+<p>Only four buttons in the whole product are ever filled solid:
+<strong>Sign</strong>, <strong>Approve</strong>, <strong>Reply</strong>, <strong>Confirm</strong> (a month-end claim) —
 the heaviest human judgments. Everything else is quiet.
 <span class='chip chip--signed'>Green</span> means signed or passed,
 <span class='chip chip--warn'>amber</span> means a human is needed,

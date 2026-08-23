@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.dto.fee_row import FeeRow
 from app.dto.visit_view import VisitView
 from html import escape
 from ui.web.frame import _md
@@ -39,10 +40,76 @@ _様式 = """<style>
   .visit-grid { grid-template-columns: minmax(300px, 43fr) minmax(0, 57fr); }
   .visit-aside { position: sticky; top: 22px; max-height: calc(100vh - 44px); overflow-y: auto; }
 }
+/* 行為と薬剤の札 — 1行1項目、右端に取り消し。追加は1行に収める */
+.visit-svc ul { list-style: none; margin: 0 0 4px; padding: 0; }
+.visit-svc__row { display: flex; align-items: center; justify-content: space-between;
+                  gap: 8px; padding: 3px 0; }
+.visit-svc__row form { margin: 0; }
+.visit-svc__add { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.visit-svc__add select { flex: 1 1 auto; min-width: 0; }
+.visit-svc__qty { width: 4.5em; }
 </style>"""
 
 
-def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
+def _行為札(view: VisitView, fees: tuple[FeeRow, ...]) -> str:
+    """Services & medications——予定中は足し引きでき、署名で凍る。"""
+    予定中 = view.status == "scheduled"
+    行々 = []
+    for code, name, qty in view.services:
+        取り消し = ""
+        if 予定中:
+            取り消し = (
+                "<form method='post' action='/visit/act'>"
+                "<input type='hidden' name='what' value='remove_service'>"
+                f"<input type='hidden' name='id' value='{escape(view.id)}'>"
+                f"<input type='hidden' name='code' value='{escape(code)}'>"
+                "<button class='btn btn--small btn--destructive'>Remove</button></form>"
+            )
+        行々.append(
+            f"<li class='visit-svc__row'><span>{escape(code)} · {escape(name)}"
+            f" × {qty}</span>{取り消し}</li>"
+        )
+    一覧 = f"<ul>{''.join(行々)}</ul>" if 行々 else ""
+    if 予定中:
+        選択肢 = []
+        for f in fees:
+            if f.kind in ("visit", "oncall", "monthly"):
+                continue
+            値段 = " / ".join(
+                部 for 部 in (
+                    f"{f.points} pts" if f.points is not None else None,
+                    f"¥{f.price_yen}" if f.price_yen is not None else None,
+                ) if 部
+            )
+            選択肢.append(
+                f"<option value='{escape(f.code)}'>"
+                f"{escape(f'{f.code} · {f.name} ({値段})')}</option>"
+            )
+        中身 = 一覧 or "<p class='sub'>Nothing recorded yet.</p>"
+        中身 += (
+            "<form class='visit-svc__add' method='post' action='/visit/act'>"
+            "<input type='hidden' name='what' value='add_service'>"
+            f"<input type='hidden' name='id' value='{escape(view.id)}'>"
+            f"<select name='code'>{''.join(選択肢)}</select>"
+            "<input class='visit-svc__qty' type='number' name='qty' value='1' min='1'>"
+            "<button class='btn btn--small'>Add</button></form>"
+            "<p class='sub'>The visit fee itself derives automatically from the"
+            " signed visit — enter only what was done.</p>"
+        )
+    else:
+        中身 = 一覧 or "<p class='sub'>Nothing recorded.</p>"
+        中身 += "<p class='sub'>Frozen by signing — this list can no longer change.</p>"
+    return (
+        "<div class='card visit-svc'><div class='snapshot__head'>"
+        "<span class='snapshot__title'>Services &amp; medications</span></div>"
+        + 中身
+        + "<p class='sub'>Every code, point value and payer here is invented"
+        " — the Nagisa Schedule is fictional.</p></div>"
+    )
+
+
+def _訪問(view: VisitView | None, 断り: str | None = None,
+        fees: tuple[FeeRow, ...] = ()) -> str:
     if view is None:
         return "<p class='empty'>No such visit.</p>"
     pt = view.patient
@@ -75,7 +142,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
         )
         return (
             頭 + _様式
-            + f"<div class='visit-grid'><div class='visit-aside'>{患者札}</div>"
+            + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{_行為札(view, fees)}</div>"
             + f"<div class='visit-main'><p class='sub'>This visit is {escape(view.status)}"
             " — read-only.</p>" + 済み + "</div></div>"
         )
@@ -134,7 +201,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
     )
     return (
         頭 + _様式
-        + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{下書きパネル}</div>"
+        + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{下書きパネル}{_行為札(view, fees)}</div>"
         + f"<div class='visit-main'>{編集}</div></div>"
         + 休み
     )

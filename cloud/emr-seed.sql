@@ -25,6 +25,8 @@ DROP TABLE IF EXISTS charges, claims, visit_services, fee_schedule,
   patients, clinicians, clinic CASCADE;
 DROP FUNCTION IF EXISTS clinical_notes_immutable() CASCADE;
 DROP FUNCTION IF EXISTS billing_locked() CASCADE;
+DROP FUNCTION IF EXISTS charges_no_insert_into_confirmed() CASCADE;
+DROP FUNCTION IF EXISTS services_frozen_by_signing() CASCADE;
 
 -- ========== master ==========
 
@@ -573,3 +575,29 @@ CREATE TRIGGER claims_confirmed_locked BEFORE UPDATE OR DELETE ON claims
   FOR EACH ROW EXECUTE FUNCTION billing_locked();
 CREATE TRIGGER charges_confirmed_locked BEFORE UPDATE OR DELETE ON charges
   FOR EACH ROW EXECUTE FUNCTION billing_locked();
+
+-- 確定した月へは新しい算定行も入らない(INSERT は NEW を見る別の門)
+CREATE FUNCTION charges_no_insert_into_confirmed() RETURNS trigger AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM claims cl
+             WHERE cl.patient = NEW.patient AND cl.month = NEW.month
+               AND cl.status = 'confirmed') THEN
+    RAISE EXCEPTION 'charges: the claim for this month is confirmed - no new lines';
+  END IF;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER charges_confirmed_no_insert BEFORE INSERT ON charges
+  FOR EACH ROW EXECUTE FUNCTION charges_no_insert_into_confirmed();
+
+-- 行為の記帳は署名前だけ——器の検査に加えて DB 自身も守る(競り合いを断つ)
+CREATE FUNCTION services_frozen_by_signing() RETURNS trigger AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM visits v
+             WHERE v.id = COALESCE(NEW.visit_id, OLD.visit_id)
+               AND v.status <> 'scheduled') THEN
+    RAISE EXCEPTION 'visit_services: the visit is no longer scheduled - services are frozen';
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER services_frozen BEFORE INSERT OR UPDATE OR DELETE ON visit_services
+  FOR EACH ROW EXECUTE FUNCTION services_frozen_by_signing();

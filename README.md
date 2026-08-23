@@ -69,9 +69,10 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
 
 - **Humans agree, the pulse bookkeeps.** A recurring-visit agreement (patient, weekday, cadence, clinician) is a human judgment entered on **Agreements**. Expanding it into dated visits is bookkeeping — the clock plans four weeks ahead, idempotently, under a uniqueness key.
 - **My Day** turns those visits into a route per clinician — a real map, distances, and a printable day sheet. Patient homes are stood in by **public landmarks** (a shrine, a station, a park); no real residence appears anywhere.
-- **The AI reads only signed notes.** Its own unsigned drafts are never its source. Automation can write exactly two things into the EMR: approved drafts into a drafts inbox, and agreement-derived visits. There is no code path by which automation touches a signed record — and no path that creates a patient.
+- **The AI reads only signed notes.** Its own unsigned drafts are never its source. Automation can write exactly three things into the EMR: approved drafts into a drafts inbox, agreement-derived visits, and charges derived from signed visits. There is no code path by which automation touches a signed record, rules on a flagged charge, confirms a claim — or creates a patient.
 - **Signing is one transaction.** On the visit screen the doctor edits the AI's draft (S/O/A/P prefilled), picks their name from the roster, and signs. One EMR transaction stores the signed note, marks the visit done, and stamps the used draft — so every record traces back through its draft to the AI job that wrote it. From that moment a **database trigger refuses any edit or delete** of the note.
 - **And the loop closes:** next week's draft is written from this week's signed record.
+- **Billing follows the same grammar** (all of it fictional — the "Nagisa Schedule" mirrors the real Japanese fee structure, none of its numbers). What was done at the bedside is entered before signing and frozen by it. The pulse then derives the day's charges from **signed visits only** — visit fees, drug prices converted to points by the real rounding rules, monthly tiers picked from visit counts and shared buildings. Where a count crosses a cap (a 4th visit in a week, an urgent call colliding with a planned one), the machine writes a **0-point flag** — applying the exception, with the reason that goes on the claim, is a human ruling on **Billing**. At month end a human confirms each claim; a database trigger locks it forever, and the (fictional) payer file and patient invoices are views over that confirmed fact.
 
 ---
 
@@ -79,8 +80,8 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
 
 ```
  Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-tick
-   create · hand out · check · sort failures · confirm · mark overdue
-   · audit · plan visits from agreements · deliver approved drafts
+   create · hand out · check · sort failures · confirm · mark overdue · audit
+   · plan visits from agreements · derive charges from signed visits · deliver drafts
 
  Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-agent
    start → consult Gemini → submit / ask / fail → patrol and assess
@@ -88,14 +89,17 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
  Cloud Run Service  troupe-window ────────┐     Vertex AI · Gemini 3.5 Flash
    CARE: my day (map+routes) · patients   │      (no API key — workload identity)
    BACK OFFICE: inbox · agreements ·      │
-     automations · activity · search      │
+     billing · fees · automations ·       │
+     activity · search                    │
    HELP: guide (ask in any language) · how│
                                           ▼
         Cloud SQL for PostgreSQL — two databases, one boundary
           troupe: jobs · job_events · rules · rule_events ·
                   results · evidence · questions · assessments
           emr:    patients · clinicians · visit_patterns · visits ·
-                  clinical_notes (signed = immutable) · note_drafts
+                  clinical_notes (signed = immutable) · note_drafts ·
+                  fee_schedule · visit_services · charges ·
+                  claims (confirmed = immutable)
 ```
 
 Inside the container, dependencies point inward only:
@@ -133,7 +137,7 @@ Inside the container, dependencies point inward only:
 
 ## A note on the demo pilot
 
-While judging is under way, this deployment keeps itself moving: a scripted stand-in named **Sim-Director** presses the human buttons — it approves finished work and signs delivered drafts, on a two-hour beat. It is not hidden and it is not intelligent: it drives the same public forms a person would, every press is recorded under its own name in Activity, and a banner on every page says it is running. It never answers questions, never sends work back, never abandons a job — the operations that need actual judgment wait for an actual human, and you will find them waiting in the Inbox.
+While judging is under way, this deployment keeps itself moving: a scripted stand-in named **Sim-Director** presses the human buttons — it approves finished work, signs delivered drafts, and once a month has ended and holds no flagged charges, confirms its claims — on a two-hour beat. It is not hidden and it is not intelligent: it drives the same public forms a person would, every press is recorded under its own name in Activity, and a banner on every page says it is running. It never answers questions, never sends work back, never abandons a job, and never rules on a flagged charge — the operations that need actual judgment wait for an actual human, and you will find them waiting in the Inbox and on the Billing page.
 
 Synthetic patients, synthetic director — and both say so.
 

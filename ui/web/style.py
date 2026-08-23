@@ -748,6 +748,7 @@ tbody tr:hover { background: var(--faint); }
 """
 
 #: CARE（現場）が先、BACK OFFICE（監督）が後——2ペルソナのナビ。
-_画面 = ("day", "patients", "inbox", "agreements", "automations", "activity", "search")
+_画面 = ("day", "patients", "inbox", "agreements", "billing", "fees",
+        "automations", "activity", "search", "guide", "how")
 
 #: 書く欄の見出し。**用語集の語ではない**——押すときの手がかりなので、そのまま英語で置く。
