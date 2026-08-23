@@ -33,6 +33,6 @@ class EmrVisitPort(Protocol):
         """
         ...
 
-    def cancel(self, visit_id: str, reason: str) -> str | None:
+    def cancel(self, visit_id: str, reason: str, by: str) -> str | None:
         """この1回だけ理由つきで中止へ。予定のままの訪問にだけ。通れば None。"""
         ...

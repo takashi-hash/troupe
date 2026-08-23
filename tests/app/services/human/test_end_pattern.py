@@ -15,11 +15,11 @@ class 取り決めの偽物:
 
     def add(
         self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
-        every_weeks: str = "1",
+        every_weeks: str = "1", *, by: str = "",
     ) -> str | None:
         return None
 
-    def end(self, pattern_id: str, on: str) -> str | None:
+    def end(self, pattern_id: str, on: str, by: str) -> str | None:
         self.終えた.append((pattern_id, on))
         return None
 

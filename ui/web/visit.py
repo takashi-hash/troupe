@@ -60,7 +60,7 @@ _様式 = """<style>
 </style>"""
 
 
-def _行為札(view: VisitView, fees: tuple[FeeRow, ...]) -> str:
+def _行為札(view: VisitView, fees: tuple[FeeRow, ...], 医師の席: bool = True) -> str:
     """Services & medications——予定中は足し引きでき、署名で凍る。"""
     予定中 = view.status == "scheduled"
     行々 = []
@@ -118,7 +118,7 @@ def _行為札(view: VisitView, fees: tuple[FeeRow, ...]) -> str:
 
 
 def _訪問(view: VisitView | None, 断り: str | None = None,
-        fees: tuple[FeeRow, ...] = ()) -> str:
+        fees: tuple[FeeRow, ...] = (), seat: str = "") -> str:
     if view is None:
         return "<p class='empty'>No such visit.</p>"
     pt = view.patient
@@ -151,7 +151,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
         )
         return (
             頭 + _様式
-            + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{_行為札(view, fees)}</div>"
+            + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{_行為札(view, fees, False)}</div>"
             + f"<div class='visit-main'><p class='sub'>This visit is {escape(view.status)}"
             " — read-only.</p>" + 済み + "</div></div>"
         )
@@ -180,10 +180,22 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
                 f"<span class='visit-soap-cap'>{頭}</span> — {名}</label>"
                 f"<p class='hint'>{説明[key]}</p>"
                 f"<textarea id='f-{key}' name='{key}' rows='6' required>{escape(中身)}</textarea></div>")
-    署名者 = "".join(
-        f"<option{' selected' if c == view.clinician else ''}>{escape(c)}</option>"
-        for c in view.clinicians
-    )
+    # 署名者は押した席そのもの(筋道 §1)——別の医師の名で署名する道は無い
+    医師の席 = seat in view.clinicians
+    if 医師の席:
+        署名の帯 = (
+            "<span class='sign-bar__actions'>"
+            f"<label>Signing as <strong>{escape(seat)}</strong></label>"
+            f"<input type='hidden' name='signer' value='{escape(seat)}'>"
+            "<button class='btn btn--primary' onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
+            "Sign and complete visit</button></span>"
+        )
+    else:
+        署名の帯 = (
+            "<span class='sign-bar__actions'><span class='sub'>"
+            "Only a clinician's seat can sign — switch the seat in the sidebar"
+            "</span></span>"
+        )
     編集 = (
         f"<form class='note-editor' method='post' action='/visit/act'>"
         f"<input type='hidden' name='what' value='sign_note'>"
@@ -194,10 +206,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
         + "<div class='sign-bar'><span class='sign-bar__meta'>"
         f"{escape(pt.code)} · {escape(view.visit_date)} — a signed note is permanent"
         " and cannot be edited</span>"
-        "<span class='sign-bar__actions'><label>Signing as <select name='signer'>"
-        + 署名者 + "</select></label>"
-        "<button class='btn btn--primary' onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
-        "Sign and complete visit</button></span></div></form>"
+        + 署名の帯 + "</div></form>"
     )
     休み = (
         "<div class='cancel-zone'><details class='fold'>"
@@ -212,7 +221,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
     )
     return (
         頭 + _様式
-        + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{下書きパネル}{_行為札(view, fees)}</div>"
+        + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{下書きパネル}{_行為札(view, fees, 医師の席)}</div>"
         + f"<div class='visit-main'>{編集}</div></div>"
         + 休み
     )

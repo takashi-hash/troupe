@@ -114,7 +114,7 @@ def test_取り決めを終えると由来の未来の予定が中止に倒れ�
 
             pytest.skip("P-006 の有効な取り決めが無い（別の試験が終えた後）")
         try:
-            assert PostgresPatterns(dsn).end(str(pid[0]), "2026-08-24") is None
+            assert PostgresPatterns(dsn).end(str(pid[0]), "2026-08-24", "Director") is None
             残りの行 = conn.execute(
                 "SELECT count(*) FROM visits WHERE pattern_id=%s AND status='scheduled'"
                 " AND visit_date > '2026-08-24'", (pid[0],)
@@ -207,7 +207,7 @@ def test_単発の休みは理由つきで倒れ_取り決めは生きたまま(
 
     dsn = _dsn()
     vid = _次の予定の訪問(dsn)
-    assert EmrVisits(dsn).cancel(vid, "patient at a family event") is None
+    assert EmrVisits(dsn).cancel(vid, "patient at a family event", "Director") is None
     with psycopg.connect(dsn) as conn:
         try:
             row = conn.execute(
@@ -215,7 +215,7 @@ def test_単発の休みは理由つきで倒れ_取り決めは生きたまま(
             ).fetchone()
             assert row == ("cancelled", "patient at a family event")
             # 実施済み・中止済みは休めない
-            assert EmrVisits(dsn).cancel(vid, "again") is not None
+            assert EmrVisits(dsn).cancel(vid, "again", "Director") is not None
         finally:
             conn.execute(
                 "UPDATE visits SET status='scheduled', cancelled_reason=NULL WHERE id=%s::bigint",

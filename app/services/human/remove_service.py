@@ -18,5 +18,5 @@ def remove_service(
         return Refusal(reason="No one is making this entry — the name is blank")
     if not visit_id.strip() or not code.strip():
         return Refusal(reason="Which visit, which item? Something is blank")
-    なぜ = services.remove(visit_id, code)
+    なぜ = services.remove(visit_id, code, by)
     return None if なぜ is None else Refusal(reason=なぜ)

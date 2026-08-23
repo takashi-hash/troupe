@@ -13,7 +13,7 @@ class 行為の口の偽物:
         self.got = (visit_id, code, qty, by)
         return self._answer
 
-    def remove(self, visit_id: str, code: str) -> str | None:
+    def remove(self, visit_id: str, code: str, by: str) -> str | None:
         return None
 
 

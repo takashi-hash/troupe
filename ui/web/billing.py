@@ -31,9 +31,15 @@ def _隣月(month: str) -> tuple[str, str]:
     return f"{前年:04d}-{前月:02d}", f"{翌年:04d}-{翌月:02d}"
 
 
-def _状態欄(c: ChargeRow, month: str) -> str:
+def _状態欄(c: ChargeRow, month: str, 座長の席: bool = True) -> str:
     """算定行の Status セル — 旗の行だけが琥珀のチップと裁きのフォームを持つ。"""
     if c.status == "flagged":
+        if not 座長の席:
+            return (
+                "<span class='chip chip--needs-approval'>⚠ Needs a ruling</span>"
+                f"<div class='billing-flag-reason'>{escape(c.flag_reason or '')}</div>"
+                "<span class='sub'>Only the director's seat rules — switch the seat</span>"
+            )
         return (
             "<span class='chip chip--needs-approval'>⚠ Needs a ruling</span>"
             f"<div class='billing-flag-reason'>{escape(c.flag_reason or '')}</div>"
@@ -54,7 +60,7 @@ def _状態欄(c: ChargeRow, month: str) -> str:
     return "<span class='sub'>derived</span>"
 
 
-def _請求札(v: ClaimView, month: str, today_month: str) -> str:
+def _請求札(v: ClaimView, month: str, today_month: str, 座長の席: bool = True) -> str:
     """1患者1月の請求カード — 頭に印と合計、中に算定の表、足に次の一手。"""
     確定 = v.status == "confirmed"
     印 = (
@@ -81,7 +87,7 @@ def _請求札(v: ClaimView, month: str, today_month: str) -> str:
         f"<td>{escape(c.name)}</td>"
         f"<td class='num'>{c.qty}</td>"
         f"<td class='num'>{c.points:,}</td>"
-        f"<td>{_状態欄(c, month)}</td></tr>"
+        f"<td>{_状態欄(c, month, 座長の席)}</td></tr>"
         for c in v.charges
     )
     表 = (
@@ -98,6 +104,9 @@ def _請求札(v: ClaimView, month: str, today_month: str) -> str:
         )
     elif 旗あり:
         足 = "<div class='card-actions'><span class='sub'>Rule on the flags first</span></div>"
+    elif month < today_month and not 座長の席:
+        足 = ("<div class='card-actions'><span class='sub'>"
+              "Only the director's seat confirms — switch the seat</span></div>")
     elif month < today_month:
         足 = (
             "<div class='card-actions'><form method='post' action='/billing/act'>"
@@ -119,6 +128,7 @@ def _会計(
     today_month: str,
     refused: str | None = None,
     done: str | None = None,
+    is_director: bool = True,
 ) -> str:
     """会計の頁 — その月の請求の列。旗は琥珀、確定は緑、下書きの確定は月が閉じてから。"""
     旗数 = sum(1 for v in views for c in v.charges if c.status == "flagged")
@@ -153,7 +163,7 @@ def _会計(
             f" href='/billing?month={quote(month)}&amp;view=file'>Submission file →</a></p>"
             if 確定あり else ""
         )
-        本体 = 提出行 + "".join(_請求札(v, month, today_month) for v in views)
+        本体 = 提出行 + "".join(_請求札(v, month, today_month, is_director) for v in views)
     return (
         頭 + 月帯 + 帯 + 本体
         + "<p class='sub billing-fictional'>Nagisa Schedule — every code, point value and payer"

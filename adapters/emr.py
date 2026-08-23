@@ -20,6 +20,7 @@ from app.dto.charge_row import ChargeRow
 from app.dto.claim_view import ClaimView
 from app.dto.fee_row import FeeRow
 from app.dto.patient_row import PatientRow
+from app.dto.staff_row import StaffRow
 from app.dto.patient_view import PatientDraft, PatientNote, PatientView
 from app.dto.pattern_row import PatternRow
 from app.dto.visit_view import UnusedDraft, VisitView
@@ -248,7 +249,7 @@ class PostgresPatterns:
 
     def add(
         self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
-        every_weeks: str = "1",
+        every_weeks: str = "1", *, by: str = "",
     ) -> str | None:
         if self._dsn is None:
             return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
@@ -261,6 +262,8 @@ class PostgresPatterns:
         except Exception:
             return "Could not reach the EMR — try again in a moment"
         try:
+            if _席の役(conn, by) is None:
+                return "Only staff can record an agreement — this seat is not on the register"
             conn.execute(
                 "INSERT INTO visit_patterns"
                 "(patient, weekday, clinician, purpose, interval_weeks, active_from)"
@@ -274,7 +277,7 @@ class PostgresPatterns:
         finally:
             conn.close()
 
-    def end(self, pattern_id: str, on: str) -> str | None:
+    def end(self, pattern_id: str, on: str, by: str) -> str | None:
         if self._dsn is None:
             return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         try:
@@ -282,13 +285,15 @@ class PostgresPatterns:
         except Exception:
             return "Could not reach the EMR — try again in a moment"
         try:
+            if _席の役(conn, by) is None:
+                return "Only staff can end an agreement — this seat is not on the register"
             cur = conn.execute(
                 "UPDATE visit_patterns SET active_to = %s::date"
                 " WHERE id = %s::bigint AND active_to IS NULL",
                 (on, pattern_id),
             )
             if not cur.rowcount:
-                return "その取り決めはありません（または終わっています）"
+                return "No such agreement (or it has already ended)"
             # 判断の帳簿づけの巻き戻し——この取り決め由来で、まだ来ていない予定は中止に倒す。
             # 実施済み（done）と臨時（pattern_id なし）には触らない。
             conn.execute(
@@ -397,6 +402,13 @@ class PostgresRoute:
         )
 
 
+
+def _席の役(conn: Any, name: str) -> str | None:
+    """登記簿の門——staff に居れば役を返し、居なければ None。力の源は名乗りではなく登記簿。"""
+    rows = conn.execute("SELECT role FROM staff WHERE name = %s", (name,)).fetchall()
+    return str(rows[0][0]) if rows else None
+
+
 class EmrVisits:
     """訪問の終わり — `EmrVisitPort` の実装。**人の操作だけが呼ぶ。**
 
@@ -420,6 +432,11 @@ class EmrVisits:
         except Exception:
             return "Could not reach the EMR — try again in a moment"
         try:
+            医師 = conn.execute(
+                "SELECT 1 FROM clinicians WHERE code = %s AND active", (signer,)
+            ).fetchall()
+            if not 医師:
+                return "Only a clinician's seat can sign — sit as Dr-A, Dr-B or Dr-C"
             with conn.transaction():
                 done = conn.execute(
                     "UPDATE visits SET status = 'done'"
@@ -455,7 +472,7 @@ class EmrVisits:
         finally:
             conn.close()
 
-    def cancel(self, visit_id: str, reason: str) -> str | None:
+    def cancel(self, visit_id: str, reason: str, by: str) -> str | None:
         if self._dsn is None:
             return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         try:
@@ -463,6 +480,8 @@ class EmrVisits:
         except Exception:
             return "Could not reach the EMR — try again in a moment"
         try:
+            if _席の役(conn, by) is None:
+                return "Only staff can cancel a visit — this seat is not on the register"
             cur = conn.execute(
                 "UPDATE visits SET status = 'cancelled', cancelled_reason = %s"
                 " WHERE id = %s::bigint AND status = 'scheduled'",
@@ -652,6 +671,10 @@ class EmrServices:
                 return "No such visit"
             if str(ok[0][0]) != "scheduled":
                 return "The visit is already signed or cancelled — services are frozen"
+            if not conn.execute(
+                "SELECT 1 FROM clinicians WHERE code = %s AND active", (by,)
+            ).fetchall():
+                return "Only a clinician's seat records bedside services"
             種別 = conn.execute(
                 "SELECT kind FROM fee_schedule WHERE code = %s", (code,)
             ).fetchall()
@@ -675,7 +698,7 @@ class EmrServices:
         finally:
             conn.close()
 
-    def remove(self, visit_id: str, code: str) -> str | None:
+    def remove(self, visit_id: str, code: str, by: str) -> str | None:
         if self._dsn is None:
             return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
         try:
@@ -683,6 +706,10 @@ class EmrServices:
         except Exception:
             return "Could not reach the EMR — try again in a moment"
         try:
+            if not conn.execute(
+                "SELECT 1 FROM clinicians WHERE code = %s AND active", (by,)
+            ).fetchall():
+                return "Only a clinician's seat records bedside services"
             ok = conn.execute(
                 "SELECT status FROM visits WHERE id = %s::bigint", (visit_id,)
             ).fetchall()
@@ -985,6 +1012,8 @@ class EmrClaims:
             return "Could not reach the EMR — try again in a moment"
         try:
             with conn.transaction():
+                if _席の役(conn, by) != "director":
+                    return "Only the director's seat rules on a flagged line"
                 row = conn.execute(
                     "SELECT c.code, c.qty, c.patient, c.month, f.kind, f.points, f.price_yen"
                     " FROM charges c JOIN fee_schedule f ON f.code = c.code"
@@ -1020,6 +1049,8 @@ class EmrClaims:
             return "Could not reach the EMR — try again in a moment"
         try:
             with conn.transaction():
+                if _席の役(conn, by) != "director":
+                    return "Only the director's seat confirms a claim"
                 conn.execute(
                     "SELECT 1 FROM claims WHERE patient = %s AND month = %s FOR UPDATE",
                     (patient, month),
@@ -1099,6 +1130,31 @@ class PostgresBilling:
                 )
                 for pt, st, total, rate, copay, cb, ca in claims
             )
+        except Exception:
+            return ()
+        finally:
+            conn.close()
+
+
+class PostgresStaff:
+    """職員の登記簿の読み — `StaffReader` の実装。読むだけ。"""
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_all(self) -> tuple[StaffRow, ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()
+        try:
+            rows = conn.execute(
+                "SELECT name, role FROM staff ORDER BY role, name"
+            ).fetchall()
+            return tuple(StaffRow(name=str(n), role=str(r)) for n, r in rows)
         except Exception:
             return ()
         finally:

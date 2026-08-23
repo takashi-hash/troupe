@@ -32,17 +32,39 @@ def make_app(
 
     返すのは ASGI のアプリ——立てるのは main.py（**注ぐのはそこだけ**）。
     """
-    from fastapi import FastAPI, Form
+    from fastapi import Cookie, FastAPI, Form, Header
     from fastapi.responses import HTMLResponse, RedirectResponse
 
     app = FastAPI(title="Troupe", docs_url=None, redoc_url=None)
 
-    def 見せる(見出し: str, 描く: Callable[[手], str], 断り: str | None = None) -> HTMLResponse:
-        手たち = 開く()
+    def _席名(cookie: str | None) -> str:
+        # 席は名乗り(cookie)——空なら起動の席。力の源は登記簿の門なので、ここでは検めない
+        return (cookie or "").strip() or viewer
+
+    def 見せる(
+        見出し: str,
+        描く: Callable[[手], str],
+        断り: str | None = None,
+        席: str | None = None,
+    ) -> HTMLResponse:
+        座 = _席名(席)
+        手たち = 開く(座)
         try:
-            return HTMLResponse(_頁(見出し, 描く(手たち), viewer, 断り, notice))
+            return HTMLResponse(
+                _頁(見出し, 描く(手たち), 座, 断り, notice, 手たち.staff())
+            )
         finally:
             手たち.close()
+
+    @app.post("/seat")
+    def _席を替える(
+        seat: str = Form(...), referer: str | None = Header(default=None)
+    ) -> Any:
+        """座り替え。**席は名乗りであって認証ではない**——力の源は登記簿の門。"""
+        戻り = referer if referer and referer.startswith(("http", "/")) else "/day"
+        応え = RedirectResponse(戻り, status_code=303)
+        応え.set_cookie("troupe_seat", seat.strip()[:64], max_age=60 * 60 * 12)
+        return 応え
 
     @app.get("/", response_class=HTMLResponse)
     def _根() -> Any:
@@ -78,33 +100,36 @@ def make_app(
         return {"status": "ok"}
 
     @app.get("/inbox", response_class=HTMLResponse)
-    def _今日の頁(refused: str | None = None) -> HTMLResponse:
+    def _今日の頁(refused: str | None = None, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
         def 描く(h: 手) -> str:
             rows = h.fetch()
             return _帯(rows, len(h.upcoming())) + _今日(rows)
 
-        return 見せる("inbox", 描く, refused)
+        return 見せる("inbox", 描く, refused, troupe_seat)
 
     @app.get("/detail", response_class=HTMLResponse)
-    def _詳細の頁(id: str, refused: str | None = None) -> HTMLResponse:
-        return 見せる("inbox", lambda h: _詳細(h.detail(id)), refused)
+    def _詳細の頁(id: str, refused: str | None = None, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("inbox", lambda h: _詳細(h.detail(id)), refused, troupe_seat)
 
     @app.get("/automations", response_class=HTMLResponse)
-    def _予定の頁() -> HTMLResponse:
+    def _予定の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
         副題 = ("<p class='page-sub'>Troupe's own work schedule — AI routines and their runs."
                 " Patient visits live in <a href='/day'>My Day</a>.</p>")
-        return 見せる("automations", lambda h: 副題 + _予定(h.schedule_fetch(), h.upcoming()))
+        return 見せる("automations", lambda h: 副題 + _予定(h.schedule_fetch(), h.upcoming()), 席=troupe_seat)
 
     @app.get("/activity", response_class=HTMLResponse)
-    def _履歴の頁(page: int = 0) -> HTMLResponse:
+    def _履歴の頁(page: int = 0, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
         頁 = max(page, 0)
         return 見せる(
-            "activity", lambda h: _履歴(h.history_fetch(頁), 頁, total=h.history_count())
+            "activity",
+            lambda h: _履歴(h.history_fetch(頁), 頁, total=h.history_count()),
+            席=troupe_seat,
         )
 
     @app.get("/day", response_class=HTMLResponse)
     def _道順の頁(
-        day: str | None = None, who: str | None = None, signed: str | None = None
+        day: str | None = None, who: str | None = None, signed: str | None = None,
+        troupe_seat: str | None = Cookie(default=None),
     ) -> HTMLResponse:
         from datetime import date
 
@@ -117,11 +142,11 @@ def make_app(
             拠点, 道順ごと = h.route(対象)
             return _道順(対象, 道順ごと, 拠点, maps_key, who, signed)
 
-        return 見せる("day", 描く)
+        return 見せる("day", 描く, 席=troupe_seat)
 
     @app.get("/agreements", response_class=HTMLResponse)
-    def _取り決めの頁(refused: str | None = None, added: str | None = None) -> HTMLResponse:
-        return 見せる("agreements", lambda h: _取り決めたち(h.patterns(), added), refused)
+    def _取り決めの頁(refused: str | None = None, added: str | None = None, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("agreements", lambda h: _取り決めたち(h.patterns(), added), refused, troupe_seat)
 
     @app.post("/patterns/act")
     def _取り決めを押す(
@@ -133,8 +158,9 @@ def make_app(
         clinician: str = Form(""),
         purpose: str = Form(""),
         start: str = Form(""),
+        troupe_seat: str | None = Cookie(default=None),
     ) -> Any:
-        手たち = 開く()
+        手たち = 開く(_席名(troupe_seat))
         try:
             断り = 手たち.pattern_act(
                 what,
@@ -152,8 +178,8 @@ def make_app(
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/visit", response_class=HTMLResponse)
-    def _訪問の頁(id: str, refused: str | None = None) -> HTMLResponse:
-        return 見せる("day", lambda h: _訪問(h.visit(id), refused, h.fees()), refused)
+    def _訪問の頁(id: str, refused: str | None = None, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("day", lambda h: _訪問(h.visit(id), refused, h.fees(), _席名(troupe_seat)), refused, troupe_seat)
 
     @app.post("/visit/act")
     def _訪問を押す(
@@ -168,8 +194,9 @@ def make_app(
         reason: str = Form(""),
         code: str = Form(""),
         qty: str = Form("1"),
+        troupe_seat: str | None = Cookie(default=None),
     ) -> Any:
-        手たち = 開く()
+        手たち = 開く(_席名(troupe_seat))
         try:
             断り = 手たち.visit_act(
                 what,
@@ -190,8 +217,8 @@ def make_app(
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/fees", response_class=HTMLResponse)
-    def _点数表の頁() -> HTMLResponse:
-        return 見せる("fees", lambda h: _点数表(h.fees()))
+    def _点数表の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("fees", lambda h: _点数表(h.fees()), 席=troupe_seat)
 
     @app.get("/billing", response_class=HTMLResponse)
     def _会計の頁(
@@ -200,6 +227,7 @@ def make_app(
         invoice: str | None = None,
         refused: str | None = None,
         done: str | None = None,
+        troupe_seat: str | None = Cookie(default=None),
     ) -> HTMLResponse:
         def 描く(h: 手) -> str:
             from datetime import date as _date
@@ -219,9 +247,11 @@ def make_app(
                 v = next((x for x in views if x.patient == invoice), None)
                 if v is not None:
                     return _請求書(v, 対象)
-            return _会計(views, 対象, today_month, refused, done)
+            座 = _席名(troupe_seat)
+            座長 = any(s.name == 座 and s.role == "director" for s in h.staff())
+            return _会計(views, 対象, today_month, refused, done, is_director=座長)
 
-        return 見せる("billing", 描く)
+        return 見せる("billing", 描く, 席=troupe_seat)
 
     @app.post("/billing/act")
     def _会計を押す(
@@ -231,8 +261,9 @@ def make_app(
         reason: str = Form(""),
         patient: str = Form(""),
         month: str = Form(""),
+        troupe_seat: str | None = Cookie(default=None),
     ) -> Any:
-        手たち = 開く()
+        手たち = 開く(_席名(troupe_seat))
         try:
             断り = 手たち.billing_act(
                 what,
@@ -250,32 +281,36 @@ def make_app(
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/guide", response_class=HTMLResponse)
-    def _案内の頁() -> HTMLResponse:
-        return 見せる("guide", lambda h: _案内("", "", ()))
+    def _案内の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("guide", lambda h: _案内("", "", ()), 席=troupe_seat)
 
     @app.post("/guide", response_class=HTMLResponse)
-    def _案内に問う(question: str = Form(""), history: str = Form("[]")) -> HTMLResponse:
+    def _案内に問う(
+        question: str = Form(""), history: str = Form("[]"),
+        troupe_seat: str | None = Cookie(default=None),
+    ) -> HTMLResponse:
         往復 = 往復を読む(history)
 
         def 描く(h: 手) -> str:
             answer = h.guide(question, _写し(h), 往復) if question.strip() else ""
             return _案内(question.strip(), answer, 往復)
 
-        return 見せる("guide", 描く)
+        return 見せる("guide", 描く, 席=troupe_seat)
 
     # 案内の律速 — 公開の窓で Gemini を溶かさない(器1つあたり: 最短2秒間隔・日400問)
     案内の息 = {"last": 0.0, "day": "", "n": 0}
 
     @app.post("/guide/turn")
     def _案内の一手(
-        question: str = Form(""), history: str = Form(""), path: str = Form("")
+        question: str = Form(""), history: str = Form(""), path: str = Form(""),
+        troupe_seat: str | None = Cookie(default=None),
     ) -> Any:
         from time import monotonic
 
         from fastapi.responses import JSONResponse
 
         往復 = 往復を読む(history)
-        手たち = 開く()
+        手たち = 開く(_席名(troupe_seat))
         try:
             today = 手たち.today()
             if 案内の息["day"] != today:
@@ -292,20 +327,21 @@ def make_app(
         return JSONResponse({"answer_html": _リンク(answer), "answer_text": answer})
 
     @app.get("/how", response_class=HTMLResponse)
-    def _説明の頁() -> HTMLResponse:
-        return 見せる("how", lambda h: _説明())
+    def _説明の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("how", lambda h: _説明(), 席=troupe_seat)
 
     @app.get("/patients", response_class=HTMLResponse)
-    def _患者たちの頁() -> HTMLResponse:
-        return 見せる("patients", lambda h: _患者たち(h.patients(), h.today()))
+    def _患者たちの頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("patients", lambda h: _患者たち(h.patients(), h.today()), 席=troupe_seat)
 
     @app.get("/patient", response_class=HTMLResponse)
-    def _患者の頁(code: str) -> HTMLResponse:
-        return 見せる("patients", lambda h: _患者(h.patient(code)))
+    def _患者の頁(code: str, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("patients", lambda h: _患者(h.patient(code)), 席=troupe_seat)
 
     @app.get("/search", response_class=HTMLResponse)
     def _検索の頁(
-        keyword: str = "", state: str = "", rule: str = "", assignee: str = ""
+        keyword: str = "", state: str = "", rule: str = "", assignee: str = "",
+        troupe_seat: str | None = Cookie(default=None),
     ) -> HTMLResponse:
         条件 = RowFilter(
             keyword=keyword or None,
@@ -313,7 +349,7 @@ def make_app(
             rule=rule or None,
             assignee=assignee or None,
         )
-        return 見せる("search", lambda h: _検索(h.search(条件), 条件))
+        return 見せる("search", lambda h: _検索(h.search(条件), 条件), 席=troupe_seat)
 
     @app.post("/act")
     def _押す(
@@ -321,6 +357,7 @@ def make_app(
         id: str = Form(...),
         back: str = Form("/today"),
         text: str = Form(""),
+        troupe_seat: str | None = Cookie(default=None),
     ) -> Any:
         """押されたら文字で app を呼ぶだけ。**断られたら理由を出す。**
 
@@ -328,7 +365,7 @@ def make_app(
         操作の失敗はエラーではない——仕事の状態は変わらないので、
         一生に傷をつけず、画面にだけ理由を出す。
         """
-        手たち = 開く()
+        手たち = 開く(_席名(troupe_seat))
         try:
             断り = 手たち.act(what, id, text)
         finally:

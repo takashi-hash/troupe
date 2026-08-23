@@ -52,6 +52,10 @@ so <a href='/activity'>Activity</a> can always answer "what happened, and who de
 
 <section class='how-sec'>
 <h2><span class='how-no'>02</span>Who is who</h2>
+<p>The sidebar seat is a <em>declared name, not a login</em> — this demo deliberately has no
+authentication. Power never comes from the name: signing and bedside services require a seat
+on the clinician register, rulings and month-end confirmation require the director role on the
+staff register, and approvals require owning the rule. An unknown seat can sit, and press nothing.</p>
 <table class='how-who'>
 <tr><td><span class='chip'>Director</span></td>
 <td>The human in charge — that is you. Every judgment in the system is theirs.</td></tr>
@@ -63,7 +67,9 @@ so <a href='/activity'>Activity</a> can always answer "what happened, and who de
 <td>Clinicians in the (fully synthetic) EMR who carry out and sign visits.</td></tr>
 <tr><td><span class='chip'>Sim-Director</span></td>
 <td>A scripted stand-in that presses human buttons while judging is under way,
-so the demo keeps moving: it approves finished work, signs delivered drafts,
+so the demo keeps moving: it approves finished work, signs delivered drafts
+(while judging runs it is placed on both registers — signed notes honestly read
+"signed by Sim-Director"),
 and confirms month-end claims once a month has ended and holds no flags.
 It never answers questions and never rules on a flagged charge — those wait
 for a person. Synthetic patients, synthetic director — and every press is

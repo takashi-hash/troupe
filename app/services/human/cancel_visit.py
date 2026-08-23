@@ -23,5 +23,5 @@ def cancel_visit(
         return Refusal(reason="Which visit? The id is blank")
     if not reason.strip():
         return Refusal(reason="A reason is required — a skipped visit must say why")
-    なぜ = visits.cancel(visit_id.strip(), reason.strip())
+    なぜ = visits.cancel(visit_id.strip(), reason.strip(), by)
     return None if なぜ is None else Refusal(reason=なぜ)

@@ -22,11 +22,11 @@ class EmrPatternPort(Protocol):
 
     def add(
         self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
-        every_weeks: str = "1",
+        every_weeks: str = "1", *, by: str = "",
     ) -> str | None:
         """取り決めを載せる。通れば None、載せられなければ理由の文字。"""
         ...
 
-    def end(self, pattern_id: str, on: str) -> str | None:
+    def end(self, pattern_id: str, on: str, by: str) -> str | None:
         """取り決めに終わりの日を入れる。列は消さない。通れば None。"""
         ...

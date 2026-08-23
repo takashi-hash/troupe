@@ -19,5 +19,5 @@ def end_pattern(
         return Refusal(reason="No one is making this judgment — the name is blank")
     if not pattern_id.strip():
         return Refusal(reason="Which agreement? The id is blank")
-    なぜ = patterns.end(pattern_id.strip(), clock.now().date().isoformat())
+    なぜ = patterns.end(pattern_id.strip(), clock.now().date().isoformat(), by)
     return None if なぜ is None else Refusal(reason=なぜ)

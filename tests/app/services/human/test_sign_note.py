@@ -17,7 +17,7 @@ class 訪問の終わりの偽物:
         self.署名.append((visit_id, signer, s, o, a, p, draft_id))
         return None
 
-    def cancel(self, visit_id: str, reason: str) -> str | None:
+    def cancel(self, visit_id: str, reason: str, by: str) -> str | None:
         return None
 
 

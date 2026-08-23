@@ -34,6 +34,9 @@ def sign_note(
         return Refusal(reason="Which visit? The id is blank")
     if not signer.strip():
         return Refusal(reason="The signer is blank")
+    if signer.strip() != by.strip():
+        # 署名者は押した席そのもの(筋道 §1)——席と署名者が別れる道は無い
+        return Refusal(reason="The signer must be the seat itself — sit as the clinician to sign")
     for 欄, 値 in (("S", s), ("O", o), ("A", a), ("P", p)):
         if not 値.strip():
             return Refusal(reason=f"{欄} is empty — an empty note cannot be signed")

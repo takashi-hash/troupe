@@ -40,6 +40,7 @@ from adapters.emr import (
     PostgresPatterns,
     PostgresRoute,
     PostgresSchedule,
+    PostgresStaff,
     PostgresVisit,
 )
 from adapters.ids import UuidIds
@@ -120,6 +121,7 @@ from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
 from app.services.screen.gather_search import gather_search
 from app.services.screen.gather_billing import gather_billing
 from app.services.screen.gather_fees import gather_fees
+from app.services.screen.gather_staff import gather_staff
 from app.services.screen.gather_visit import gather_visit
 from app.services.screen.ask_guide import ask_guide
 from app.services.screen.gather_today import gather_today
@@ -177,6 +179,7 @@ class Ichiza:
         self.charges_port = EmrCharges(emr_dsn)
         self.claims_port = EmrClaims(emr_dsn)
         self.billing_view = PostgresBilling(emr_dsn)
+        self.staff_view = PostgresStaff(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
         # 案内は仕事の外の一呼び——書く道具を持たない(設計 §4 GuidePort)
@@ -356,6 +359,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         visit_act=訪問を押す,
         route=道順を読む,
         today=今日,
+        staff=lambda: gather_staff(za.staff_view),
         fees=lambda: gather_fees(za.fees_view),
         billing=会計を読む,
         billing_act=会計を押す,
@@ -535,10 +539,11 @@ def main() -> None:
 
         from ui.web import make_app
 
-        def 開く() -> 手:
+        def 開く(viewer: str) -> 手:
+            # 席は名乗り(cookie)——空なら起動の席。力の源は登記簿の門なので検めない
             return _手(
                 Ichiza(args.root, args.model, args.llm, args.dsn, args.emr_dsn),
-                args.viewer,
+                viewer.strip() or args.viewer,
             )
 
         za.conn.close()  # 立てるだけの接続は持たない

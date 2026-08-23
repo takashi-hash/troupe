@@ -177,7 +177,21 @@ body {
   padding: 12px 10px 2px; border-top: 1px solid var(--ink-line); margin-top: 8px;
   font-size: 12px; color: var(--ink-muted); line-height: 1.5;
 }
-.whoami strong { display: block; color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
+.whoami strong { color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
+.whoami small { color: var(--ink-muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.seat-form { display: flex; gap: 6px; margin: 8px 0 4px; }
+.seat-form select {
+  flex: 1 1 auto; min-width: 0; font-size: 12px; padding: 3px 6px;
+  background: rgba(255,255,255,.06); color: var(--ink-text);
+  border: 1px solid var(--ink-line); border-radius: var(--r-sm);
+}
+.seat-form .btn {
+  font-size: 12px; padding: 3px 10px;
+  background: rgba(255,255,255,.06); color: var(--ink-text);
+  border-color: var(--ink-line);
+}
+.seat-form .btn:hover { background: rgba(255,255,255,.12); }
+.seat-note { display: block; margin-top: 4px; line-height: 1.5; text-transform: none !important; letter-spacing: 0 !important; }
 
 .app-content { flex: 1 1 auto; min-width: 0; }
 /* 開示バー — 合成の座長が動いているあいだの、細い琥珀の帯 */

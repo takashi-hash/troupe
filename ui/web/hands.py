@@ -8,6 +8,7 @@ from app.dto.history_row import HistoryRow
 from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
+from app.dto.staff_row import StaffRow
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
 from app.dto.visit_view import VisitView
@@ -97,6 +98,10 @@ class 道順の手(Protocol):
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]: ...
 
 
+class 職員の手(Protocol):
+    def __call__(self) -> tuple[StaffRow, ...]: ...
+
+
 class 点数表の手(Protocol):
     def __call__(self) -> tuple[FeeRow, ...]: ...
 
@@ -146,6 +151,7 @@ class 手(NamedTuple):
     visit_act: 訪問を押す手
     route: 道順の手
     today: 今日の手
+    staff: 職員の手
     fees: 点数表の手
     billing: 会計の手
     billing_act: 会計を押す手
@@ -154,8 +160,12 @@ class 手(NamedTuple):
 
 
 class 手を開く(Protocol):
-    def __call__(self) -> 手:
-        """帳簿を開き、手の束を組んで返す。**呼ばれるたびに新しい。**"""
+    def __call__(self, viewer: str) -> 手:
+        """席の名で帳簿を開き、手の束を組んで返す。**呼ばれるたびに新しい。**
+
+        席は名乗り——力の源は登記簿の門(I6・clinicians・staff)なので、
+        知らない名の席は座れるが何も押せない。
+        """
         ...
 
 

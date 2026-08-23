@@ -29,6 +29,6 @@ def add_pattern(
             return Refusal(reason=f"{欄} is blank")
     なぜ = patterns.add(
         patient.strip(), weekday.strip(), clinician.strip(), purpose.strip(),
-        start.strip(), every_weeks.strip() or "1",
+        start.strip(), every_weeks.strip() or "1", by=by,
     )
     return None if なぜ is None else Refusal(reason=なぜ)

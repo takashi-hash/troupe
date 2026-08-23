@@ -1,4 +1,10 @@
--- EMR (electronic medical record) - Riverbend Home Medical Clinic (fictional)  -- schema v6
+-- EMR (electronic medical record) - Riverbend Home Medical Clinic (fictional)  -- schema v7
+--
+-- v7: staff register (seat -> role). A seat is a NAME, not an authenticated user
+-- (deliberate demo scope). All power comes from registers: clinicians (who may
+-- sign and record bedside services), staff role 'director' (who rules on flags
+-- and confirms claims). Sim-Director is added to BOTH registers only while
+-- judging runs (pilot-on.sh) and removed after - disclosed in /how.
 -- NOTE: Entirely synthetic. No real patient, clinician, practice or visit exists here.
 --
 -- v6: fictional billing (Nagisa Schedule). fee_schedule master / visit_services
@@ -19,7 +25,7 @@
 -- note_drafts is the draft inbox: Troupe deposits approved drafts here, a doctor
 -- rewrites and signs elsewhere. Troupe has no path that writes a signed note.
 
-DROP TABLE IF EXISTS charges, claims, visit_services, fee_schedule,
+DROP TABLE IF EXISTS staff, charges, claims, visit_services, fee_schedule,
   note_drafts, clinical_notes, visit_notes, condition_events,
   visits, visit_patterns, physician_orders, medications, patient_conditions,
   patients, clinicians, clinic CASCADE;
@@ -35,6 +41,11 @@ CREATE TABLE clinic(               -- the practice's home base (route origin)
   address TEXT NOT NULL,
   lat DOUBLE PRECISION NOT NULL,
   lng DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE staff(                  -- the register of seats: name -> role
+  name TEXT PRIMARY KEY,
+  role TEXT NOT NULL CHECK (role IN ('director','clinician'))
 );
 
 CREATE TABLE clinicians(
@@ -212,6 +223,10 @@ CREATE TABLE condition_events(
 
 INSERT INTO clinicians(code, name) VALUES
  ('Dr-A', 'Dr. Asada'), ('Dr-B', 'Dr. Baba'), ('Dr-C', 'Dr. Chiba');
+
+INSERT INTO staff(name, role) VALUES
+ ('Director', 'director'),
+ ('Dr-A', 'clinician'), ('Dr-B', 'clinician'), ('Dr-C', 'clinician');
 
 INSERT INTO clinic VALUES
  ('Riverbend Home Medical Clinic', 'near Sangenjaya Sta. (public landmark)', 35.6433, 139.6690);

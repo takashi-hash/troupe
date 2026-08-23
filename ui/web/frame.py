@@ -1,5 +1,7 @@
 from __future__ import annotations
 from html import escape
+
+from app.dto.staff_row import StaffRow
 from ui.web.style import _STYLE
 from ui.words import 操作
 from ui.words import 状態
@@ -15,6 +17,7 @@ def _頁(
     viewer: str,
     断り: str | None = None,
     notice: str | None = None,
+    席たち: tuple[StaffRow, ...] = (),
 ) -> str:
     """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。
 
@@ -53,9 +56,31 @@ def _頁(
         "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
         "<a class='nav-quiet' href='/how'>How Troupe works</a>"
-        f"<span class='whoami'>Signed in as: <strong>{escape(viewer)}</strong></span></header>"
+        f"{_席の札(viewer, 席たち)}</header>"
         f"<div class='app-content'>{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
         f"</div>{襟}</body></html>"
+    )
+
+
+def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
+    """棚の最下段——いまの席と、座り替え。**席は名乗りであって認証ではない**(/how に明示)。"""
+    役 = next((s.role for s in 席たち if s.name == 席), None)
+    役の名 = {"director": "director", "clinician": "clinician"}.get(役 or "", "unregistered")
+    if not 席たち:
+        return (f"<span class='whoami'>Sitting as: <strong>{escape(席)}</strong></span>")
+    選び = "".join(
+        f"<option value='{escape(s.name)}'{' selected' if s.name == 席 else ''}>"
+        f"{escape(s.name)} · {escape(s.role)}</option>"
+        for s in 席たち
+    )
+    return (
+        "<span class='whoami'>Sitting as: "
+        f"<strong>{escape(席)}</strong> <small>{escape(役の名)}</small>"
+        "<form class='seat-form' method='post' action='/seat'>"
+        f"<select name='seat'>{選び}</select>"
+        "<button class='btn btn--small'>Switch</button></form>"
+        "<small class='seat-note'>A seat is a name, not a login — powers come"
+        " from the register.</small></span>"
     )
 
 

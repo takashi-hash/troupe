@@ -13,7 +13,7 @@ class 訪問の終わりの偽物:
              draft_id: str | None) -> str | None:
         return None
 
-    def cancel(self, visit_id: str, reason: str) -> str | None:
+    def cancel(self, visit_id: str, reason: str, by: str) -> str | None:
         self.休んだ.append((visit_id, reason))
         return None
 

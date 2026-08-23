@@ -45,11 +45,22 @@ for name in "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness 
   echo "  $name → v$ver (owner Sim-Director)"
 done
 
-say "窓を Sim-Director の席へ（開示バナーつき）"
+say "代役を登記簿へ（座長の役＋医師の名簿——署名は 'signed by Sim-Director' と正直に残る）"
+PGPASSWORD=$PW "$SDK_BIN/../bin/psql" -q -h 127.0.0.1 -p 9471 -U postgres -d emr 2>/dev/null || true
+export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+PGPASSWORD=$PW psql -q -h 127.0.0.1 -p 9471 -U postgres -d emr -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO staff(name, role) VALUES ('Sim-Director', 'director')
+  ON CONFLICT (name) DO UPDATE SET role = 'director';
+INSERT INTO clinicians(code, name, active)
+  VALUES ('Sim-Director', 'Simulated director (demo)', true)
+  ON CONFLICT (code) DO UPDATE SET active = true;
+SQL
+echo "  載せた"
+
+say "開示バナーを点ける"
 gcloud run services update troupe-window --region="$REGION" --project="$PROJECT" \
-  --args="serve,--viewer,Sim-Director" \
   --update-env-vars="ICHIZA_PILOT_NOTICE=${NOTICE}" --quiet >/dev/null
-echo "  窓の名乗りと Activity の記録が Sim-Director になる"
+echo "  点けた"
 
 say "代役の心拍（2時間ごと）"
 URL="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT}/jobs/troupe-pilot:run"

@@ -17,6 +17,6 @@ class EmrServicePort(Protocol):
         """載せる。通れば None、断られたら理由の文字。"""
         ...
 
-    def remove(self, visit_id: str, code: str) -> str | None:
+    def remove(self, visit_id: str, code: str, by: str) -> str | None:
         """外す。通れば None、断られたら理由の文字。"""
         ...

@@ -37,8 +37,17 @@ else
   done
 fi
 
-say "窓を Director の席へ（バナーを消す）"
+say "代役を登記簿から外す（署名済みの記録は残る——歴史は消さない）"
+if [ -f /tmp/troupe-dbpw ]; then
+  export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+  PGPASSWORD=$(cat /tmp/troupe-dbpw) psql -q -h 127.0.0.1 -p 9471 -U postgres -d emr <<'SQL'
+UPDATE clinicians SET active = false WHERE code = 'Sim-Director';
+DELETE FROM staff WHERE name = 'Sim-Director';
+SQL
+  echo "  外した"
+fi
+
+say "バナーを消す"
 gcloud run services update troupe-window --region="$REGION" --project="$PROJECT" \
-  --args="serve,--viewer,Director" \
   --remove-env-vars="ICHIZA_PILOT_NOTICE" --quiet >/dev/null
-echo "  戻した"
+echo "  消した"
