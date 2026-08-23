@@ -222,3 +222,47 @@ def test_GeminiもLLMの口を名乗れる(monkeypatch: pytest.MonkeyPatch) -> N
     _Geminiを差す(monkeypatch, "MARK: RESULT\n請求は42件")
     口: LlmPort = GeminiLlm()
     assert _問う(口)[0].mark is Mark.RESULT
+
+
+# --- 案内 — 問いと写しを渡し、答えの文字だけを受け取る。書く道具は持たない ---
+
+
+def test_案内は問いと写しと往復を渡して答えを受け取る(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from adapters.acl.llm import GeminiGuide, _GUIDE_PROMPT
+
+    models = _Geminiを差す(monkeypatch, "Open /day and sign the visit.")
+    答え = GeminiGuide().answer(
+        "What needs me today?",
+        "1 visit awaiting signature (P-003).",
+        (("Anything urgent?", "One approval in /inbox."),),
+    )
+    assert 答え == "Open /day and sign the visit."
+    渡した = models.seen[0]["contents"]
+    assert "What needs me today?" in 渡した
+    assert "1 visit awaiting signature (P-003)." in 渡した
+    assert "Q: Anything urgent?" in 渡した
+    assert models.seen[0]["config"].system_instruction == _GUIDE_PROMPT
+
+
+def test_案内は空の応答を空のまま返す(monkeypatch: pytest.MonkeyPatch) -> None:
+    """断りの文言に変えるのは ask_guide——ここは倒すだけ。"""
+    from adapters.acl.llm import GeminiGuide
+
+    _Geminiを差す(monkeypatch, None)
+    assert GeminiGuide().answer("q", "digest", ()) == ""
+
+
+def test_案内は例外を空文字に倒す(monkeypatch: pytest.MonkeyPatch) -> None:
+    """窓は公開されている——案内の故障で画面を落とさない。"""
+    from adapters.acl.llm import GeminiGuide
+
+    class _Raising:
+        class models:  # noqa: N801 — 偽物の形合わせ
+            @staticmethod
+            def generate_content(**kwargs: Any) -> None:
+                raise RuntimeError("vertex is down")
+
+    monkeypatch.setattr(llm_module.genai, "Client", lambda *a, **k: _Raising())
+    assert GeminiGuide().answer("q", "digest", ()) == ""

@@ -306,3 +306,57 @@ class GeminiLlm:
         )
         finding, reason = _translate_situation(content)
         return finding, reason, 1, seconds
+
+
+#: 案内への指示。**答えは案内だけ**——押すのは人（実行に届く道具はそもそも渡らない）。
+#: 貼ってよい行き先を字面で縛り、器の白名単がもう一度守る（二重の守り）。
+_GUIDE_PROMPT = (
+    "You are the guide of Troupe, a home-care operations product. "
+    "A human director asks you what is going on and what to do next.\n"
+    "Answer briefly (a few sentences), in the language of the question, "
+    "using ONLY the facts in the digest you are given. "
+    "If the digest does not contain the answer, say so plainly.\n"
+    "You cannot approve, sign, send back, or change anything — only a human can. "
+    "Point the human to the page where they can act, "
+    "naming one of these paths verbatim: "
+    "/day /patients /patient?id=... /inbox /agreements /automations "
+    "/activity /search /visit?id=... /how\n"
+    "Never invent data, never include any other link or URL."
+)
+
+
+class GeminiGuide:
+    """案内の実装 — 問いと写しを Gemini に渡し、答えの文字を受け取る。
+
+    設計: 設計/仕事が回る筋道.md §4 `GuidePort`。
+
+    **書く道具を受け取らない**——このクラスが持つのは Gemini の繋ぎだけ。
+    例外は空文字に倒す——窓は公開されていて、案内の故障で画面を落とさない
+    （断りの文言に変えるのは `ask_guide`。仕事の LLM と違い、ここに脈の再訪は無い）。
+    """
+
+    def __init__(self, model: str = "gemini-3.5-flash") -> None:
+        self._model = model
+        self._client = genai.Client()
+
+    def answer(
+        self,
+        question: str,
+        digest: str,
+        history: tuple[tuple[str, str], ...],
+    ) -> str:
+        turns = "".join(f"Q: {q}\nA: {a}\n" for q, a in history)
+        message = (
+            f"## What the window shows right now\n{digest}\n\n"
+            + (f"## Earlier turns\n{turns}\n" if turns else "")
+            + f"## Question\n{question}"
+        )
+        try:
+            response = self._client.models.generate_content(
+                model=self._model,
+                contents=message,
+                config=types.GenerateContentConfig(system_instruction=_GUIDE_PROMPT),
+            )
+            return response.text or ""
+        except Exception:
+            return ""
