@@ -46,11 +46,11 @@ Every one of those steps is an event appended to a ledger. Nothing is overwritte
 You can check the claim yourself:
 
 ```bash
-git diff --stat baseline..HEAD -- domain app   # empty
-uv run lint-imports                            # 6 contracts kept
+git diff --stat baseline..pillars-swapped -- domain app   # empty
+uv run lint-imports                                       # 6 contracts kept
 ```
 
-`baseline` is the tag on the last commit before the cloud work began. Everything between it and `HEAD` is the swap.
+`baseline` tags the last commit before the swap began and `pillars-swapped` tags its completion — every commit in between replaces infrastructure without touching the core. Features added after that point (the patient reference screens) did extend `app/`, and the discipline held in that direction too: the design tables were edited first, the reconciliation suite went red, and the code brought it back to green.
 
 This is not a lucky accident. The design said so before the code existed: *"the mechanism that keeps the AI resident is generic — you buy it"*, *"the tool that calls an LLM is generic — you buy it."* Swapping three of them is the proof that the boundary was real.
 
