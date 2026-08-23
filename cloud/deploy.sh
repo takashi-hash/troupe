@@ -102,6 +102,17 @@ window_url=$(gcloud run services describe troupe-window --region="$REGION" \
   --project="$PROJECT" --format="value(status.url)")
 echo "  $window_url"
 
+say "代役 — 合成の座長（器だけ。**心拍は pilot-on.sh が点け、pilot-off.sh が消す**）"
+# 患者が合成なら座長も合成(設計/どう作るか §5)。窓の公開フォームを人と同じ道で押す
+# ——帳簿もDBも直接は触らない。TROUPE_WINDOW しか知らない。
+gcloud run jobs deploy troupe-pilot \
+  --image="$IMAGE" --region="$REGION" --project="$PROJECT" \
+  --service-account="$SA" \
+  --command="python" --args="cloud/pilot.py" \
+  --set-env-vars="TROUPE_WINDOW=${window_url}" \
+  --max-retries=0 --task-timeout=600s --quiet >/dev/null
+echo "  troupe-pilot（deploy.sh を流し直したら pilot-on.sh も流し直す——席とバナーが戻るため）"
+
 say "心拍 — 60秒ごとに脈を起こす（**時計の表に「AI を起こす」は増えない**）"
 for role in tick agent; do
   URL="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT}/jobs/troupe-${role}:run"

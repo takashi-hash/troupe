@@ -438,6 +438,7 @@ def main() -> None:
     ra = sub.add_parser("rule-add")
     ra.add_argument("--name", required=True)
     ra.add_argument("--by", required=True)
+    ra.add_argument("--owner", default=None, help="受け持ちの人の上書き(既定は題材のデータ)")
     rc = sub.add_parser("rule-activate")
     rc.add_argument("--name", required=True)
     rc.add_argument("--version", type=int, required=True)
@@ -489,7 +490,12 @@ def main() -> None:
 
         za.conn.close()  # 立てるだけの接続は持たない
         uvicorn.run(
-            make_app(開く, args.viewer, os.environ.get("ICHIZA_MAPS_KEY")),
+            make_app(
+                開く,
+                args.viewer,
+                os.environ.get("ICHIZA_MAPS_KEY"),
+                os.environ.get("ICHIZA_PILOT_NOTICE"),
+            ),
             host="0.0.0.0",
             port=int(os.environ.get("PORT", "8080")),
         )
@@ -502,8 +508,13 @@ def main() -> None:
     elif args.cmd == "today":
         _today(za, args.viewer)
     elif args.cmd == "rule-add":
-        断り = add_version(za.rules, za.topics, za.clock, args.name, args.by, VersionForm())
-        print("add_version: ok" if 断り is None else f"refused: {断り.reason}")
+        欄 = VersionForm(owner=args.owner) if args.owner else VersionForm()
+        断り = add_version(za.rules, za.topics, za.clock, args.name, args.by, 欄)
+        if 断り is None:
+            版 = {l.name: l.version_number for l in za.rule_lines.read_all()}.get(args.name)
+            print(f"add_version: ok (version {版})")
+        else:
+            print(f"refused: {断り.reason}")
     elif args.cmd == "rule-activate":
         断り = activate(za.rules, za.clock, args.name, args.version, args.by)
         print("activate: ok" if 断り is None else f"refused: {断り.reason}")
