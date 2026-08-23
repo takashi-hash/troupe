@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.dto.patient_row import PatientRow
-from app.dto.patient_view import PatientNote, PatientView
+from app.dto.patient_view import PatientDraft, PatientNote, PatientView
 
 
 class PostgresPatients:
@@ -40,7 +40,9 @@ class PostgresPatients:
         try:
             rows = conn.execute(
                 """
-                SELECT p.code, p.age, p.living_situation, p.primary_dx,
+                SELECT p.code, p.age, p.living_situation,
+                       (SELECT c.dx FROM patient_conditions c
+                         WHERE c.patient = p.code ORDER BY c.is_primary DESC, c.onset LIMIT 1),
                        (SELECT v.visit_date || ' (' || v.nurse || ')' FROM visits v
                          WHERE v.patient = p.code AND v.visit_date >= CURRENT_DATE
                          ORDER BY v.visit_date LIMIT 1),
@@ -65,12 +67,18 @@ class PostgresPatients:
         conn = self._開く()
         try:
             patient = conn.execute(
-                "SELECT age, living_situation, primary_dx FROM patients WHERE code = %s",
+                "SELECT age, living_situation FROM patients WHERE code = %s",
                 (code,),
             ).fetchall()
             if not patient:
                 return None
-            age, living, dx = patient[0]
+            age, living = patient[0]
+            条件 = conn.execute(
+                "SELECT dx, is_primary FROM patient_conditions WHERE patient = %s"
+                " ORDER BY is_primary DESC, onset",
+                (code,),
+            ).fetchall()
+            dx = " / ".join(f"{d}{' (primary)' if 主 else ''}" for d, 主 in 条件) or "—"
             visit = conn.execute(
                 "SELECT visit_date || ' (' || nurse || ') - ' || purpose FROM visits"
                 " WHERE patient = %s AND visit_date >= CURRENT_DATE"
@@ -85,7 +93,7 @@ class PostgresPatients:
             ).fetchall()
             meds = conn.execute(
                 "SELECT drug || ' ' || dose || ' ' || frequency FROM medications"
-                " WHERE patient = %s",
+                " WHERE patient = %s AND stopped IS NULL ORDER BY started",
                 (code,),
             ).fetchall()
             events = conn.execute(
@@ -93,8 +101,13 @@ class PostgresPatients:
                 " WHERE patient = %s ORDER BY event_date DESC",
                 (code,),
             ).fetchall()
+            drafts = conn.execute(
+                "SELECT delivered_at::text, body, based_on_job FROM note_drafts"
+                " WHERE patient = %s ORDER BY delivered_at DESC",
+                (code,),
+            ).fetchall()
             notes = conn.execute(
-                "SELECT note_date, nurse, s, o, a, p FROM visit_notes"
+                "SELECT note_date, nurse, s, o, a, p, signed_at::text FROM clinical_notes"
                 " WHERE patient = %s ORDER BY note_date DESC",
                 (code,),
             ).fetchall()
@@ -106,8 +119,50 @@ class PostgresPatients:
             order=order[0][0] if order else None,
             meds=tuple(m[0] for m in meds),
             events=tuple(e[0] for e in events),
+            drafts=tuple(
+                PatientDraft(delivered_at=str(at), body=str(b), job_id=str(j))
+                for at, b, j in drafts
+            ),
             notes=tuple(
-                PatientNote(at=str(at), nurse=str(n), s=str(s), o=str(o), a=str(a), p=str(pp))
-                for at, n, s, o, a, pp in notes
+                PatientNote(
+                    at=str(at), nurse=str(n), s=str(s), o=str(o), a=str(a), p=str(pp),
+                    signed_at=str(署名),
+                )
+                for at, n, s, o, a, pp, 署名 in notes
             ),
         )
+
+
+class EmrDrafts:
+    """下書き受け — `EmrDraftPort` の実装。**置けるのは draft だけ。**
+
+    署名済み（clinical_notes）に触る SQL はこのクラスに1行も無い——
+    書けない口であることが、読めば分かる形。
+    冪等は診療録の一意の鍵（based_on_job UNIQUE）が決める。
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def _開く(self) -> Any:
+        assert self._dsn is not None
+        if self._connect is not None:
+            return self._connect(self._dsn)
+        import psycopg
+
+        return psycopg.connect(self._dsn, autocommit=True)
+
+    def deposit(self, job_id: str, patient_code: str, body: str) -> bool:
+        if self._dsn is None:
+            return False  # 診療録が居ないなら、配達は静かに見送る（次の脈がまた来る）
+        conn = self._開く()
+        try:
+            cur = conn.execute(
+                "INSERT INTO note_drafts(patient, body, based_on_job)"
+                " VALUES (%s, %s, %s) ON CONFLICT (based_on_job) DO NOTHING",
+                (patient_code, body, job_id),
+            )
+            return bool(cur.rowcount)
+        finally:
+            conn.close()

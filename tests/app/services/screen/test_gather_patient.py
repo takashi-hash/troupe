@@ -28,6 +28,6 @@ def test_居ない患者はNone() -> None:
 def test_写しをそのまま運ぶ() -> None:
     詳細 = PatientView(
         code="P-003", age="76", living="x", diagnosis="PD",
-        next_visit=None, order=None, meds=(), events=(), notes=(),
+        next_visit=None, order=None, meds=(), events=(), drafts=(), notes=(),
     )
     assert gather_patient(診療録の偽物(詳細), "P-003") is 詳細

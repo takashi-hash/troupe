@@ -28,7 +28,7 @@ from pathlib import Path
 from adapters.acl.llm import GeminiLlm, OllamaLlm
 from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
-from adapters.emr import PostgresPatients
+from adapters.emr import EmrDrafts, PostgresPatients
 from adapters.ids import UuidIds
 from adapters.ledger.db import open_cloud_ledger, open_ledger
 from adapters.ledger.jobs import SqliteJobs
@@ -68,6 +68,7 @@ from app.services.agent.start import start
 from app.services.clock.audit import audit
 from app.services.clock.confirm import confirm
 from app.services.clock.create import create
+from app.services.clock.deliver_drafts import deliver_drafts
 from app.services.clock.hand_out import hand_out
 from app.services.clock.mark_overdue import mark_overdue
 from app.services.clock.return_timed_out import return_timed_out
@@ -130,6 +131,7 @@ class Ichiza:
         # 源は形で選ばれる——file: は書類、db: は診療録。**中は形を知らない**
         self.source = Sources(FileSource(root), EmrSource(emr_dsn))
         self.patients = PostgresPatients(emr_dsn)
+        self.drafts = EmrDrafts(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
 
@@ -233,6 +235,7 @@ def _tick(za: Ichiza) -> None:
     sorted_ = sort_failures(za.jobs, za.states, za.clock)
     confirmed = confirm(za.jobs, za.states, za.source, za.evidences, za.clock)
     overdue = mark_overdue(za.jobs, za.states, za.overdue_marks, za.clock)
+    delivered = deliver_drafts(za.jobs, za.states, za.results, za.drafts)
     欠け = audit(za.active, za.origins, za.clock)
     for 名前, 版, 期間 in 欠け:
         print(f"! I8 active rule with no job — {名前.text} v{版} {期間.text}")
@@ -245,6 +248,7 @@ def _tick(za: Ichiza) -> None:
         ("sort_failures", sorted_),
         ("confirm", confirmed),
         ("mark_overdue", overdue),
+        ("deliver_drafts", delivered),
     ):
         if 列:
             print(f"{名}: {', '.join(j.text for j in 列)}")

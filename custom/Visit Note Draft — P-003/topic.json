@@ -1,15 +1,16 @@
 {
-  "instruction": "Read the patient chart in the source. Draft the visit note for this patient's visit scheduled in the reporting period, in SOAP form (Subjective / Objective / Assessment / Plan). Carry the previous note's Plan forward and update it: anything in 'recent events' must be reflected in Assessment and Plan, and anything the nurse must verify on arrival goes first in Plan as a checklist. Leave Objective as labelled blanks for vitals to be filled in at the bedside — never invent a measurement. Begin the draft with the patient code P-003 and the visit date. This draft saves the nurse the blank-page start; the nurse rewrites and signs — the draft is never the record.",
-  "source": "db:chart/P-003",
   "required_terms": [
     "{対象期間}",
-    "P-003"
+    "P-003",
+    "fall"
   ],
-  "description": "The draft is in SOAP form for the visit in the reporting period, every item in 'recent events' is reflected, and Objective contains no invented measurements.",
   "cycle": "weekly",
   "days": 2,
   "budget_calls": 12,
   "budget_seconds": 300,
   "owner": "Director",
-  "max_retries": 6
+  "max_retries": 6,
+  "instruction": "Read the patient chart in the source. The signed notes are given oldest first - COMPARE them and write the direction of change into Assessment; never repeat the last note's Assessment unchanged. Draft the visit note for the visit scheduled in the reporting period, in SOAP form. Anything in 'recent events' must be reflected. Anything the nurse must verify on arrival goes first in Plan as a checklist. Leave Objective as labelled blanks - never invent a measurement. Begin with the patient code and the visit date. The nurse rewrites and signs - the draft is never the record. For this patient, compare fall risk across the notes: orthostatic drop, freezing, and what changed after the fall on 2026-08-02. The Plan checklist must verify each safety measure from the previous Plan (rug, night light, PT referral) and the overdue care plan review.",
+  "source": "db:chart/P-003",
+  "description": "SOAP form for the visit in the reporting period; fall-risk change across the notes is stated; every safety measure from the previous Plan appears in the checklist."
 }

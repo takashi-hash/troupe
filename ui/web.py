@@ -149,6 +149,9 @@ input[type=text] { font: inherit; padding: 5px 8px; border-radius: 8px;
            background: color-mix(in srgb, #c0392b 8%, transparent); border-radius: 0 8px 8px 0; }
 .empty { opacity: .55; padding: 30px 0; }
 .sub { opacity: .6; font-size: 13px; }
+.row.draft { border-style: dashed; border-color: color-mix(in srgb, #b45309 55%, transparent); }
+.state-draft { background: color-mix(in srgb, #b45309 18%, transparent); font-weight: 600; }
+.state-final { background: color-mix(in srgb, #15803d 15%, transparent); font-weight: 600; }
 .brief { padding: 10px 16px; margin-bottom: 18px; border-radius: 10px; font-size: 13.5px;
          background: color-mix(in srgb, CanvasText 5%, transparent);
          border: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
@@ -386,9 +389,21 @@ def _患者たち(rows: tuple[PatientRow, ...]) -> str:
 def _患者(view: PatientView | None) -> str:
     if view is None:
         return "<p class='empty'>No such patient.</p>"
+    下書き = "".join(
+        f"<div class='row draft'><div class='head'>"
+        f"<span class='state state-draft'>DRAFT</span>"
+        f"<span class='title'>delivered {escape(d.delivered_at[:16])}</span>"
+        f"<a class='id' href='/detail?id={escape(d.job_id)}'>from job {escape(d.job_id[:8])}…</a></div>"
+        f"<dd style='white-space:pre-wrap'>{escape(d.body)}</dd>"
+        "<p class='sub'>A proposal from Troupe. A nurse rewrites and signs it in the EMR — "
+        "this never becomes the record by itself.</p></div>"
+        for d in view.drafts
+    )
     記録 = "".join(
-        f"<div class='row'><div class='head'><span class='title'>Visit note {escape(n.at)}</span>"
-        f"<span class='id'>{escape(n.nurse)}</span></div>"
+        f"<div class='row'><div class='head'>"
+        f"<span class='state state-final'>SIGNED</span>"
+        f"<span class='title'>Note {escape(n.at)}</span>"
+        f"<span class='id'>{escape(n.nurse)} · signed {escape(n.signed_at[:16])}</span></div>"
         + _欄([("S", n.s), ("O", n.o), ("A", n.a), ("P", n.p)])
         + "</div>"
         for n in view.notes
@@ -409,6 +424,7 @@ def _患者(view: PatientView | None) -> str:
         )
         + f"<p class='sub'><a href='/search?keyword={escape(view.code)}'>"
         f"Jobs for this patient →</a></p></div>"
+        + 下書き
         + 記録
     )
 

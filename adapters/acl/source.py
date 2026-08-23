@@ -119,21 +119,39 @@ def _rows(conn: object, sql: str, args: tuple[object, ...] = ()) -> list[tuple[o
 
 
 def _chart(conn: object, code: str) -> str | None:
-    """カルテ抽出 — chart.txt と同じ形の文へ。**引用の単位は抽出1枚。**"""
-    patient = _rows(conn, "SELECT age, living_situation, primary_dx FROM patients WHERE code = %s", (code,))
+    """カルテ抽出 — 基本データと、**署名済みの記録だけ**を1枚の文へ。
+
+    **下書き（note_drafts）は材料にならない。** 下書きが下書きを根拠にし始めると、
+    提案と事実の区別が溶ける——読むのは clinical_notes（署名済み・不変）だけ。
+    記録は**古い順に3件**——前回と前々回を比べられる並びで渡す。
+    処方は**いま継続中のものだけ**（終了日の無いもの）。
+    """
+    patient = _rows(conn, "SELECT age, living_situation FROM patients WHERE code = %s", (code,))
     if not patient:
         return None
-    age, living, dx = patient[0]
+    age, living = patient[0]
     lines = [
         "# Patient chart (extract) - Riverbend Home Health (fictional agency)",
-        "# NOTE: Entirely synthetic. Read from the agency EMR; Troupe never writes here.",
+        "# NOTE: Entirely synthetic. Signed notes only - drafts are never source material.",
         "",
         f"Patient: {code}  ({age}, {living})",
-        f"Primary dx: {dx}",
     ]
-    meds = _rows(conn, "SELECT drug, dose, frequency FROM medications WHERE patient = %s", (code,))
+    dx = _rows(
+        conn,
+        "SELECT dx, is_primary FROM patient_conditions WHERE patient = %s"
+        " ORDER BY is_primary DESC, onset",
+        (code,),
+    )
+    if dx:
+        lines.append("Dx: " + " / ".join(f"{d}{' (primary)' if 主 else ''}" for d, 主 in dx))
+    meds = _rows(
+        conn,
+        "SELECT drug, dose, frequency FROM medications"
+        " WHERE patient = %s AND stopped IS NULL ORDER BY started",
+        (code,),
+    )
     if meds:
-        lines.append("Meds: " + " / ".join(f"{d} {dose} {f}" for d, dose, f in meds))
+        lines.append("Current meds: " + " / ".join(f"{d} {dose} {f}" for d, dose, f in meds))
     for signed, expires, kind, practice in _rows(
         conn,
         "SELECT signed, expires, order_type, practice FROM physician_orders"
@@ -157,13 +175,14 @@ def _chart(conn: object, code: str) -> str | None:
     if events:
         lines += ["", "Recent events:"]
         lines += [f"- {日}: {何} " for 日, 何 in events]
-    for 日, nurse, s, o, a, p in _rows(
+    記録 = _rows(
         conn,
-        "SELECT note_date, nurse, s, o, a, p FROM visit_notes"
-        " WHERE patient = %s ORDER BY note_date DESC LIMIT 2",
+        "SELECT note_date, nurse, s, o, a, p FROM clinical_notes"
+        " WHERE patient = %s ORDER BY note_date DESC LIMIT 3",
         (code,),
-    ):
-        lines += ["", f"Visit note ({日}, {nurse}):", f"S: {s}", f"O: {o}", f"A: {a}", f"P: {p}"]
+    )
+    for 日, nurse, s, o, a, p in reversed(記録):  # 古い順——傾向が読める並び
+        lines += ["", f"Signed note ({日}, {nurse}):", f"S: {s}", f"O: {o}", f"A: {a}", f"P: {p}"]
     return "\n".join(lines)
 
 
@@ -182,7 +201,7 @@ def _visit_schedule(conn: object) -> str:
                (SELECT max(o.expires) FROM physician_orders o WHERE o.patient = v.patient),
                (SELECT e.event_date || ' ' || e.description FROM condition_events e
                  WHERE e.patient = v.patient
-                   AND e.event_date > COALESCE((SELECT max(n.note_date) FROM visit_notes n
+                   AND e.event_date > COALESCE((SELECT max(n.note_date) FROM clinical_notes n
                                                  WHERE n.patient = v.patient), DATE '1900-01-01')
                  ORDER BY e.event_date DESC LIMIT 1)
         FROM visits v
@@ -218,7 +237,7 @@ def _care_plans(conn: object) -> str:
         conn,
         """
         SELECT p.code,
-               (SELECT max(n.note_date) FROM visit_notes n WHERE n.patient = p.code),
+               (SELECT max(n.note_date) FROM clinical_notes n WHERE n.patient = p.code),
                (SELECT e.event_date || ' ' || e.description FROM condition_events e
                  WHERE e.patient = p.code ORDER BY e.event_date DESC LIMIT 1)
         FROM patients p ORDER BY p.code

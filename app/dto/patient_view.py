@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class PatientNote(BaseModel):
-    """診療記録1件 — S・O・A・P。よその書式のまま。"""
+    """署名済みの記録1件 — S・O・A・P。よその書式のまま。**final は不変。**"""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -23,6 +23,18 @@ class PatientNote(BaseModel):
     o: str
     a: str
     p: str
+    signed_at: str
+
+
+class PatientDraft(BaseModel):
+    """下書き1件 — Troupe が下書き受けに置いた提案。**署名前。記録ではない。**"""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    delivered_at: str
+    body: str
+    #: どの仕事から来たか——帳簿の側の一生（承認の出来事）に辿れる。
+    job_id: str
 
 
 class PatientView(BaseModel):
@@ -36,6 +48,9 @@ class PatientView(BaseModel):
     diagnosis: str
     next_visit: str | None
     order: str | None
+    #: いま継続中の処方だけ。
     meds: tuple[str, ...]
     events: tuple[str, ...]
+    #: 下書き（提案）と署名済み（事実）は**別の欄**——1つの列に混ぜない。
+    drafts: tuple[PatientDraft, ...]
     notes: tuple[PatientNote, ...]
