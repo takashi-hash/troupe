@@ -2,19 +2,24 @@
 
 主題は「静かな自動化」。臨床の静けさの上に、脈が打っていることだけを感じさせる。
 
-1. **背景は舞台、内容は紙。** 舞台＝インクの棚と点格子の地（自動化の場）。
-   内容＝白い紙（.paper）。紙の上のカードは1段まで——紙に紙を重ねない。
+1. **モチーフは「帳簿・紙・脈」——製品の中身から導く。** 舞台＝インクの棚と
+   **帳簿の罫線**の地（追記専用の帳簿がこの製品の魂）。内容＝白い紙（.paper）
+   ——**紙は影で浮き、紙の上の部品は線で描く**（枠と拡散影を併用しない）。
+   紙の上のカードは1段まで。脈＝動きの語彙（下の4）。
+1b. **書体は2系統で決める。** 見出し・銘は Source Serif 4（紙の記録＝文書の書体。
+   Georgia が控え）。本文は system、**数字と ID は等幅数字**。角丸は 8/10/14 の3段だけ。
 2. **頁の頭は「見出し・数・次の一手」**（.page-head）。数えられるものは数を先に言う
    （"3 decisions waiting"）。最初の一画面で「何件・次に何を」が読める。
    スクロールは詳細のためだけ。
-3. **塗るのは判断だけ。** 塗りボタンは Sign / Approve / Reply の3つ。脈の存在は
-   ブランドの鼓動1つで示す——AI らしさで画面を飾らない（動きはこの1点だけ。
-   prefers-reduced-motion では止まる）。
-4. **色は語彙**: 緑=署名済み/通った・琥珀=人が要る・赤=破壊/期限切れ・青=情報・灰=不活性。
+3. **塗るのは判断だけ。** 塗りボタンは Sign / Approve / Reply / Confirm の4つ。
+4. **動きの語彙は「脈」だけ。** ブランドの鼓動・60秒の拍の帯・機械が支度した/人を待つ
+   チップの淡い鼓動・帳簿の最新行の引いていく色——**同期は装わない**（リズムを見せるだけで、
+   瞬間を主張しない）。それ以外は動かさない。prefers-reduced-motion では全部止まる。
+5. **色は語彙**: 緑=署名済み/通った・琥珀=人が要る・赤=破壊/期限切れ・青=情報・灰=不活性。
    人格の色（who の点・地図の担当色）は状態の5色と混ぜない。
-5. **表は貼り付く頭と件数を持つ。** 長い一覧は頁送り（100件）か絞りを持つ。
-6. **携帯（≤900px）は棚が上バーに畳まれ、2ペインは1列に落ちる。** 横スクロールは表の中だけ。
-7. **言葉は用語集の橋そのまま。** 和語を画面に出さない。
+6. **表は貼り付く頭と件数を持つ。** 長い一覧は頁送り（100件）か絞りを持つ。
+7. **携帯（≤900px）は棚が上バーに畳まれ、2ペインは1列に落ちる。** 横スクロールは表の中だけ。
+8. **言葉は用語集の橋そのまま。** 和語を画面に出さない。
 """
 
 _STYLE = """
@@ -51,11 +56,14 @@ _STYLE = """
   color-scheme: light dark;
 
   /* 状態の色相 — UI に存在する有彩色はこの5つだけ */
-  --ok:      #15803d;
-  --warn:    #b45309;
-  --danger:  #b91c1c;
-  --info:    #2563eb;
-  --primary: #1f5f9e;   /* 唯一の塗りつぶし: Sign / Approve / Reply */
+  /* 状態の色は自前の値——既定パレットの色相から少し外す(照明と印刷で見た) */
+  --ok:      #1b7a4a;
+  --warn:    #a86206;
+  --danger:  #b3271e;
+  --info:    #2158c9;
+  --primary: #1f5f9e;   /* 塗りつぶし: Sign / Approve / Reply / Confirm */
+  --r-sm: 8px; --r-md: 10px; --r-lg: 14px;
+  --serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
 
   /* 無彩色はすべて Canvas/CanvasText から導出（両テーマ自動対応） */
   --line:        color-mix(in srgb, CanvasText 14%, transparent);
@@ -79,10 +87,13 @@ body {
   font: 14.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
   color: CanvasText;
-  /* 舞台 — 点格子の地は body に敷く(短い頁でも下まで舞台が続く) */
+  /* 舞台 — 帳簿の罫線の地(追記専用の帳簿の紙)。body に敷く(短い頁でも下まで続く) */
   background-color: color-mix(in srgb, CanvasText 3%, Canvas);
-  background-image: radial-gradient(color-mix(in srgb, CanvasText 8%, transparent) 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0, transparent 27px,
+    color-mix(in srgb, CanvasText 6%, transparent) 27px,
+    color-mix(in srgb, CanvasText 6%, transparent) 28px);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -101,7 +112,8 @@ body {
 }
 .brand {
   display: flex; align-items: center; gap: 8px;
-  font-size: 15.5px; font-weight: 700; letter-spacing: .01em;
+  font-family: var(--serif);
+  font-size: 16.5px; font-weight: 600; letter-spacing: .01em;
   color: var(--ink-text); text-decoration: none;
   padding: 2px 10px 10px; margin: 0;
 }
@@ -117,11 +129,25 @@ body {
   70%  { box-shadow: 0 0 0 7px transparent; }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
-@media (prefers-reduced-motion: reduce) { .pulse-dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot, .cadence__fill, .chip--draft-ready, .chip--needs-approval,
+  .chip--needs-answer { animation: none; }
+  .ledger-events tr:nth-child(2) td { animation: none; }
+}
+/* 60秒の拍の帯 — 脈のリズムを見せる(瞬間の同期は装わない) */
+.cadence {
+  display: block; height: 2px; margin: 8px 10px 2px; border-radius: 1px;
+  background: var(--ink-line); overflow: hidden;
+}
+.cadence__fill {
+  display: block; height: 100%; width: 100%;
+  background: var(--beat); opacity: .75; transform-origin: left;
+  animation: cadence 60s linear infinite;
+}
+@keyframes cadence { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .brand-sub {
   font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--ink-muted); padding: 0 10px 12px; margin: 0 0 4px;
-  border-bottom: 1px solid var(--ink-line);
+  color: var(--ink-muted); padding: 0 10px 2px;
 }
 .nav { display: flex; flex-direction: column; gap: 1px; }
 .nav__label {
@@ -134,7 +160,7 @@ body {
 .nav__sep { display: none; width: 1px; height: 16px; background: var(--ink-line); }
 .nav a {
   display: block; text-decoration: none; color: var(--ink-muted);
-  font-size: 13.5px; padding: 5.5px 10px; border-radius: 7px;
+  font-size: 13.5px; padding: 5.5px 10px; border-radius: var(--r-sm);
 }
 .nav a:hover { color: var(--ink-text); background: rgba(255,255,255,.05); }
 .nav a[aria-current="page"], .nav a.is-active {
@@ -142,8 +168,13 @@ body {
   background: rgba(255,255,255,.08);
   box-shadow: inset 2px 0 0 0 var(--beat);
 }
+.nav-quiet {
+  margin-top: auto; display: block; padding: 8px 10px 0;
+  font-size: 11.5px; color: var(--ink-muted); text-decoration: none;
+}
+.nav-quiet:hover { color: var(--ink-text); text-decoration: underline; }
 .whoami {
-  margin-top: auto; padding: 12px 10px 2px; border-top: 1px solid var(--ink-line);
+  padding: 12px 10px 2px; border-top: 1px solid var(--ink-line); margin-top: 8px;
   font-size: 12px; color: var(--ink-muted); line-height: 1.5;
 }
 .whoami strong { display: block; color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
@@ -159,9 +190,10 @@ body {
 
 main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 24px 32px 56px; }
 .paper {
-  background: Canvas; border: 1px solid var(--line); border-radius: 14px;
+  background: Canvas; border-radius: var(--r-lg);
   padding: 26px 30px 34px; min-height: calc(100vh - 128px);
-  box-shadow: 0 1px 2px rgba(16,22,29,.05), 0 10px 30px rgba(16,22,29,.04);
+  /* 紙は影で浮く。紙の上の部品は線で描く——併用しない */
+  box-shadow: 0 1px 2px rgba(16,22,29,.06), 0 12px 34px rgba(16,22,29,.06);
 }
 /* 頁の頭 — 見出し・数・次の一手(§5)。数えられるものは数を先に言う */
 .page-head {
@@ -177,7 +209,10 @@ main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 24px 32px 56px
   color: var(--muted); background: var(--faint); border: 1px solid var(--line);
 }
 .count-pill strong { color: CanvasText; }
-.page-title { font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin: 0 0 4px; }
+.page-title {
+  font-family: var(--serif); font-size: 22px; font-weight: 600;
+  letter-spacing: 0; margin: 0 0 4px;
+}
 .page-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 22px; max-width: 68ch; }
 .section-title { font-size: 15px; font-weight: 650; margin: 30px 0 10px; }
 .crumbs { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
@@ -200,7 +235,7 @@ main a:hover { text-decoration-color: currentColor; }
 
 /* ---------- 3. cards & folds ---------- */
 .card, .row {
-  border: 1px solid var(--line); border-radius: 10px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
   padding: 16px 18px; margin-bottom: 14px; background: Canvas;
 }
 .card__head, .head {
@@ -239,6 +274,15 @@ a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
 .chip--draft-ready, .chip--working               { --c: var(--info); }
 .chip--needs-approval, .chip--needs-answer,
 .chip--expiring                                  { --c: var(--warn); }
+/* 淡い鼓動 — 機械が支度した印と、人を待つ印だけが静かに脈打つ */
+.chip--draft-ready, .chip--needs-approval, .chip--needs-answer {
+  animation: chipbeat 3.2s ease-out infinite;
+}
+@keyframes chipbeat {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 30%, transparent); }
+  55%  { box-shadow: 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 .chip--failed, .chip--expired                    { --c: var(--danger); }
 /* 無彩色のまま: scheduled / queued / submitted / no-draft / used / cancelled / stopped */
 .chip--no-draft, .chip--used { color: var(--muted); font-weight: 500; }
@@ -293,7 +337,7 @@ a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
            destructive(赤テキスト) = 取り消し系。2段階目は .is-confirm を付ける */
 button, .btn {
   font: inherit; font-size: 14px; font-weight: 500;
-  padding: 6px 16px; border-radius: 8px; cursor: pointer;
+  padding: 6px 16px; border-radius: var(--r-sm); cursor: pointer;
   border: 1px solid var(--line-strong); background: Canvas; color: inherit;
 }
 button:hover, .btn:hover { background: var(--faint); }
@@ -326,7 +370,7 @@ button:hover, .btn:hover { background: var(--faint); }
 }
 .confirm-note { font-size: 12.5px; color: color-mix(in srgb, var(--danger) 70%, CanvasText); }
 input[type=text], input[type=date], input[type=number], select, textarea {
-  font: inherit; padding: 6px 10px; border-radius: 8px;
+  font: inherit; padding: 6px 10px; border-radius: var(--r-sm);
   border: 1px solid var(--line-strong); background: Canvas; color: inherit;
 }
 textarea { width: 100%; min-height: 112px; line-height: 1.6; padding: 10px 12px; resize: vertical; }
@@ -367,6 +411,13 @@ tbody tr:hover { background: var(--faint); }
   font-family: var(--mono); font-size: 11.5px; color: var(--muted);
   white-space: nowrap;
 }
+/* 帳簿の最新行 — 開いた瞬間、着いたばかりの色が静かに引く */
+.ledger-events tr:nth-child(2) td { animation: freshrow 2.4s ease-out 1; }
+@keyframes freshrow {
+  from { background: color-mix(in srgb, var(--beat) 14%, transparent); }
+  to   { background: transparent; }
+}
+
 /* 頁送り — 表の下の一列 */
 .pager {
   display: flex; align-items: baseline; gap: 16px;
@@ -391,13 +442,13 @@ tbody tr:hover { background: var(--faint); }
   border-color: transparent; font-weight: 600;
 }
 .progress-band, .brief {
-  padding: 10px 16px; margin: 0 0 16px; border-radius: 10px; font-size: 13.5px;
+  padding: 10px 16px; margin: 0 0 16px; border-radius: var(--r-md); font-size: 13.5px;
   background: var(--faint); border: 1px solid var(--line);
 }
 .progress-band a, .brief a { color: inherit; }
 .map-slot, #gmap {
   width: 100%; max-width: 680px; height: 440px;
-  border: 1px solid var(--line); border-radius: 10px; background: var(--faint);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--faint);
 }
 .map-slot--placeholder {
   display: grid; place-items: center; border-style: dashed;
@@ -411,7 +462,7 @@ tbody tr:hover { background: var(--faint); }
 .stop-list { list-style: none; margin: 10px 0 8px; padding: 0; display: grid; gap: 8px; }
 .stop-card {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 14px;
 }
 .stop-card__seq {
   flex: none; width: 26px; height: 26px; border-radius: 50%;
@@ -438,7 +489,7 @@ tbody tr:hover { background: var(--faint); }
 .stop-card--cancelled .stop-card__patient { text-decoration: line-through; }
 .stop-return {
   display: flex; align-items: center; gap: 14px;
-  border: 1px dashed var(--line-strong); border-radius: 10px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-md);
   padding: 8px 14px; font-size: 13.5px; color: var(--muted);
 }
 .stop-return .stop-card__seq {
@@ -464,7 +515,7 @@ tbody tr:hover { background: var(--faint); }
 .visit-head .page-title { margin: 0; }
 .visit-head__meta { font-size: 13.5px; color: var(--muted); }
 .snapshot {
-  border: 1px solid var(--line); border-radius: 10px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--faint); padding: 14px 18px; margin: 0 0 18px;
 }
 .snapshot__head {
@@ -475,7 +526,7 @@ tbody tr:hover { background: var(--faint); }
   font-size: 12px; font-weight: 650; letter-spacing: .07em;
   text-transform: uppercase; color: var(--muted);
 }
-.checklist { border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin: 0 0 18px; }
+.checklist { border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px 18px; margin: 0 0 18px; }
 .checklist__title { font-size: 14px; font-weight: 650; margin: 0 0 6px; }
 .checklist label {
   display: flex; gap: 10px; align-items: baseline;
@@ -484,7 +535,7 @@ tbody tr:hover { background: var(--faint); }
 .checklist__note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .draft-panel {
   border: 1.5px dashed color-mix(in srgb, var(--warn) 55%, transparent);
-  border-radius: 10px; padding: 16px 18px; margin: 0 0 22px;
+  border-radius: var(--r-md); padding: 16px 18px; margin: 0 0 22px;
   background: color-mix(in srgb, var(--warn) 3%, Canvas);
 }
 .draft-panel__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
@@ -535,7 +586,7 @@ tbody tr:hover { background: var(--faint); }
 /* ---------- 10. Patient chart (/patient · /patients) ---------- */
 .patient-head .card__title { font-size: 17px; }
 .note-card {
-  border: 1px solid var(--line); border-radius: 10px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
   padding: 16px 18px; margin-bottom: 14px;
 }
 .note-card--draft {
@@ -551,7 +602,7 @@ tbody tr:hover { background: var(--faint); }
 /* ---------- 11. Agreements · Automations ---------- */
 .agreement-row--ended td { color: var(--muted); }
 .form-card {
-  border: 1px solid var(--line); border-radius: 10px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
   padding: 18px; margin-top: 28px; max-width: 760px;
 }
 .form-card__title { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
@@ -581,13 +632,13 @@ tbody tr:hover { background: var(--faint); }
 .guide-q {
   width: max-content; max-width: 85%; margin: 0 0 10px auto;
   font-size: 14px; font-weight: 600;
-  padding: 7px 14px; border-radius: 12px 12px 3px 12px;
+  padding: 7px 14px; border-radius: var(--r-lg) var(--r-lg) 3px var(--r-lg);
   background: var(--faint); border: 1px solid var(--line);
 }
 .guide-a {
   max-width: 92%; padding: 12px 16px;
   font-size: 14px; line-height: 1.65; white-space: pre-wrap;
-  border: 1px solid var(--line); border-radius: 12px 12px 12px 3px;
+  border: 1px solid var(--line); border-radius: var(--r-lg) var(--r-lg) var(--r-lg) 3px;
 }
 .guide-form {
   position: sticky; bottom: 0; z-index: 10;
@@ -616,7 +667,7 @@ tbody tr:hover { background: var(--faint); }
   width: 390px; max-width: calc(100vw - 32px); max-height: 72vh;
   display: none; flex-direction: column;
   background: Canvas; border: 1px solid var(--line-strong);
-  border-radius: 14px; overflow: hidden;
+  border-radius: var(--r-lg); overflow: hidden;
   box-shadow: 0 8px 40px rgba(16,22,29,.28);
 }
 .ask-panel.is-open { display: flex; }
@@ -638,7 +689,7 @@ tbody tr:hover { background: var(--faint); }
 .ask-suggest { display: flex; flex-direction: column; gap: 8px; padding: 2px 0 10px; }
 .ask-suggest button {
   text-align: left; font-size: 13px; padding: 7px 12px;
-  border: 1px dashed var(--line-strong); border-radius: 10px; background: none;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-md); background: none;
   color: var(--muted); cursor: pointer;
 }
 .ask-suggest button:hover { color: CanvasText; background: var(--faint); }
@@ -666,7 +717,7 @@ tbody tr:hover { background: var(--faint); }
 /* ---------- 13. banners · refusal · empty ---------- */
 .banner {
   display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
-  border-radius: 10px; padding: 10px 16px; margin: 0 0 18px;
+  border-radius: var(--r-md); padding: 10px 16px; margin: 0 0 18px;
   font-size: 14px; border: 1px solid var(--line);
 }
 .banner--success {
@@ -675,9 +726,10 @@ tbody tr:hover { background: var(--faint); }
   color: color-mix(in srgb, var(--ok) 65%, CanvasText);
 }
 .refusal {
-  border-left: 3px solid var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
   background: color-mix(in srgb, var(--danger) 7%, Canvas);
-  border-radius: 0 10px 10px 0;
+  color: color-mix(in srgb, var(--danger) 60%, CanvasText);
+  border-radius: var(--r-md);
   padding: 10px 16px; margin: 0 0 18px;
 }
 .empty { color: var(--muted); padding: 36px 0; font-size: 14px; max-width: 68ch; }
@@ -698,7 +750,7 @@ tbody tr:hover { background: var(--faint); }
     padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--ink-line);
   }
   .brand { padding: 0; margin: 0; border-bottom: 0; font-size: 15px; }
-  .brand-sub { display: none; }
+  .brand-sub, .cadence, .nav-quiet { display: none; }
   .nav {
     flex-direction: row; align-items: center; gap: 2px;
     flex: 1 1 auto; min-width: 0;
@@ -714,7 +766,7 @@ tbody tr:hover { background: var(--faint); }
   .whoami { display: none; }
   .notice-bar { padding: 6px 16px; }
   main, .page { padding: 12px 10px 48px; }
-  .paper { padding: 18px 14px 28px; border-radius: 10px; min-height: 0; }
+  .paper { padding: 18px 14px 28px; border-radius: var(--r-md); min-height: 0; }
   .ask-launcher { right: 14px; bottom: 14px; }
   .ask-panel {
     right: 8px; left: 8px; bottom: 64px; width: auto; max-height: 76vh;
@@ -748,7 +800,7 @@ tbody tr:hover { background: var(--faint); }
 """
 
 #: CARE（現場）が先、BACK OFFICE（監督）が後——2ペルソナのナビ。
-_画面 = ("day", "patients", "inbox", "agreements", "billing", "fees",
-        "automations", "activity", "search", "guide", "how")
+_画面 = ("day", "patients", "inbox", "agreements", "billing", "automations",
+        "ledger")  # ledger = activity と search の2面。fees は billing 内・how は棚の最下段・guide は襟
 
 #: 書く欄の見出し。**用語集の語ではない**——押すときの手がかりなので、そのまま英語で置く。

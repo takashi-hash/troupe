@@ -2,6 +2,9 @@
 
 誰が＝**種別と名**——種別のチップが人・AI・時計の見分けになる（§2 履歴の行）。
 列は新しい順に区切って引ける——頁の送りはここが出す。
+
+帳簿の表がこの頁の顔——等幅の時刻・誰がのチップ・等幅数字。
+最新行の引いていく色（.ledger-events の1行目）は style.py §6 の脈。
 """
 
 from __future__ import annotations
@@ -17,6 +20,16 @@ _WHO = {
     "agent": ("who--agent", "AI"),
     "clock": ("who--clock", "Clock"),
 }
+
+#: 表の小さな整えはこの頁だけのもの——枠の1枚（style.py）に足さず、頁が持って出る。
+_様式 = """<style>
+/* 帳簿の表 — 4pxの目で詰める。見出し(Job)は等幅のまま1行で切り、行の高さを揃える */
+.activity-ledger td { padding: 8px 12px; }
+.activity-ledger .activity-job a {
+  display: inline-block; max-width: 36ch; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
+}
+</style>"""
 
 
 def _誰(by: str, kind: str) -> str:
@@ -41,7 +54,7 @@ def _頁送り(page: int, per: int, count: int) -> str:
         return ""
     return (
         "<nav class='pager'>" + " ".join(parts)
-        + f"<span class='pager-page'>page {page + 1}</span></nav>"
+        + f"<span class='pager-page num'>page {page + 1}</span></nav>"
     )
 
 
@@ -51,24 +64,38 @@ def _履歴(
     始 = page * per + 1 if rows else 0
     終 = page * per + len(rows)
     頭 = (
-        "<div class='page-head'><h1 class='page-title'>Activity</h1>"
+        "<div class='page-head'><h1 class='page-title'>Ledger</h1>"
         f"<span class='count-pill'><strong>{total}</strong> events</span>"
-        + (f"<span class='page-head__aside'>showing {始}–{終}</span>" if rows else "")
+        + (f"<span class='page-head__aside num'>showing {始}–{終}</span>" if rows else "")
         + "</div>"
+        "<div class='filter-chips'>"
+        "<span class='filter-chip is-on' aria-current='true'>Events</span>"
+        "<a class='filter-chip' href='/search'>Jobs</a></div>"
     )
     副題 = ("<p class='page-sub'>Every event ever appended to the ledger — who did "
             "what, newest first. Nothing here is ever overwritten or deleted.</p>")
     行 = "".join(
         f"<tr><td class='cell-when'>{escape(r.at)}</td><td>{_誰(r.by, r.by_kind)}</td>"
         f"<td>{escape(出来事(r.what))}</td>"
-        f"<td><a class='id' href='/detail?id={escape(r.job_id)}'>{escape(r.head)}</a></td></tr>"
+        f"<td class='activity-job'>"
+        f"<a class='id' href='/detail?id={escape(r.job_id)}'>{escape(r.head)}</a></td></tr>"
         for r in rows
     )
-    empty = "" if rows else "<p class='empty'>No events on this page.</p>"
+    # 空の言葉は本当のことを——1頁目は帳簿の性質、先の頁は端に着いたこと
+    if rows:
+        empty = ""
+    elif page == 0:
+        empty = ("<p class='empty'>The ledger starts writing itself the moment "
+                 "a rule is active.</p>")
+    else:
+        empty = ("<p class='empty'>No events this far back — the ledger ends "
+                 "on an earlier page.</p>")
     return (
         頭
         + 副題
-        + "<div class='wrap'><table><tr><th>When</th><th>Who</th><th>What happened</th>"
+        + _様式
+        + "<div class='wrap ledger-events activity-ledger'>"
+        "<table><tr><th>When</th><th>Who</th><th>What happened</th>"
         "<th>Job</th></tr>" + 行 + "</table></div>"
         + empty
         + _頁送り(page, per, len(rows))

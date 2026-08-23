@@ -28,16 +28,16 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
         )
     def _期限(r: PatientRow) -> str:
         if not r.order_expires:
-            return "<td>—</td>"
+            return "<td class='cell-when'>—</td>"
         if today and r.order_expires < today:
             return (f"<td class='cell-danger'><span class='chip chip--expired'>"
                     f"Expired {escape(r.order_expires)}</span></td>")
-        return f"<td>{escape(r.order_expires)}</td>"
+        return f"<td class='cell-when'>{escape(r.order_expires)}</td>"
 
     行 = "".join(
         f"<tr><td><a class='patient-chip' href='/patient?code={quote(r.code)}'>{escape(r.code)}</a></td>"
-        f"<td>{escape(r.age)}</td><td>{escape(r.diagnosis)}</td>"
-        f"<td>{escape(r.living)}</td><td>{escape(r.next_visit or '—')}</td>"
+        f"<td class='patients-num'>{escape(r.age)}</td><td>{escape(r.diagnosis)}</td>"
+        f"<td>{escape(r.living)}</td><td class='cell-when'>{escape(r.next_visit or '—')}</td>"
         + _期限(r) + "</tr>"
         for r in rows
     )
@@ -46,14 +46,15 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
         + "<p class='sub'>Read-only mirror of the agency EMR — synthetic data, no real patient exists. "
         "Troupe never writes here.</p>"
         # 絞り込みは飾り — JS が無ければ欄ごと出さず、表は常に全部読める
-        "<div class='table-filter' hidden>"
+        "<div class='patients-filter' hidden>"
         "<input type='text' id='patient-filter' aria-label='Filter patients'"
         " placeholder='Filter — code, diagnosis, living…' autocomplete='off'></div>"
-        "<div class='wrap'><table id='patients-table'><tr><th>Code</th><th>Age</th><th>Diagnosis</th>"
+        "<div class='wrap'><table id='patients-table'><tr><th>Code</th>"
+        "<th class='patients-num'>Age</th><th>Diagnosis</th>"
         "<th>Living</th><th>Next visit</th><th>Order expires</th></tr>" + 行 + "</table></div>"
         "<script>(function () {"
         "var box = document.getElementById('patient-filter');"
-        "box.closest('.table-filter').hidden = false;"
+        "box.closest('.patients-filter').hidden = false;"
         "box.addEventListener('input', function () {"
         "  var q = box.value.trim().toLowerCase();"
         "  document.querySelectorAll('#patients-table tr').forEach(function (tr) {"
@@ -63,20 +64,23 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
         "});"
         "})();</script>"
         "<style>"
-        ".table-filter { margin: 0 0 14px; }"
-        ".table-filter input { width: 300px; max-width: 100%; }"
+        ".patients-filter { margin: 0 0 14px; }"
+        ".patients-filter input { width: 300px; max-width: 100%; }"
+        # 年齢は数 — 右寄せ・等幅数字で桁が縦に揃う（th は class が既定の左寄せに勝つ）
+        ".patients-num { text-align: right; }"
         "</style>"
     )
 
 
 def _患者(view: PatientView | None) -> str:
     if view is None:
-        return "<p class='empty'>No such patient.</p>"
+        return "<p class='empty'>No patient with that code exists in the EMR mirror.</p>"
+    # 柱の中の note-card が唯一の枠（紙の上のカードは1段まで）——頭は枠でなく罫線で区切る
     下書き = "".join(
-        f"<article class='card note-card note-card--draft{' draft-panel--used' if d.used else ''}'>"
+        f"<article class='note-card note-card--draft{' draft-panel--used' if d.used else ''}'>"
         f"<div class='card__head'>"
         f"<span class='seal {'seal--used' if d.used else 'seal--draft'}'>{'USED' if d.used else 'DRAFT'}</span>"
-        f"<span class='note-card__meta'>delivered {escape(d.delivered_at[:16])}"
+        f"<span class='note-card__meta'>delivered <span class='num'>{escape(d.delivered_at[:16])}</span>"
         f" · <a class='link-action' href='/detail?id={quote(d.job_id)}'>AI history →</a></span></div>"
         f"<div class='md'>{_md(d.body)}</div>"
         "<p class='note-card__foot sub'>A proposal from Troupe. A doctor rewrites and signs —"
@@ -84,18 +88,27 @@ def _患者(view: PatientView | None) -> str:
         for d in view.drafts
     )
     記録 = "".join(
-        f"<article class='card note-card note-card--signed'><div class='card__head'>"
+        f"<article class='note-card note-card--signed'><div class='card__head'>"
         f"<span class='seal seal--signed'>SIGNED</span>"
-        f"<span class='card__title'>Note {escape(n.at)}</span>"
-        f"<span class='note-card__meta push'>{escape(n.clinician)} · signed {escape(n.signed_at[:16])}</span></div>"
+        f"<span class='card__title'>Note <span class='num'>{escape(n.at)}</span></span>"
+        f"<span class='note-card__meta push'>{escape(n.clinician)} · signed "
+        f"<span class='num'>{escape(n.signed_at[:16])}</span></span></div>"
         f"<dl class='soap'><dt>S</dt><dd>{escape(n.s)}</dd><dt>O</dt><dd>{escape(n.o)}</dd>"
         f"<dt>A</dt><dd>{escape(n.a)}</dd><dt>P</dt><dd>{escape(n.p)}</dd></dl></article>"
         for n in view.notes
     )
+    def _柱頭(名: str, 数: int) -> str:
+        return (f"<h3 class='patient-col__head'>{名}"
+                + (f"<span class='patient-col__n num'>{数}</span>" if 数 else "")
+                + "</h3>")
     return (
-        f"<div class='row'><div class='head'>"
-        f"<span class='title'>{escape(view.code)}</span>"
-        f"<span class='id'>{escape(view.diagnosis)}</span></div>"
+        # 患者の素性は紙に直に書く — 枠で囲わず、罫線1本で診療録の柱と区切る
+        "<section class='patient-idblock'>"
+        "<div class='patient-hd'>"
+        f"<h2 class='patient-hd__code'>{escape(view.code)}</h2>"
+        f"<span class='patient-hd__dx'>{escape(view.diagnosis)}</span>"
+        f"<a class='link-action patient-hd__jobs' href='/search?keyword={quote(view.code)}'>"
+        "Jobs for this patient →</a></div>"
         + _欄(
             [
                 ("Age", view.age),
@@ -106,22 +119,34 @@ def _患者(view: PatientView | None) -> str:
                 ("Condition events", "\n".join(view.events) or None),
             ]
         )
-        + f"<p class='sub'><a href='/search?keyword={quote(view.code)}'>"
-        f"Jobs for this patient →</a></p></div>"
-        # 下書きと正記録は別の柱 — 混ぜて並べず、見出しつきの2欄で分ける
-        + "<div class='chart-cols'>"
-        "<section class='chart-col'><h3 class='chart-col__head'>Drafts — awaiting a clinician</h3>"
-        + (下書き or "<p class='sub'>No drafts waiting.</p>")
         + "</section>"
-        "<section class='chart-col'><h3 class='chart-col__head'>Signed record</h3>"
-        + (記録 or "<p class='sub'>No signed notes yet.</p>")
+        # 下書きと正記録は別の柱 — 混ぜて並べず、見出しつきの2欄で分ける
+        + "<div class='patient-cols'>"
+        "<section class='patient-col'>" + _柱頭("Drafts — awaiting a clinician", len(view.drafts))
+        + (下書き or "<p class='sub'>No draft is waiting. When Troupe prepares a visit note"
+                     " for this patient, it appears here for a clinician to rewrite and sign.</p>")
+        + "</section>"
+        "<section class='patient-col'>" + _柱頭("Signed record", len(view.notes))
+        + (記録 or "<p class='sub'>No signed notes yet — a note enters this chart"
+                   " only when a clinician signs it.</p>")
         + "</section></div>"
         "<style>"
-        ".chart-cols { display: grid; grid-template-columns: minmax(0, 1fr);"
-        " gap: 28px; align-items: start; margin-top: 8px; }"
+        ".patient-hd { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }"
+        # 見出しは記録の書体（serif）、ただし ID の数字は等幅数字で
+        ".patient-hd__code { font-family: var(--serif); font-size: 21px; font-weight: 600;"
+        " font-variant-numeric: tabular-nums; margin: 0; }"
+        ".patient-hd__dx { font-size: 13.5px; color: var(--muted); }"
+        ".patient-hd__jobs { margin-left: auto; font-size: 13.5px; }"
+        ".patient-idblock { border-bottom: 1px solid var(--line-strong);"
+        " padding-bottom: 20px; margin-bottom: 24px; }"
+        ".patient-cols { display: grid; grid-template-columns: minmax(0, 1fr);"
+        " gap: 28px; align-items: start; }"
         "@media (min-width: 1100px) {"
-        " .chart-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; } }"
-        ".chart-col__head { margin: 0 0 12px; font-size: 11.5px; font-weight: 600;"
-        " letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }"
+        " .patient-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; } }"
+        ".patient-col__head { display: flex; align-items: baseline; gap: 8px;"
+        " margin: 0 0 14px; font-family: var(--serif); font-size: 16px; font-weight: 600;"
+        " border-bottom: 1px solid var(--line); padding-bottom: 7px; }"
+        ".patient-col__n { margin-left: auto; font-size: 12.5px; font-weight: 500;"
+        " color: var(--muted); }"
         "</style>"
     )

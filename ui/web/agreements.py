@@ -21,8 +21,8 @@ def _取り決めたち(rows: tuple[PatternRow, ...], added: str | None = None) 
         f"<td>{escape(r.weekday)}</td>"
         f"<td>{'every week' if r.every_weeks == '1' else f'every {escape(r.every_weeks)} weeks'}</td>"
         f"<td>{escape(r.clinician)}</td><td>{escape(r.purpose)}</td>"
-        f"<td>{escape(r.active_from)}</td>"
-        f"<td>{escape(r.active_to) if r.active_to else '—'}</td>"
+        f"<td class='cell-when'>{escape(r.active_from)}</td>"
+        f"<td class='cell-when'>{escape(r.active_to) if r.active_to else '—'}</td>"
         f"<td>" + (
             f"<form class='act' method='post' action='/patterns/act'>"
             f"<input type='hidden' name='what' value='end_pattern'>"
@@ -56,17 +56,24 @@ def _取り決めたち(rows: tuple[PatternRow, ...], added: str | None = None) 
         f"<div class='form-actions'><button class='btn'>{escape(操作('add_pattern'))}</button></div>"
         "</form></aside>"
     )
+    # 表が主役 — 空のときだけ、この製品で本当のことを1行言う（"No data" は言わない）
+    表 = (
+        "<div class='wrap'><table><tr><th>Patient</th><th>Weekday</th><th>Cadence</th>"
+        "<th>Clinician</th><th>Purpose</th><th>From</th><th>To</th><th></th></tr>"
+        + 行 + "</table></div>"
+        if rows else
+        "<p class='empty'>No agreement is on record. Planned visits derive from"
+        " agreements — record one and Troupe's pulse expands it into the calendar.</p>"
+    )
     return (
         頭
         + バナー
         + "<div class='agreements-layout'>"
         "<div class='agreements-table'>"
-        "<div class='wrap'><table><tr><th>Patient</th><th>Weekday</th><th>Cadence</th>"
-        "<th>Clinician</th><th>Purpose</th><th>From</th><th>To</th><th></th></tr>"
-        + 行 + "</table></div></div>"
+        + 表 + "</div>"
         + form
         + "</div>"
-        # この頁だけの並び — 広い画面では表の右に form-card を置く。正本の style は触らない
+        # この頁だけの並び — 表が主役で幅を取り、form-card は右の脇に1枚だけ。正本の style は触らない
         + "<style>"
         ".agreements-layout { display: grid; grid-template-columns: minmax(0, 1fr);"
         " gap: 24px; align-items: start; }"

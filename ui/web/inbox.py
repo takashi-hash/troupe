@@ -13,6 +13,8 @@ def _帯(rows: tuple[TodayRow, ...], in_flight: int) -> str:
     だからここに出すのは数と道案内であって、押しつけの行ではない。
     数は下に並んでいる行の集計そのもの（別の判定を持たない）。
 
+    見た目は灰色の箱ではなく**罫線1本**——帳簿の地に、数を書いた1行が載るだけ。
+
     頁の頭（.page-head）もここで出す——routes が _帯 を _今日 の上に描くので、
     頭を帯の上に置くにはここしかない（見た目の正本 §2「数を先に言う」）。
     件数は len(rows) そのもの。帯は頭の直下に残る。
@@ -35,27 +37,44 @@ def _帯(rows: tuple[TodayRow, ...], in_flight: int) -> str:
         f"<span class='count-pill'><strong>{len(rows)}</strong>"
         f" decision{'s' if len(rows) != 1 else ''} waiting</span></div>"
     )
-    return 頭 + f"<div class='brief inbox-brief'>{' · '.join(組)}</div>"
+    return 頭 + f"<p class='inbox-brief'>{' · '.join(組)}</p>"
 
 
 #: /inbox だけの絞り込み。style.py（正本）には触らず、inbox- 接頭辞で**足すだけ**。
 #: 広い台紙でも判断の列は ~820px に留める——判断は焦点であって、横に伸ばすものではない。
+#: 判断の札の中は**箱を重ねず罫線で切る**——種別の行・題・本文・操作を髪線が分ける。
 _様式 = """<style>
 /* inbox — 判断の列。既存クラスの上書きは inbox- 側でだけ行う */
-.inbox-queue, .brief.inbox-brief { max-width: 820px; }
-.inbox-card { padding: 14px 18px 12px; margin-bottom: 12px; }
-.inbox-card__head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.inbox-card__lead { flex: 1 1 260px; min-width: 0; }
-.inbox-card__kind { display: flex; align-items: baseline; gap: 10px; margin: 0 0 5px; }
+.inbox-queue { max-width: 820px; }
+/* ブリーフィング — 箱ではなく罫線1本の行。数は等幅数字 */
+.inbox-brief {
+  max-width: 820px; margin: 0 0 20px; padding: 4px 0 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.inbox-brief strong { color: CanvasText; }
+/* 判断の札 — 外枠1本だけ。中は髪線で4段に切る（種別/題/本文/操作） */
+.inbox-card { padding: 0; margin-bottom: 12px; }
+.inbox-card > * { margin: 0; padding: 8px 16px; }
+.inbox-card > * + * { border-top: 1px solid var(--line); }
+.inbox-card__kind { display: flex; align-items: center; gap: 10px; padding: 8px 16px 7px; }
 .inbox-card__due {
   font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap;
 }
+.inbox-card__state { margin-left: auto; }
+.inbox-card__lead { padding: 9px 16px 10px; }
 .inbox-card__title { display: block; font-size: 15px; font-weight: 650; line-height: 1.35; }
 .inbox-card__patient { margin: 7px 0 0; }
-.inbox-card__state { flex: none; margin-left: auto; }
+.inbox-card__body { padding: 10px 16px 12px; }
+.inbox-card__body > :first-child { margin-top: 0; }
 .inbox-card .question-body, .inbox-card .draft-preview { margin-top: 8px; }
 .inbox-card .fold { margin-top: 8px; }
-.inbox-card__actions { margin-top: 12px; padding-top: 10px; justify-content: flex-end; }
+.inbox-card .effort { font-variant-numeric: tabular-nums; }
+/* 操作の段 — .card-actions の余白と線は段組み側が持つので畳む */
+.inbox-card__actions {
+  margin-top: 0; padding: 10px 16px 12px; justify-content: flex-end;
+}
 .inbox-card__actions form.act input[type=text] { flex: 0 1 180px; min-width: 0; }
 /* 操作が1つ（= 回答）のときだけ、書く欄を広げる */
 .inbox-card__actions form.act:only-child:has(input[type=text]) {
@@ -77,7 +96,8 @@ def _参照名(r: TodayRow) -> tuple[str, str, str | None]:
 
 def _今日(rows: tuple[TodayRow, ...]) -> str:
     if not rows:
-        return _様式 + "<p class='empty'>Nothing needs your judgment today.</p>"
+        return _様式 + ("<p class='empty'>Nothing needs you — "
+                       "the pulse will bring the next decision here.</p>")
     out = []
     for r in rows:
         badge, 参照, code = _参照名(r)
@@ -111,18 +131,17 @@ def _今日(rows: tuple[TodayRow, ...]) -> str:
             "</dl></details>"
         )
         操作 = _押せること(r.actions, r.id, "/inbox")
-        # 階層は3段: 種類と期日（小・上）→ 参照名（題）→ 患者への道。状態チップは右肩。
+        # 4段を髪線で切る: 種別と期日と状態 → 参照名と患者への道 → 本文と引き出し → 操作。
         out.append(
-            f"<article class='card inbox-card'><header class='inbox-card__head'>"
+            f"<article class='card inbox-card'>"
+            f"<header class='inbox-card__kind'><span class='badge'>{badge}</span>"
+            f"<span class='inbox-card__due'>due {escape(r.due)}</span>"
+            f"<span class='inbox-card__state'>{chip}</span></header>"
             f"<div class='inbox-card__lead'>"
-            f"<div class='inbox-card__kind'><span class='badge'>{badge}</span>"
-            f"<span class='inbox-card__due'>due {escape(r.due)}</span></div>"
             f"<span class='ref-name inbox-card__title'>{escape(参照)}</span>"
             + (f"<div class='inbox-card__patient'>{患者}</div>" if 患者 else "")
-            + f"</div><span class='inbox-card__state'>{chip}</span></header>"
-            + 中身 + 詳細
-            + f"<div class='card-actions inbox-card__actions'>{操作}</div></article>"
+            + "</div>"
+            f"<div class='inbox-card__body'>{中身}{詳細}</div>"
+            f"<div class='card-actions inbox-card__actions'>{操作}</div></article>"
         )
     return _様式 + f"<div class='inbox-queue'>{''.join(out)}</div>"
-
-

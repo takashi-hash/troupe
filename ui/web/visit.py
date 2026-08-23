@@ -40,14 +40,23 @@ _様式 = """<style>
   .visit-grid { grid-template-columns: minmax(300px, 43fr) minmax(0, 57fr); }
   .visit-aside { position: sticky; top: 22px; max-height: calc(100vh - 44px); overflow-y: auto; }
 }
-/* 行為と薬剤の札 — 1行1項目、右端に取り消し。追加は1行に収める */
-.visit-svc ul { list-style: none; margin: 0 0 4px; padding: 0; }
+/* 脇の節 — 患者札(色地)の下は箱を重ねず、見出しと罫線で切る */
+.visit-sec { border-top: 1px solid var(--line); padding: 12px 0 4px; margin: 0 0 12px; }
+.visit-sec__title {
+  display: block; font-size: 12px; font-weight: 650; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted);
+}
+.visit-sec > .fold { margin-top: 0; }
+/* 行為と薬剤 — 1行1項目、右端に取り消し。数は等幅数字 */
+.visit-svc ul { list-style: none; margin: 6px 0 4px; padding: 0; }
 .visit-svc__row { display: flex; align-items: center; justify-content: space-between;
-                  gap: 8px; padding: 3px 0; }
+                  gap: 8px; padding: 3px 0; font-variant-numeric: tabular-nums; }
 .visit-svc__row form { margin: 0; }
 .visit-svc__add { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .visit-svc__add select { flex: 1 1 auto; min-width: 0; }
 .visit-svc__qty { width: 4.5em; }
+/* SOAP の頭文字 — 記録の書体で1字だけ */
+.visit-soap-cap { font-family: var(--serif); font-size: 19px; font-weight: 600; line-height: 1; }
 </style>"""
 
 
@@ -85,7 +94,7 @@ def _行為札(view: VisitView, fees: tuple[FeeRow, ...]) -> str:
                 f"<option value='{escape(f.code)}'>"
                 f"{escape(f'{f.code} · {f.name} ({値段})')}</option>"
             )
-        中身 = 一覧 or "<p class='sub'>Nothing recorded yet.</p>"
+        中身 = 一覧 or "<p class='sub'>Nothing recorded yet — add each act as it is done.</p>"
         中身 += (
             "<form class='visit-svc__add' method='post' action='/visit/act'>"
             "<input type='hidden' name='what' value='add_service'>"
@@ -97,14 +106,14 @@ def _行為札(view: VisitView, fees: tuple[FeeRow, ...]) -> str:
             " signed visit — enter only what was done.</p>"
         )
     else:
-        中身 = 一覧 or "<p class='sub'>Nothing recorded.</p>"
+        中身 = 一覧 or "<p class='sub'>No services were recorded before signing.</p>"
         中身 += "<p class='sub'>Frozen by signing — this list can no longer change.</p>"
     return (
-        "<div class='card visit-svc'><div class='snapshot__head'>"
-        "<span class='snapshot__title'>Services &amp; medications</span></div>"
+        "<section class='visit-sec visit-svc'>"
+        "<span class='visit-sec__title'>Services &amp; medications</span>"
         + 中身
         + "<p class='sub'>Every code, point value and payer here is invented"
-        " — the Nagisa Schedule is fictional.</p></div>"
+        " — the Nagisa Schedule is fictional.</p></section>"
     )
 
 
@@ -151,7 +160,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
     下書きパネル = ""
     if draft:
         下書きパネル = (
-            "<details class='fold draft-panel' open><summary>"
+            "<section class='visit-sec'><details class='fold' open><summary>"
             f"<span class='seal seal--draft'>DRAFT</span>"
             "<span class='draft-panel__kicker'> A proposal, not the record</span>"
             f"<span class='sub'> · delivered {escape(draft.delivered_at)}</span></summary>"
@@ -159,14 +168,16 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
             "<p class='sub'>"
             + ("Prefilled into the editor below"
                if 分解 else "Could not be split into S/O/A/P — copy what you need")
-            + ". The doctor rewrites and signs; the draft is never the record.</p></details>"
+            + ". The doctor rewrites and signs; the draft is never the record.</p>"
+            "</details></section>"
         )
     説明 = {"s": "What the patient reports.", "o": "What you observe and measure.",
             "a": "Your clinical judgment.", "p": "What happens next — checks first."}
 
-    def 欄(名: str, key: str) -> str:
+    def 欄(頭: str, 名: str, key: str) -> str:
         中身 = (分解 or {}).get(key, "")
-        return (f"<div class='note-field'><label for='f-{key}'>{名}</label>"
+        return (f"<div class='note-field'><label for='f-{key}'>"
+                f"<span class='visit-soap-cap'>{頭}</span> — {名}</label>"
                 f"<p class='hint'>{説明[key]}</p>"
                 f"<textarea id='f-{key}' name='{key}' rows='6' required>{escape(中身)}</textarea></div>")
     署名者 = "".join(
@@ -178,8 +189,8 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
         f"<input type='hidden' name='what' value='sign_note'>"
         f"<input type='hidden' name='id' value='{escape(view.id)}'>"
         + (f"<input type='hidden' name='draft_id' value='{escape(draft.id)}'>" if draft else "")
-        + 欄("S — Subjective", "s") + 欄("O — Objective", "o")
-        + 欄("A — Assessment", "a") + 欄("P — Plan", "p")
+        + 欄("S", "Subjective", "s") + 欄("O", "Objective", "o")
+        + 欄("A", "Assessment", "a") + 欄("P", "Plan", "p")
         + "<div class='sign-bar'><span class='sign-bar__meta'>"
         f"{escape(pt.code)} · {escape(view.visit_date)} — a signed note is permanent"
         " and cannot be edited</span>"

@@ -85,8 +85,9 @@ def _請求札(v: ClaimView, month: str, today_month: str) -> str:
         for c in v.charges
     )
     表 = (
-        "<div class='wrap'><table>"
-        "<tr><th>Day</th><th>Code</th><th>Item</th><th>Qty</th><th>Points</th><th>Status</th></tr>"
+        "<div class='wrap'><table class='billing-charges'>"
+        "<tr><th>Day</th><th>Code</th><th>Item</th><th class='billing-th-r'>Qty</th>"
+        "<th class='billing-th-r'>Points</th><th>Status</th></tr>"
         + 行 + "</table></div>"
     )
     旗あり = any(c.status == "flagged" for c in v.charges)
@@ -125,12 +126,12 @@ def _会計(
         "<div class='page-head'><h1 class='page-title'>Billing</h1>"
         f"<span class='count-pill'><strong>{len(views)}</strong> claims</span>"
         f"<span class='page-head__aside{' billing-amber' if 旗数 else ''}'>"
-        f"{旗数} flagged lines</span>"
+        f"{旗数} flagged lines · <a href='/fees'>fee schedule →</a></span>"
         "</div>"
     )
     前, 次 = _隣月(month)
     月帯 = (
-        "<div class='day-bar'><span class='day-nav'>"
+        "<div class='day-bar billing-monthbar'><span class='day-nav'>"
         f"<a href='/billing?month={前}'>← {前}</a>"
         f" · <strong>{escape(month)}</strong> · "
         f"<a href='/billing?month={次}'>{次} →</a>"
@@ -141,7 +142,10 @@ def _会計(
         + (f"<div class='banner banner--success'>✓ {escape(done)}</div>" if done else "")
     )
     if not views:
-        本体 = "<p class='empty'>No charges this month yet — they derive from signed visits.</p>"
+        本体 = (
+            "<p class='empty'>Charges derive from signed visits"
+            " — none are signed yet this month.</p>"
+        )
     else:
         確定あり = any(v.status == "confirmed" for v in views)
         提出行 = (
@@ -156,6 +160,10 @@ def _会計(
         " on this page is invented; no real billing system is involved.</p>"
         # この頁だけの化粧 — 正本の style は触らない
         + "<style>"
+        # 金の列は右寄せ・等幅数字。刻みは 4px の格子(帳簿を目で走る密度)
+        ".billing-monthbar { font-variant-numeric: tabular-nums; }"
+        ".billing-charges td { padding: 8px 12px; }"
+        ".billing-charges td.num, .billing-th-r { text-align: right; }"
         ".billing-amber { color: color-mix(in srgb, var(--warn) 70%, CanvasText); font-weight: 600; }"
         ".billing-totals { font-size: 13.5px; }"
         ".billing-confirmed-by { margin: -2px 0 10px; }"
@@ -210,7 +218,9 @@ def _提出ファイル(views: tuple[ClaimView, ...], month: str) -> str:
         + 注
         + "<style>"
         ".billing-file { font-family: var(--mono); font-size: 12.5px; line-height: 1.7;"
-        " background: var(--faint); border: 1px solid var(--line); border-radius: 10px;"
+        " font-variant-numeric: tabular-nums;"
+        " background: var(--faint); border: 1px solid var(--line);"
+        " border-radius: var(--r-md);"
         " padding: 14px 18px; overflow-x: auto; margin: 0 0 14px; }"
         "</style>"
     )
@@ -255,8 +265,9 @@ def _請求書(view: ClaimView, month: str) -> str:
             f"<td class='num'>{小計:,}</td></tr>"
         )
     表 = (
-        "<div class='wrap'><table>"
-        "<tr><th>Day</th><th>Code</th><th>Item</th><th>Qty</th><th>Points</th></tr>"
+        "<div class='wrap'><table class='billing-lines'>"
+        "<tr><th>Day</th><th>Code</th><th>Item</th><th class='billing-th-r'>Qty</th>"
+        "<th class='billing-th-r'>Points</th></tr>"
         + "".join(行々) + "</table></div>"
         if 有効 else "<p class='sub'>No billable lines this month.</p>"
     )
@@ -277,15 +288,25 @@ def _請求書(view: ClaimView, month: str) -> str:
         + "<style>"
         ".billing-invoice { max-width: 760px; }"
         ".billing-clinic { font-size: 15px; font-weight: 650; margin: 2px 0 2px; }"
-        ".billing-cat td { font-size: 11.5px; font-weight: 650; letter-spacing: .07em;"
-        " text-transform: uppercase; color: var(--muted); background: var(--faint);"
-        " padding-top: 11px; }"
+        # 金の列は右寄せ・等幅数字。分類は塗りの帯でなく、罫線の小見出し
+        ".billing-lines td { padding: 8px 12px; }"
+        ".billing-lines td.num, .billing-th-r { text-align: right; }"
+        ".billing-cat td { padding: 18px 12px 4px; font-size: 11px; font-weight: 650;"
+        " letter-spacing: .09em; text-transform: uppercase; color: var(--muted);"
+        " border-bottom: 1px solid var(--line-strong); }"
+        "tr.billing-cat:hover { background: none; }"
         ".billing-subtotal td { font-weight: 600; border-bottom: 1px solid var(--line-strong); }"
         ".billing-subtotal td:first-child { text-align: right; color: var(--muted);"
         " font-weight: 500; }"
-        ".billing-sums { margin-top: 18px; max-width: 320px; }"
-        ".billing-due { font-size: 19px; margin: 16px 0 6px; }"
-        ".billing-due strong { font-size: 24px; }"
+        # 合計の塊は帳簿の作法で右下へ。総額は太い罫の上、記録の書体で
+        ".billing-sums { margin: 18px 0 0 auto; max-width: 320px; }"
+        ".billing-sums dd { text-align: right; font-variant-numeric: tabular-nums; }"
+        ".billing-due { display: flex; justify-content: space-between;"
+        " align-items: baseline; gap: 16px; max-width: 320px;"
+        " margin: 12px 0 6px auto; padding-top: 10px;"
+        " border-top: 1px solid var(--line-strong); font-size: 14px; }"
+        ".billing-due strong { font-family: var(--serif); font-size: 26px;"
+        " font-weight: 600; }"
         ".billing-fictional { margin-top: 26px; }"
         "@media print { .billing-back { display: none !important; } }"
         "</style>"

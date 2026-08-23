@@ -87,6 +87,23 @@ def 往復を読む(raw: str) -> tuple[tuple[str, str], ...]:
         return ()
 
 
+#: /guide の頁だけの体裁——問いは右の吹き出しのまま、答えは紙の上の静かな段に。
+#: 往復のあいだは帳簿の罫（1px の線）で切る。浮かぶ襟（ask-panel）はこの紙の外なので影響しない。
+_頁の体裁 = """
+<style>
+.guide .guide-turn {
+  margin: 0 0 10px; padding: 0 0 22px;
+  border-bottom: 1px solid var(--line);
+}
+.guide .guide-turn:last-of-type { border-bottom: 0; }
+.guide .guide-a {
+  max-width: 100%; padding: 4px 0 0;
+  border: 0; border-radius: 0;
+}
+</style>
+"""
+
+
 def _案内(
     question: str, answer: str, history: tuple[tuple[str, str], ...]
 ) -> str:
@@ -101,13 +118,18 @@ def _案内(
         ensure_ascii=False,
     )
     empty = (
-        "<p class='guide-hint'>Ask what needs you, why a job stalled, or where "
-        "to act — the guide reads the same pages you see and can only point, "
-        "never press. Try: <em>What needs me today?</em></p>"
+        "<p class='guide-hint'>The guide reads what this window already shows — "
+        "today's route, the inbox, agreements in force, jobs in flight — and "
+        "answers in text, linking only to those pages. It can point, never "
+        "press. Try: <em>What needs me today?</em></p>"
         if not turns else ""
     )
     return (
+        "<div class='page-head'><h1 class='page-title'>Guide</h1>"
+        "<span class='page-head__aside'>Nothing asked here is written to the ledger.</span>"
+        "</div>"
         "<section class='guide'>"
+        + _頁の体裁
         + empty
         + turns
         + "<form method='post' action='/guide' class='guide-form'>"

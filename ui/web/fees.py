@@ -43,10 +43,10 @@ _単位 = {
 def _点か円(r: FeeRow) -> str:
     """点数の行は「800 pts」、円建て（薬剤・材料）は換算待ちの円を見せる。"""
     if r.points is not None:
-        return f"<span class='num'><strong>{r.points}</strong> pts</span>"
+        return f"<span class='num'><strong>{r.points:,}</strong> pts</span>"
     return (
         f"<span class='num'>¥{escape(r.price_yen or '—')}</span>"
-        " <span class='fees-derive'>→ points at derivation</span>"
+        "<span class='fees-derive'>→ points at derivation</span>"
     )
 
 
@@ -97,20 +97,27 @@ def _点数表(rows: tuple[FeeRow, ...]) -> str:
     return (
         頭
         + 説明
-        + "<div class='wrap'><table>"
-        "<tr><th>Code</th><th>Item</th><th>Kind</th><th>Points / Price</th>"
-        "<th>Unit</th><th>Cap</th><th>Note</th></tr>"
+        + "<div class='wrap'><table class='fees-table'>"
+        "<tr><th>Code</th><th>Item</th><th>Kind</th>"
+        "<th class='fees-th-r'>Points / Price</th>"
+        "<th>Unit</th><th class='fees-th-r'>Cap</th><th>Note</th></tr>"
         + "".join(本体)
         + "</table></div>"
         # この頁だけの見た目 — 区切り行は静かな小見出し、換算注記は脇の声
         "<style>"
         ".fees-intro { font-size: 13.5px; color: var(--muted); max-width: 78ch;"
         " margin: 0 0 18px; }"
-        "tr.fees-group td { padding: 20px 12px 5px; font-size: 11px; font-weight: 650;"
+        # 値の列(点/円と上限)は右寄せ・等幅数字。刻みは 4px の格子
+        ".fees-table td { padding: 8px 12px; }"
+        ".fees-table td:nth-child(4), .fees-table td:nth-child(6),"
+        " .fees-th-r { text-align: right; }"
+        "tr.fees-group td { padding: 20px 12px 4px; font-size: 11px; font-weight: 650;"
         " letter-spacing: .09em; text-transform: uppercase; color: var(--muted);"
         " border-bottom: 1px solid var(--line-strong); }"
         "tr.fees-group:hover { background: none; }"
-        ".fees-derive { font-size: 12px; color: var(--muted); white-space: nowrap; }"
+        # 換算待ちの注記は円の真下に畳む——数字の柱を崩さない
+        ".fees-derive { display: block; font-size: 12px; color: var(--muted);"
+        " white-space: nowrap; }"
         ".fees-note { color: var(--muted); font-size: 13px; }"
         "</style>"
     )

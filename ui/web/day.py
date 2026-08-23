@@ -6,6 +6,25 @@ from urllib.parse import quote
 
 _色 = ("#2563eb", "#16a34a", "#d97706", "#dc2626", "#7c3aed")
 
+#: この頁だけの体裁——進み具合と帰路は灰の箱でなく、帳簿の罫線の1行で置く。
+_様式 = """<style>
+/* 進み具合 — 見出しと罫線の1行(箱にしない)。名前の色は地図の経路色と同じ */
+.day-progress { margin: 0 0 16px; border-top: 1px solid var(--line); }
+.day-progress__row {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 0; padding: 7px 2px; border-bottom: 1px solid var(--line);
+  font-size: 13.5px; font-variant-numeric: tabular-nums;
+}
+.day-progress__who { font-weight: 600; }
+.day-progress__next { margin-left: auto; color: var(--muted); }
+/* 帰路 — 点線の箱をやめ、列を締める1行 */
+.day-return {
+  display: flex; justify-content: space-between; gap: 12px;
+  margin: 2px 0 0; padding: 8px 2px 0; border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+</style>"""
+
 
 def _地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, float] | None) -> str:
     """簡易の地図 — 座標をそのまま平面に引き伸ばして描く。**外の地図は呼ばない。**"""
@@ -118,12 +137,13 @@ def _道順(
     頭 = (
         "<div class='page-head'><h1 class='page-title'>My Day</h1>"
         f"<span class='count-pill'><strong>{len(全地点)}</strong> stops</span>"
-        + (f"<span class='page-head__aside'>{署名済み数} signed · {下書き数} draft ready</span>"
+        + (f"<span class='page-head__aside num'>{署名済み数} signed · {下書き数} draft ready</span>"
            if 全地点 else "")
         + "</div>"
     )
     if not 道順ごと:
-        return バナー + 頭 + nav + "<p class='empty'>No visits scheduled this day.</p>"
+        return (バナー + 頭 + nav + "<p class='empty'>No visits scheduled — agreements"
+                " expand into this page every Monday.</p>")
 
     医師たち = sorted(道順ごと)
     絞り = {who: 道順ごと[who]} if who in 道順ごと else 道順ごと
@@ -158,11 +178,13 @@ def _道順(
             末 = 予定[-1]
             帰路 = _km(末.lat, 末.lng, base[0], base[1])
         帯 = (
-            f"<div class='progress-band'><strong>{escape(担当)}:</strong>"
-            f" {署名済} of {len(stops)} signed"
+            "<p class='day-progress__row'>"
+            f"<strong class='day-progress__who' style='color:{_色[i % len(_色)]}'>{escape(担当)}</strong>"
+            f"<span>{署名済} of {len(stops)} signed"
             + (f" · {中止} cancelled" if 中止 else "")
-            + (f" · next: {escape(次.patient)}" if 次 else " · round complete")
-            + "</div>"
+            + "</span><span class='day-progress__next'>"
+            + (f"next: {escape(次.patient)}" if 次 else "round complete")
+            + "</span></p>"
         )
         帯たち.append(帯)
         地点 = ([f"{base[0]},{base[1]}"] if base else []) + [
@@ -195,24 +217,26 @@ def _道順(
         節たち.append(
             f"<section class='clinician-day'><div class='clinician-day__head'>"
             f"<h3 id='{escape(担当)}' style='color:{_色[i % len(_色)]}'>{escape(担当)}</h3>"
-            f"<span class='clinician-day__stats'>{len(予定)} stops · "
+            f"<span class='clinician-day__stats num'>{len(予定)} stops · "
             f"{合計 + 帰路:.1f} km incl. return"
             + (f" · <a href='{escape(gmap)}'>open in Google Maps</a>" if gmap else "")
             + "</span></div>"
             + "<ol class='stop-list'>"
             + "".join(_card(st) for st in stops)
             + "</ol>"
-            + (f"<div class='stop-return'>⌂ Return to clinic · {帰路:.1f} km</div>" if base and 予定 else "")
+            + (f"<div class='day-return'><span>Return to clinic</span>"
+               f"<span>{帰路:.1f} km</span></div>" if base and 予定 else "")
             + "</section>"
         )
     # 2面 — 左：日送り・進み具合・地図・注記／右：絞り込みと回る先。バナーと頭は全幅で最上段
     return (
         バナー
         + 頭
+        + _様式
         + "<div class='day-grid'>"
         + "<div class='day-map'>"
         + nav
-        + "".join(帯たち)
+        + f"<div class='day-progress'>{''.join(帯たち)}</div>"
         + f"<div class='map-slot'>{地図}</div>"
         + but
         + "</div>"

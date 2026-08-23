@@ -20,19 +20,20 @@ def _頁(
 
     `notice` は開示のバナー——**合成の座長が動いているあいだは、動いていると言う**。
     """
-    def _tab(識別子: str) -> str:
-        現在 = " aria-current='page'" if 識別子 == 見出し else ""
-        return f"<a href='/{識別子}'{現在}>{escape(読める(識別子))}</a>"
+    def _tab(識別子: str, 行き先: str | None = None, 名: str | None = None) -> str:
+        # Ledger は出来事と仕事の2面を束ねる1枚——どちらの頁でも灯る
+        灯る = 見出し == 識別子 or (識別子 == "ledger" and 見出し in ("activity", "search"))
+        現在 = " aria-current='page'" if 灯る else ""
+        return (f"<a href='{行き先 or '/' + 識別子}'{現在}>"
+                f"{escape(名 or 読める(識別子))}</a>")
 
     tabs = (
         "<span class='nav__label'>Care</span>"
         + "".join(_tab(t) for t in ("day", "patients"))
         + "<span class='nav__sep' role='separator'></span>"
         + "<span class='nav__label'>Back office</span>"
-        + "".join(_tab(t) for t in ("inbox", "agreements", "billing", "fees", "automations", "activity", "search"))
-        + "<span class='nav__sep' role='separator'></span>"
-        + "<span class='nav__label'>Help</span>"
-        + "".join(_tab(t) for t in ("guide", "how"))
+        + "".join(_tab(t) for t in ("inbox", "agreements", "billing", "automations"))
+        + _tab("ledger", "/activity")
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     開示 = f"<div class='notice-bar'>{escape(notice)}</div>" if notice else ""
@@ -41,12 +42,17 @@ def _頁(
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<link rel='preconnect' href='https://fonts.googleapis.com'>"
+        "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
+        "<link href='https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap' rel='stylesheet'>"
         f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
         "<div class='app-shell'>"
         "<header class='app-header'>"
         "<a class='brand' href='/day'><span class='pulse-dot'></span>Troupe</a>"
         "<span class='brand-sub'>two pulses · every 60s</span>"
+        "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
+        "<a class='nav-quiet' href='/how'>How Troupe works</a>"
         f"<span class='whoami'>Signed in as: <strong>{escape(viewer)}</strong></span></header>"
         f"<div class='app-content'>{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
         f"</div>{襟}</body></html>"
