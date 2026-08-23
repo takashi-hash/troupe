@@ -4,6 +4,7 @@ from app.dto.patient_view import PatientView
 from app.dto.pattern_row import PatternRow
 from html import escape
 from ui.web.agreements import _取り決め数
+from ui.web.frame import _面切替
 from ui.web.agreements import _取り決め表
 from ui.web.agreements import _取り決めフォーム
 from ui.web.agreements import _患者の取り決めフォーム
@@ -22,31 +23,19 @@ _列組 = (
 )
 
 
-def _取り決め節(patterns: tuple[PatternRow, ...], added: str | None) -> str:
-    """一覧頁の下に足す罫の節 — 表が主役、右レールに結びフォーム。"""
-    有効, 終了 = _取り決め数(patterns)
+def _取り決め面(patterns: tuple[PatternRow, ...], added: str | None) -> str:
+    """Patients の第2面 — 表が主役、右レールに結びフォーム(縦に繋がず面で分ける)。"""
     return (
         "<section class='pl-agreements'>"
-        "<div class='pl-agr-head'><h2 class='pl-agr-title'>Agreements in force</h2>"
-        f"<span class='count-pill'><strong>{有効}</strong> in force</span>"
-        + (f"<span class='pl-agr-aside'>{終了} ended</span>" if 終了 else "")
-        + "</div>"
         + _追加バナー(added)
         + "<p class='sub'>An agreement is a fact about the patient — it lives here,"
         " and the pulse expands it into the calendar.</p>"
         "<div class='page-cols'><div class='page-main'>"
         + _取り決め表(patterns)
         + "</div><aside class='page-rail'>"
-        + _取り決めフォーム("/patients")
+        + _取り決めフォーム("/patients?view=agreements")
         + "</aside></div></section>"
         "<style>"
-        ".pl-agreements { border-top: 1px solid var(--line-strong);"
-        " margin-top: 32px; padding-top: 20px; }"
-        ".pl-agr-head { display: flex; align-items: baseline; gap: 12px;"
-        " flex-wrap: wrap; margin: 0 0 4px; }"
-        ".pl-agr-title { font-family: var(--serif); font-size: 17px;"
-        " font-weight: 600; margin: 0; }"
-        ".pl-agr-aside { margin-left: auto; font-size: 13.5px; color: var(--muted); }"
         ".pl-agreements .form-card { margin-top: 0; }"
         + _列組 +
         "</style>"
@@ -58,27 +47,35 @@ def _患者たち(
     today: str = "",
     patterns: tuple[PatternRow, ...] = (),
     added: str | None = None,
+    view: str = "patients",
 ) -> str:
-    """患者の一覧 — 診療録の写し。**よその語のまま並べる**（翻訳しない）。"""
+    """患者の一覧 — 診療録の写し。**2面**(Patients | Agreements)——患者が増えても破綻しない。"""
     # 期限切れの数は表の cell-danger と同じ条件で数える（正本は _期限）
     期限切れ = sum(
         1 for r in rows if r.order_expires and today and r.order_expires < today
     )
+    有効, 終了 = _取り決め数(patterns)
+    if view == "agreements":
+        札 = (f"<span class='count-pill'><strong>{有効}</strong> in force</span>"
+              + (f"<span class='page-head__aside'>{終了} ended</span>" if 終了 else ""))
+    else:
+        札 = (f"<span class='count-pill'><strong>{len(rows)}</strong> patients</span>"
+              + (f"<span class='page-head__aside'>{期限切れ} orders expired</span>"
+                 if 期限切れ else ""))
     頭 = (
-        "<div class='page-head'><h1 class='page-title'>Patients</h1>"
-        f"<span class='count-pill'><strong>{len(rows)}</strong> patients</span>"
-        + (
-            f"<span class='page-head__aside'>{期限切れ} orders expired</span>"
-            if 期限切れ else ""
-        )
-        + "</div>"
+        "<div class='page-head'><h1 class='page-title'>Patients</h1>" + 札 + "</div>"
+        + _面切替([
+            ("Patients", "/patients", view == "patients"),
+            ("Agreements", "/patients?view=agreements", view == "agreements"),
+        ])
     )
+    if view == "agreements":
+        return 頭 + _取り決め面(patterns, added)
     if not rows:
-        # 取り決めは一座の帳簿のもの — EMR の鏡が空でも節は出す
         return 頭 + (
             "<p class='empty'>The agency EMR is not wired (ICHIZA_EMR_DSN), "
             "or holds no patients.</p>"
-        ) + _取り決め節(patterns, added)
+        )
     def _期限(r: PatientRow) -> str:
         if not r.order_expires:
             return "<td class='cell-when'>—</td>"
@@ -105,7 +102,6 @@ def _患者たち(
         "<div class='wrap'><table id='patients-table'><tr><th>Code</th>"
         "<th class='patients-num'>Age</th><th>Diagnosis</th>"
         "<th>Living</th><th>Next visit</th><th>Order expires</th></tr>" + 行 + "</table></div>"
-        + _取り決め節(patterns, added)
         + "<script>(function () {"
         "var box = document.getElementById('patient-filter');"
         "box.closest('.patients-filter').hidden = false;"

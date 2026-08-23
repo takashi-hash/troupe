@@ -100,11 +100,14 @@ body {
 /* ---------- 1. shell — 原稿の骨格: 黒い上部バー + 横一列ナビ ----------
    .topbar  = 銘・クリニック名・拍の帯・席(右端)   — インクの帯
    .navbar  = 平らな1列(今すぐ→記録) + 右端に How/Ask — 紙の上の白い帯 */
-.topbar {
-  display: flex; align-items: center; gap: 16px;
-  padding: 10px clamp(16px, 3vw, 36px);
-  background: var(--ink); color: var(--ink-text);
+.topbar { background: var(--ink); color: var(--ink-text); }
+.topbar .bar-inner { padding-top: 10px; padding-bottom: 10px; }
+/* 幅の正本は1つ——topbar・navbar・本文が同じ内寸を共有する(端がそろう) */
+.bar-inner, main, .page {
+  width: 100%; max-width: 1560px; margin: 0 auto;
+  padding-left: clamp(16px, 3vw, 36px); padding-right: clamp(16px, 3vw, 36px);
 }
+.bar-inner { display: flex; align-items: center; gap: 16px; }
 .brand {
   display: flex; align-items: center; gap: 8px; flex: none;
   font-family: var(--serif);
@@ -159,11 +162,10 @@ body {
 .seat-form .btn:hover { background: rgba(255,255,255,.12); }
 
 .navbar {
-  display: flex; align-items: center; gap: 14px;
-  padding: 0 clamp(16px, 3vw, 36px);
   background: Canvas; border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 30;
 }
+.navbar .bar-inner { gap: 14px; }
 .nav {
   display: flex; align-items: center; gap: 4px;
   flex: 1 1 auto; min-width: 0;
@@ -206,7 +208,7 @@ body {
   border-bottom: 1px solid color-mix(in srgb, var(--warn) 26%, transparent);
 }
 
-main, .page { width: 100%; max-width: 1560px; margin: 0 auto; padding: 22px clamp(16px, 3vw, 36px) 56px; }
+main, .page { padding-top: 22px; padding-bottom: 56px; }
 .paper {
   background: Canvas; border-radius: var(--r-lg);
   padding: 26px 30px 34px; min-height: calc(100vh - 128px);
@@ -450,6 +452,7 @@ tbody tr:hover { background: var(--faint); }
 .day-nav { font-size: 14px; }
 .day-nav strong { font-weight: 650; }
 .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.filter-chips.faces { margin: 2px 0 20px; }
 .filter-chip {
   font-size: 13.5px; padding: 3.5px 14px; border-radius: 999px;
   border: 1px solid var(--line-strong); color: var(--muted); text-decoration: none;
@@ -761,10 +764,10 @@ tbody tr:hover { background: var(--faint); }
 
 /* ---------- 15. narrow — 上部バーは折り返し、ナビは横に送る(何も消えない) ---------- */
 @media (max-width: 900px) {
-  .topbar { flex-wrap: wrap; gap: 8px 12px; padding: 8px 14px; }
+  .topbar .bar-inner { flex-wrap: wrap; gap: 8px 12px; padding: 8px 14px; }
   .topbar__clinic { order: 5; flex: 1 1 100%; }
   .cadence, .topbar__beat { display: none; }   /* 飾りだけ畳む——機能は全部残る */
-  .navbar { gap: 8px; padding: 0 10px; }
+  .navbar .bar-inner { gap: 8px; padding: 0 10px; }
   .nav a { font-size: 13px; padding: 10px 9px 8px; }
   .nav-ask { padding: 4px 10px; font-size: 12px; }
   .nav-quiet { display: none; }                 /* How はナビ末尾の項目として残す(下) */

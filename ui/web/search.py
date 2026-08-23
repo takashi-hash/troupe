@@ -13,7 +13,7 @@ from html import escape
 
 from app.dto.row_filter import RowFilter
 from app.dto.search_row import SearchRow
-from ui.web.frame import _状態
+from ui.web.frame import _状態, _面切替
 from ui.words import STATE_GLOSS, 読める
 
 #: 表の小さな整えはこの頁だけのもの——枠の1枚（style.py）に足さず、頁が持って出る。
@@ -45,9 +45,7 @@ def _検索(rows: tuple[SearchRow, ...], filter: RowFilter) -> str:
         f"<span class='count-pill'><strong>{len(rows)}</strong> jobs found</span>"
         "<span class='page-head__aside'>finished and abandoned ones included"
         "</span></div>"
-        "<div class='filter-chips'>"
-        "<a class='filter-chip' href='/activity'>Events</a>"
-        "<span class='filter-chip is-on' aria-current='true'>Jobs</span></div>"
+        + _面切替([("Events", "/activity", False), ("Jobs", "/search", True)])
     )
     # 空の言葉は本当のことを——絞って空か、そもそもまだ仕事が無いかで言い分ける
     if rows:

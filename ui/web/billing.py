@@ -8,6 +8,8 @@ from __future__ import annotations
 from app.dto.charge_row import ChargeRow
 from app.dto.claim_view import ClaimView
 from html import escape
+
+from ui.web.frame import _面切替
 from urllib.parse import quote
 
 #: 請求書の分類 — コード接頭辞 → 見出し。順序が表示順。
@@ -32,16 +34,11 @@ def _隣月(month: str) -> tuple[str, str]:
 
 
 def _会計面(month: str, active: str) -> str:
-    """Billing の2面の切り替え札 — Claims と Fee schedule。routes が両面で使う。"""
-    def 札(label: str, href: str, on: bool) -> str:
-        当 = " is-on' aria-current='true" if on else ""
-        return f"<a class='filter-chip{当}' href='{href}'>{label}</a>"
-    return (
-        "<div class='filter-chips'>"
-        + 札("Claims", f"/billing?month={quote(month)}", active == "claims")
-        + 札("Fee schedule", f"/billing?month={quote(month)}&amp;view=fees", active == "fees")
-        + "</div>"
-    )
+    """会計の2面(請求|点数表)——切替は共通部品(頭の直下・同じ位置)。"""
+    return _面切替([
+        ("Claims", f"/billing?month={quote(month)}", active == "claims"),
+        ("Fee schedule", f"/billing?month={quote(month)}&view=fees", active == "fees"),
+    ])
 
 
 def _状態欄(c: ChargeRow, month: str, 座長の席: bool = True) -> str:

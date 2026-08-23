@@ -226,7 +226,7 @@ def make_app(
             )
         finally:
             手たち.close()
-        先 = back if back.startswith("/patient") else "/patients"
+        先 = back if back.startswith("/patient") else "/patients?view=agreements"
         つなぎ = "&" if "?" in 先 else "?"
         if 断り is None:
             戻り = (f"{先}{つなぎ}added=" + quote("Agreement added — visits will appear shortly")
@@ -300,7 +300,15 @@ def make_app(
                     pass
             views = h.billing(対象)
             if view == "fees":
-                return _会計面(対象, "fees") + _点数表(h.fees())
+                fees = h.fees()
+                return (
+                    "<div class='page-head'><h1 class='page-title'>Billing</h1>"
+                    f"<span class='count-pill'><strong>{len(fees)}</strong> items</span>"
+                    "<span class='page-head__aside'>Nagisa Schedule — every value"
+                    " invented</span></div>"
+                    + _会計面(対象, "fees")
+                    + _点数表(fees, 頭あり=False)
+                )
             if view == "file":
                 return _提出ファイル(views, 対象)
             if invoice:
@@ -393,11 +401,13 @@ def make_app(
     @app.get("/patients", response_class=HTMLResponse)
     def _患者たちの頁(
         refused: str | None = None, added: str | None = None,
+        view: str | None = None,
         troupe_seat: str | None = Cookie(default=None),
     ) -> HTMLResponse:
+        面 = "agreements" if view == "agreements" else "patients"
         return 見せる(
             "patients",
-            lambda h: _患者たち(h.patients(), h.today(), h.patterns(), added),
+            lambda h: _患者たち(h.patients(), h.today(), h.patterns(), added, 面),
             refused, troupe_seat,
         )
 

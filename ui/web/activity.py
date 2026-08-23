@@ -12,6 +12,7 @@ from __future__ import annotations
 from html import escape
 
 from app.dto.history_row import HistoryRow
+from ui.web.frame import _面切替
 from ui.words import ACTOR_GLOSS, 出来事, 読める
 
 #: 種別 → （チップの類・画面の名）。**種別は識別子で届く**——ここは見た目だけ。
@@ -68,9 +69,7 @@ def _履歴(
         f"<span class='count-pill'><strong>{total}</strong> events</span>"
         + (f"<span class='page-head__aside num'>showing {始}–{終}</span>" if rows else "")
         + "</div>"
-        "<div class='filter-chips'>"
-        "<span class='filter-chip is-on' aria-current='true'>Events</span>"
-        "<a class='filter-chip' href='/search'>Jobs</a></div>"
+        + _面切替([("Events", "/activity", True), ("Jobs", "/search", False)])
     )
     副題 = ("<p class='page-sub'>Every event ever appended to the ledger — who did "
             "what, newest first. Nothing here is ever overwritten or deleted.</p>")
