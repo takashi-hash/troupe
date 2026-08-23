@@ -51,19 +51,21 @@ class PostgresPatients:
             return ()  # 外の道具の例外は漏らさない——画面は空の状態を出す
         try:
             rows = conn.execute(
-                """
+                f"""
                 SELECT p.code, p.age, p.living_situation,
                        (SELECT c.dx FROM patient_conditions c
                          WHERE c.patient = p.code ORDER BY c.is_primary DESC, c.onset LIMIT 1),
                        (SELECT v.visit_date || ' (' || v.nurse || ')' FROM visits v
                          WHERE v.patient = p.code AND v.status = 'scheduled'
-                           AND v.visit_date >= " + TODAY + "
+                           AND v.visit_date >= {TODAY}
                          ORDER BY v.visit_date LIMIT 1),
                        (SELECT max(o.expires)::text FROM physician_orders o
                          WHERE o.patient = p.code)
                 FROM patients p ORDER BY p.code
                 """
             ).fetchall()
+        except Exception:
+            return ()  # 読めない診療録は「空」——脈も画面も死なない
         finally:
             conn.close()
         return tuple(
@@ -83,54 +85,60 @@ class PostgresPatients:
         except Exception:
             return None  # 繋がらないのは「居ない」と同じ扱い——画面は静かに空を出す
         try:
-            patient = conn.execute(
-                "SELECT age, living_situation FROM patients WHERE code = %s",
-                (code,),
-            ).fetchall()
-            if not patient:
-                return None
-            age, living = patient[0]
-            条件 = conn.execute(
-                "SELECT dx, is_primary FROM patient_conditions WHERE patient = %s"
-                " ORDER BY is_primary DESC, onset",
-                (code,),
-            ).fetchall()
-            dx = " / ".join(f"{d}{' (primary)' if 主 else ''}" for d, 主 in 条件) or "—"
-            visit = conn.execute(
-                "SELECT visit_date || ' (' || nurse || ') - ' || purpose FROM visits"
-                " WHERE patient = %s AND status = 'scheduled'"
-                " AND visit_date >= " + TODAY +
-                " ORDER BY visit_date LIMIT 1",
-                (code,),
-            ).fetchall()
-            order = conn.execute(
-                "SELECT order_type || ' from ' || practice || ', signed ' || signed"
-                " || ', expires ' || expires FROM physician_orders"
-                " WHERE patient = %s ORDER BY expires DESC LIMIT 1",
-                (code,),
-            ).fetchall()
-            meds = conn.execute(
-                "SELECT drug || ' ' || dose || ' ' || frequency FROM medications"
-                " WHERE patient = %s AND stopped IS NULL ORDER BY started",
-                (code,),
-            ).fetchall()
-            events = conn.execute(
-                "SELECT event_date || ': ' || description FROM condition_events"
-                " WHERE patient = %s ORDER BY event_date DESC",
-                (code,),
-            ).fetchall()
-            drafts = conn.execute(
-                "SELECT delivered_at::text, body, based_on_job FROM note_drafts"
-                " WHERE patient = %s ORDER BY delivered_at DESC",
-                (code,),
-            ).fetchall()
-            notes = conn.execute(
-                "SELECT note_date, nurse, s, o, a, p, signed_at::text FROM clinical_notes"
-                " WHERE patient = %s ORDER BY note_date DESC",
-                (code,),
-            ).fetchall()
+            return self._読む(conn, code)
+        except Exception:
+            return None  # 読みのどの失敗も同じ——外の道具の例外は漏らさない
         finally:
             conn.close()
+
+    def _読む(self, conn: Any, code: str) -> PatientView | None:
+        """1人分を全部引いて組む。呼び手が接続の開け閉めと例外の境界を持つ。"""
+        patient = conn.execute(
+            "SELECT age, living_situation FROM patients WHERE code = %s",
+            (code,),
+        ).fetchall()
+        if not patient:
+            return None
+        age, living = patient[0]
+        条件 = conn.execute(
+            "SELECT dx, is_primary FROM patient_conditions WHERE patient = %s"
+            " ORDER BY is_primary DESC, onset",
+            (code,),
+        ).fetchall()
+        dx = " / ".join(f"{d}{' (primary)' if 主 else ''}" for d, 主 in 条件) or "—"
+        visit = conn.execute(
+            "SELECT visit_date || ' (' || nurse || ') - ' || purpose FROM visits"
+            " WHERE patient = %s AND status = 'scheduled'"
+            " AND visit_date >= " + TODAY +
+            " ORDER BY visit_date LIMIT 1",
+            (code,),
+        ).fetchall()
+        order = conn.execute(
+            "SELECT order_type || ' from ' || practice || ', signed ' || signed"
+            " || ', expires ' || expires FROM physician_orders"
+            " WHERE patient = %s ORDER BY expires DESC LIMIT 1",
+            (code,),
+        ).fetchall()
+        meds = conn.execute(
+            "SELECT drug || ' ' || dose || ' ' || frequency FROM medications"
+            " WHERE patient = %s AND stopped IS NULL ORDER BY started",
+            (code,),
+        ).fetchall()
+        events = conn.execute(
+            "SELECT event_date || ': ' || description FROM condition_events"
+            " WHERE patient = %s ORDER BY event_date DESC",
+            (code,),
+        ).fetchall()
+        drafts = conn.execute(
+            "SELECT delivered_at::text, body, based_on_job FROM note_drafts"
+            " WHERE patient = %s ORDER BY delivered_at DESC",
+            (code,),
+        ).fetchall()
+        notes = conn.execute(
+            "SELECT note_date, nurse, s, o, a, p, signed_at::text FROM clinical_notes"
+            " WHERE patient = %s ORDER BY note_date DESC",
+            (code,),
+        ).fetchall()
         return PatientView(
             code=code, age=str(age), living=str(living), diagnosis=str(dx),
             next_visit=visit[0][0] if visit else None,
