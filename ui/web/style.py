@@ -97,27 +97,28 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-/* ---------- 1. shell — sidebar / nav / page ----------
-   骨組み:  .app-shell > .app-header（左の縦ナビ・幅216px固定）
-                       + .app-content（.notice-bar → main）
-   900px 未満は §15 で上のバーに畳む。 */
-.app-shell { display: flex; align-items: stretch; min-height: 100vh; }
-.app-header {
-  flex: none; width: 216px;
-  display: flex; flex-direction: column;
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
-  padding: 16px 12px 14px;
-  border-right: 1px solid var(--ink-line);
+/* ---------- 1. shell — 原稿の骨格: 黒い上部バー + 横一列ナビ ----------
+   .topbar  = 銘・クリニック名・拍の帯・席(右端)   — インクの帯
+   .navbar  = 平らな1列(今すぐ→記録) + 右端に How/Ask — 紙の上の白い帯 */
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px clamp(16px, 3vw, 36px);
   background: var(--ink); color: var(--ink-text);
 }
 .brand {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex: none;
   font-family: var(--serif);
-  font-size: 16.5px; font-weight: 600; letter-spacing: .01em;
+  font-size: 17px; font-weight: 600; letter-spacing: .01em;
   color: var(--ink-text); text-decoration: none;
-  padding: 2px 10px 10px; margin: 0;
 }
-/* 鼓動 — 60秒の脈の、画面でのただ1つの動き */
+.topbar__clinic {
+  flex: none; font-size: 12px; color: var(--ink-muted); white-space: nowrap;
+}
+.topbar .cadence { flex: 1 1 auto; margin: 0 8px; }
+.topbar__beat {
+  flex: none; font-family: var(--mono); font-size: 11px;
+  letter-spacing: .05em; color: var(--ink-muted); white-space: nowrap;
+}
 .pulse-dot {
   flex: none; width: 7px; height: 7px; border-radius: 50%;
   background: var(--beat);
@@ -129,14 +130,8 @@ body {
   70%  { box-shadow: 0 0 0 7px transparent; }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .pulse-dot, .cadence__fill, .chip--draft-ready, .chip--needs-approval,
-  .chip--needs-answer { animation: none; }
-  .ledger-events tr:nth-child(2) td { animation: none; }
-}
-/* 60秒の拍の帯 — 脈のリズムを見せる(瞬間の同期は装わない) */
 .cadence {
-  display: block; height: 2px; margin: 8px 10px 2px; border-radius: 1px;
+  display: block; height: 2px; border-radius: 1px;
   background: var(--ink-line); overflow: hidden;
 }
 .cadence__fill {
@@ -145,59 +140,14 @@ body {
   animation: cadence 60s linear infinite;
 }
 @keyframes cadence { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.brand-sub {
-  font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--ink-muted); padding: 0 10px 2px;
+.whoami { flex: none; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.whoami small {
+  color: var(--ink-muted); font-size: 10px;
+  letter-spacing: .06em; text-transform: uppercase;
 }
-.nav { display: flex; flex-direction: column; gap: 1px; }
-.nav__label {
-  display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--ink-muted);
-  margin: 18px 10px 4px; user-select: none;
-}
-.nav > .nav__label:first-child { margin-top: 8px; }
-/* 縦組では見出し前の余白が区切り。横組（§15）で線として復活 */
-.nav__sep { display: none; width: 1px; height: 16px; background: var(--ink-line); }
-.nav a {
-  display: block; text-decoration: none; color: var(--ink-muted);
-  font-size: 13.5px; padding: 5.5px 10px; border-radius: var(--r-sm);
-}
-.nav a:hover { color: var(--ink-text); background: rgba(255,255,255,.05); }
-.nav a[aria-current="page"], .nav a.is-active {
-  color: var(--ink-text); font-weight: 600;
-  background: rgba(255,255,255,.08);
-  box-shadow: inset 2px 0 0 0 var(--beat);
-}
-.nav-badge {
-  display: inline-block; min-width: 16px; margin-left: 7px; padding: 0 5px;
-  font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
-  border-radius: 999px; background: var(--warn); color: #fff;
-  font-variant-numeric: tabular-nums; vertical-align: 1px;
-}
-.nav-help { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--ink-line); }
-.nav-ask {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 13px; font-weight: 600; text-decoration: none;
-  color: var(--ink-text); padding: 6px 10px; border-radius: var(--r-sm);
-  border: 1px solid var(--ink-line); background: rgba(255,255,255,.04);
-  cursor: pointer;
-}
-.nav-ask:hover { background: rgba(255,255,255,.1); }
-.nav-ask .pulse-dot { width: 6px; height: 6px; }
-.nav-quiet {
-  display: block; padding: 8px 10px 0;
-  font-size: 11.5px; color: var(--ink-muted); text-decoration: none;
-}
-.nav-quiet:hover { color: var(--ink-text); text-decoration: underline; }
-.whoami {
-  padding: 12px 10px 2px; border-top: 1px solid var(--ink-line); margin-top: 10px;
-  font-size: 12px; color: var(--ink-muted); line-height: 1.5;
-}
-.whoami strong { color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
-.whoami small { color: var(--ink-muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
-.seat-form { display: flex; gap: 6px; margin: 8px 0 4px; }
+.seat-form { display: flex; gap: 6px; margin: 0; }
 .seat-form select {
-  flex: 1 1 auto; min-width: 0; font-size: 12px; padding: 3px 6px;
+  font-size: 12px; padding: 3px 6px; max-width: 200px;
   background: rgba(255,255,255,.06); color: var(--ink-text);
   border: 1px solid var(--ink-line); border-radius: var(--r-sm);
 }
@@ -207,18 +157,56 @@ body {
   border-color: var(--ink-line);
 }
 .seat-form .btn:hover { background: rgba(255,255,255,.12); }
-.seat-note { display: block; margin-top: 4px; line-height: 1.5; text-transform: none !important; letter-spacing: 0 !important; }
 
-.app-content { flex: 1 1 auto; min-width: 0; }
+.navbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 clamp(16px, 3vw, 36px);
+  background: Canvas; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 30;
+}
+.nav {
+  display: flex; align-items: center; gap: 4px;
+  flex: 1 1 auto; min-width: 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.nav a {
+  display: block; text-decoration: none; color: var(--muted);
+  font-size: 14px; font-weight: 550; padding: 11px 12px 9px;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.nav a:hover { color: CanvasText; }
+.nav a[aria-current="page"], .nav a.is-active {
+  color: CanvasText; font-weight: 650; border-bottom-color: CanvasText;
+}
+.nav-badge {
+  display: inline-block; min-width: 16px; margin-left: 7px; padding: 0 5px;
+  font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
+  border-radius: 999px; background: var(--warn); color: #fff;
+  font-variant-numeric: tabular-nums; vertical-align: 1px;
+}
+.nav-help { flex: none; display: flex; align-items: center; gap: 12px; }
+.nav-ask {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  color: var(--ink-text); padding: 5px 14px; border-radius: 999px;
+  background: var(--ink); border: 1px solid var(--ink-line); cursor: pointer;
+}
+.nav-ask:hover { background: #1a232d; }
+.nav-ask .pulse-dot { width: 6px; height: 6px; }
+.nav-quiet {
+  font-size: 12.5px; color: var(--muted); text-decoration: none; white-space: nowrap;
+}
+.nav-quiet:hover { color: CanvasText; text-decoration: underline; }
+
 /* 開示バー — 合成の座長が動いているあいだの、細い琥珀の帯 */
 .notice-bar {
-  font-size: 12.5px; line-height: 1.5; padding: 6px 36px;
+  font-size: 12.5px; line-height: 1.5; padding: 6px clamp(16px, 3vw, 36px);
   color: color-mix(in srgb, var(--warn) 72%, CanvasText);
   background: color-mix(in srgb, var(--warn) 8%, Canvas);
   border-bottom: 1px solid color-mix(in srgb, var(--warn) 26%, transparent);
 }
 
-main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 24px 32px 56px; }
+main, .page { width: 100%; max-width: 1560px; margin: 0 auto; padding: 22px clamp(16px, 3vw, 36px) 56px; }
 .paper {
   background: Canvas; border-radius: var(--r-lg);
   padding: 26px 30px 34px; min-height: calc(100vh - 128px);
@@ -771,46 +759,19 @@ tbody tr:hover { background: var(--faint); }
 }
 ::selection { background: color-mix(in srgb, var(--primary) 22%, Canvas); }
 
-/* ---------- 15. narrow — 900px 未満は上の小さなバー ---------- */
+/* ---------- 15. narrow — 上部バーは折り返し、ナビは横に送る(何も消えない) ---------- */
 @media (max-width: 900px) {
-  .app-shell { display: block; }
-  .app-header {
-    width: auto; height: auto; overflow: visible; z-index: 30;
-    flex-direction: row; align-items: center; gap: 10px;
-    flex-wrap: wrap;                    /* 1段目=銘・Ask・How・席 / 2段目=頁の列 */
-    padding: 8px 14px 0; border-right: 0; border-bottom: 1px solid var(--ink-line);
-  }
-  .brand { padding: 0; margin: 0; border-bottom: 0; font-size: 15px; }
-  .brand-sub, .cadence { display: none; }
-  .nav-help { margin: 0 0 0 auto; padding: 0; border: 0; display: flex; gap: 8px; align-items: center; }
-  .nav-ask { padding: 4px 9px; font-size: 12px; white-space: nowrap; }
-  .nav-quiet { padding: 0 4px; white-space: nowrap; }
-  .nav {
-    order: 9; flex: 1 1 100%; min-width: 0;   /* 2段目をまるごと使う——潰れない */
-    flex-direction: row; align-items: center; gap: 2px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-    padding: 6px 0 8px;
-  }
-  .nav__label { margin: 0 4px 0 8px; }
-  .nav > .nav__label:first-child { margin: 0 4px 0 0; }
-  .nav__sep { display: block; flex: none; margin: 0 6px; align-self: center; }
-  .nav a { white-space: nowrap; font-size: 13px; padding: 5px 9px; }
-  .nav a[aria-current="page"], .nav a.is-active {
-    background: none; box-shadow: inset 0 -2px 0 0 CanvasText; border-radius: 0;
-  }
-  .whoami {
-    display: flex; align-items: center; gap: 6px;
-    margin: 0; padding: 0 0 0 8px; border: 0; font-size: 11px;
-  }
-  .whoami strong, .whoami small, .seat-note { display: none; }
-  .seat-form { margin: 0; }
-  .notice-bar { padding: 6px 16px; }
-  main, .page { padding: 12px 10px 48px; }
+  .topbar { flex-wrap: wrap; gap: 8px 12px; padding: 8px 14px; }
+  .topbar__clinic { order: 5; flex: 1 1 100%; }
+  .cadence, .topbar__beat { display: none; }   /* 飾りだけ畳む——機能は全部残る */
+  .navbar { gap: 8px; padding: 0 10px; }
+  .nav a { font-size: 13px; padding: 10px 9px 8px; }
+  .nav-ask { padding: 4px 10px; font-size: 12px; }
+  .nav-quiet { display: none; }                 /* How はナビ末尾の項目として残す(下) */
+  .notice-bar { padding: 6px 14px; }
+  main, .page { padding: 14px 10px 48px; }
   .paper { padding: 18px 14px 28px; border-radius: var(--r-md); min-height: 0; }
-  .ask-launcher { right: 14px; bottom: 14px; }
-  .ask-panel {
-    right: 8px; left: 8px; bottom: 64px; width: auto; max-height: 76vh;
-  }
+  .ask-panel { right: 8px; left: 8px; bottom: 64px; width: auto; max-height: 76vh; }
 }
 
 /* ---------- 16. print — day sheet ---------- */

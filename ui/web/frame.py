@@ -40,11 +40,17 @@ def _頁(
         + _tab("billing", None, None, 旗札)
         + _tab("automations")
         + _tab("ledger", "/activity")
+        + _tab("how", None, "How Troupe works")
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     開示 = f"<div class='notice-bar'>{escape(notice)}</div>" if notice else ""
     # 案内の襟 — /guide の頁そのものには重ねない(あちらが正面玄関)
     襟 = _案内の襟() if 見出し != "guide" else ""
+    ask = ("<a id='ask-launcher' class='nav-ask' href='/guide'>"
+           "<span class='pulse-dot'></span>Ask the guide</a>"
+           if 見出し != "guide" else
+           "<a class='nav-ask' href='/guide' aria-current='page'>"
+           "<span class='pulse-dot'></span>Ask the guide</a>")
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -52,22 +58,19 @@ def _頁(
         "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
         "<link href='https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap' rel='stylesheet'>"
         f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
-        "<div class='app-shell'>"
-        "<header class='app-header'>"
+        # ---- 原稿の骨格: 上の黒いバー(銘・拍・席) + その下の横一列ナビ ----
+        "<header class='topbar'>"
         "<a class='brand' href='/day'><span class='pulse-dot'></span>Troupe</a>"
-        "<span class='brand-sub'>two pulses · every 60s</span>"
+        "<span class='topbar__clinic'>Riverbend Home Medical Clinic · synthetic data throughout</span>"
         "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
+        "<span class='topbar__beat'>two pulses · every 60s</span>"
+        f"{_席の札(viewer, 席たち)}"
+        "</header>"
+        "<div class='navbar'>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
-        "<div class='nav-help'>"
-        + ("<a id='ask-launcher' class='nav-ask' href='/guide'>"
-           "<span class='pulse-dot'></span>Ask the guide</a>"
-           if 見出し != "guide" else
-           "<a class='nav-ask' href='/guide' aria-current='page'>"
-           "<span class='pulse-dot'></span>Ask the guide</a>")
-        + "<a class='nav-quiet' href='/how'>How Troupe works</a></div>"
-        f"{_席の札(viewer, 席たち)}</header>"
-        f"<div class='app-content'>{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
-        f"</div>{襟}</body></html>"
+        f"<div class='nav-help'>{ask}</div></div>"
+        f"{開示}<main>{警告}<div class='paper'>{中身}</div></main>"
+        f"{襟}</body></html>"
     )
 
 
@@ -83,13 +86,12 @@ def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
         for s in 席たち
     )
     return (
-        "<span class='whoami'>Sitting as: "
-        f"<strong>{escape(席)}</strong> <small>{escape(役の名)}</small>"
+        "<span class='whoami' title='A seat is a name, not a login — powers come"
+        " from the register (see /how)'>"
         "<form class='seat-form' method='post' action='/seat'>"
-        f"<select name='seat' onchange='this.form.submit()'>{選び}</select>"
+        f"<select name='seat' onchange='this.form.submit()' aria-label='Seat'>{選び}</select>"
         "<button class='btn btn--small'>Switch</button></form>"
-        "<small class='seat-note'>A seat is a name, not a login — powers come"
-        " from the register.</small></span>"
+        f"<small>{escape(役の名)}</small></span>"
     )
 
 
