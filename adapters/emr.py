@@ -12,8 +12,13 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from app.dto.charge_row import ChargeRow
+from app.dto.claim_view import ClaimView
+from app.dto.fee_row import FeeRow
 from app.dto.patient_row import PatientRow
 from app.dto.patient_view import PatientDraft, PatientNote, PatientView
 from app.dto.pattern_row import PatternRow
@@ -522,6 +527,12 @@ class PostgresVisit:
         名簿 = conn.execute(
             "SELECT code FROM clinicians WHERE active ORDER BY code"
         ).fetchall()
+        行為 = conn.execute(
+            "SELECT vs.code, f.name, vs.qty FROM visit_services vs"
+            " JOIN fee_schedule f ON f.code = vs.code"
+            " WHERE vs.visit_id = %s::bigint ORDER BY vs.id",
+            (visit_id,),
+        ).fetchall()
         return VisitView(
             id=str(vid), visit_date=str(日), clinician=str(担当), purpose=str(目的),
             status=str(状態),
@@ -540,4 +551,497 @@ class PostgresVisit:
                 for at, cl, ss, oo, aa, pp, sg in notes
             ),
             clinicians=tuple(str(c[0]) for c in 名簿),
+            services=tuple((str(c), str(n), int(q)) for c, n, q in 行為),
         )
+
+
+# ========== 会計 — Nagisa Schedule(全部架空)。構造は本物を写し、数字は写さない ==========
+
+#: 訪問料の類——週の上限と同日排他の対象。
+_訪問料 = ("NV01", "NV02", "NO01")
+
+
+def _薬剤点(yen: Decimal) -> int:
+    """薬剤の円→点。**15円以下は1点、超えたら円/10を五捨五超入**(本物の型の写し)。
+
+    五捨五超入: 端数がちょうど 0.5 なら捨て、0.5 を少しでも超えたら上げる。
+    """
+    if yen <= Decimal("15"):
+        return 1
+    十分の一 = yen / Decimal("10")
+    底 = int(十分の一)
+    return 底 + (1 if 十分の一 - 底 > Decimal("0.5") else 0)
+
+
+def _材料点(yen: Decimal) -> int:
+    """材料の円→点。円/10 を四捨五入(薬剤と丸めかたが違うのも本物の写し)。"""
+    return int((yen / Decimal("10")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def _行の点(kind: str, points: int | None, yen: Decimal | None, qty: int) -> int:
+    if kind == "drug" and yen is not None:
+        return _薬剤点(yen) * qty
+    if kind == "material" and yen is not None:
+        return _材料点(yen) * qty
+    return int(points or 0) * qty
+
+
+def _週の頭(d: date) -> date:
+    """週の区切りは日曜はじまり(実務慣行の写し)。"""
+    return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
+class PostgresFees:
+    """点数表の読み — `FeeReader` の実装。読むだけ。"""
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_all(self) -> tuple[FeeRow, ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()
+        try:
+            rows = conn.execute(
+                "SELECT code, name, kind, points, price_yen::text, unit, weekly_cap, note"
+                " FROM fee_schedule ORDER BY code"
+            ).fetchall()
+            return tuple(
+                FeeRow(
+                    code=str(c), name=str(n), kind=str(k),
+                    points=int(pt) if pt is not None else None,
+                    price_yen=str(yen) if yen is not None else None,
+                    unit=str(u), weekly_cap=int(w) if w is not None else None,
+                    note=str(note),
+                )
+                for c, n, k, pt, yen, u, w, note in rows
+            )
+        except Exception:
+            return ()
+        finally:
+            conn.close()
+
+
+class EmrServices:
+    """行為の口 — `EmrServicePort` の実装。**人の操作だけが呼ぶ。**
+
+    署名前(status='scheduled')の訪問にだけ載る——署名で凍る。事実の門はひとつ。
+    同じ行為をもう一度載せたら数量の上書き(記帳のし直し)。
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def add(self, visit_id: str, code: str, qty: int, by: str) -> str | None:
+        if self._dsn is None:
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "Could not reach the EMR — try again in a moment"
+        try:
+            ok = conn.execute(
+                "SELECT status FROM visits WHERE id = %s::bigint", (visit_id,)
+            ).fetchall()
+            if not ok:
+                return "No such visit"
+            if str(ok[0][0]) != "scheduled":
+                return "The visit is already signed or cancelled — services are frozen"
+            conn.execute(
+                "INSERT INTO visit_services(visit_id, code, qty, recorded_by)"
+                " VALUES (%s::bigint, %s, %s, %s)"
+                " ON CONFLICT (visit_id, code)"
+                " DO UPDATE SET qty = EXCLUDED.qty, recorded_by = EXCLUDED.recorded_by",
+                (visit_id, code, qty, by),
+            )
+            return None
+        except Exception as なぜ:
+            if "ForeignKey" in type(なぜ).__name__:
+                return "That item is not on the fee schedule"
+            return "Could not record the service — the EMR refused"
+        finally:
+            conn.close()
+
+    def remove(self, visit_id: str, code: str) -> str | None:
+        if self._dsn is None:
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "Could not reach the EMR — try again in a moment"
+        try:
+            ok = conn.execute(
+                "SELECT status FROM visits WHERE id = %s::bigint", (visit_id,)
+            ).fetchall()
+            if not ok:
+                return "No such visit"
+            if str(ok[0][0]) != "scheduled":
+                return "The visit is already signed or cancelled — services are frozen"
+            cur = conn.execute(
+                "DELETE FROM visit_services WHERE visit_id = %s::bigint AND code = %s",
+                (visit_id, code),
+            )
+            return None if cur.rowcount else "That service is not on the visit"
+        except Exception:
+            return "Could not remove the service — the EMR refused"
+        finally:
+            conn.close()
+
+
+class EmrCharges:
+    """算定の導出 — `EmrChargePort` の実装。plan_visits の同型(展開は帳簿づけ)。
+
+    読むのは**署名済みの訪問だけ**。点数の計算・回数の数えは判断ではない——
+    上限に触れた行は**0点の旗**で置き、裁くのは人(`resolve_charge`)。
+    人が触れた行(旗・裁き済み)は二度と機械が書き換えない。確定済みの月にも触れない。
+    **このクラスに旗を裁く口も確定する口も無い。**
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def derive(self) -> tuple[str, ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()
+        try:
+            made: list[str] = []
+            master = {
+                str(c): (str(k), int(pt) if pt is not None else None,
+                         Decimal(str(yen)) if yen is not None else None,
+                         str(u), int(w) if w is not None else None)
+                for c, k, pt, yen, u, w in conn.execute(
+                    "SELECT code, kind, points, price_yen, unit, weekly_cap FROM fee_schedule"
+                ).fetchall()
+            }
+            months = [
+                str(m[0]) for m in conn.execute(
+                    "SELECT DISTINCT to_char(v.visit_date, 'YYYY-MM') FROM visits v"
+                    " JOIN clinical_notes n ON n.visit_id = v.id"
+                    f" WHERE v.status = 'done' AND v.visit_date > {TODAY} - 100"
+                ).fetchall()
+            ]
+            for month in sorted(months):
+                with conn.transaction():
+                    made += self._月を導く(conn, master, month)
+            return tuple(made)
+        except Exception:
+            return ()
+        finally:
+            conn.close()
+
+    def _月を導く(self, conn: Any, master: dict, month: str) -> list[str]:
+        made: list[str] = []
+        # 署名済みの訪問(確定済みの月の患者は除く)
+        rows = conn.execute(
+            "SELECT v.id, v.patient, v.visit_date, v.kind, p.building, p.severe"
+            " FROM visits v"
+            " JOIN clinical_notes n ON n.visit_id = v.id"
+            " JOIN patients p ON p.code = v.patient"
+            " WHERE v.status = 'done' AND to_char(v.visit_date, 'YYYY-MM') = %s"
+            "   AND NOT EXISTS (SELECT 1 FROM claims cl WHERE cl.patient = v.patient"
+            "                    AND cl.month = %s AND cl.status = 'confirmed')"
+            " ORDER BY v.patient, v.visit_date, v.id",
+            (month, month),
+        ).fetchall()
+        visits = [
+            (int(vid), str(pt), 日 if isinstance(日, date) else date.fromisoformat(str(日)),
+             str(kind), str(b) if b is not None else None, bool(sv))
+            for vid, pt, 日, kind, b, sv in rows
+        ]
+        # 同一建物×同日の患者数(署名済みの中で)
+        建物日 = {}
+        for _, pt, 日, kind, b, _ in visits:
+            if b and kind == "regular":
+                建物日.setdefault((b, 日), set()).add(pt)
+        # 同日の臨時(往診)を持つ患者×日
+        臨時の日 = {(pt, 日) for _, pt, 日, kind, _, _ in visits if kind == "urgent"}
+        # 週ごとの定期訪問料の数え(患者別・日付順)
+        週数: dict = {}
+        for vid, pt, 日, kind, b, sv in visits:
+            if kind == "urgent":
+                code = "NO01"
+                旗 = None
+            else:
+                code = "NV02" if (b and len(建物日.get((b, 日), ())) >= 2) else "NV01"
+                鍵 = (pt, _週の頭(日))
+                週数[鍵] = 週数.get(鍵, 0) + 1
+                cap = master[code][4] or 99
+                if 週数[鍵] > cap:
+                    旗 = (f"Weekly visit-fee cap ({cap}) reached — visit {週数[鍵]} of the"
+                          " week needs a ruling (exception with a reason, or drop)")
+                elif (pt, 日) in 臨時の日:
+                    旗 = ("An urgent call was charged the same day — the regular visit fee"
+                          " needs a ruling (keep both with a reason, or drop)")
+                else:
+                    旗 = None
+            点 = 0 if 旗 else _行の点(master[code][0], master[code][1], master[code][2], 1)
+            # 既に別の訪問料が導出済みで、まだ機械の行なら、置き直す(同一建物の後着など)
+            conn.execute(
+                "DELETE FROM charges WHERE visit_id = %s::bigint AND status = 'derived'"
+                " AND code = ANY(%s) AND code <> %s",
+                (vid, list(_訪問料), code),
+            )
+            cur = conn.execute(
+                "INSERT INTO charges(patient, month, day, visit_id, code, qty, points,"
+                " status, flag_reason)"
+                " VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s)"
+                " ON CONFLICT (visit_id, code) DO NOTHING RETURNING id",
+                (pt, month, 日, vid, code, 点,
+                 "flagged" if 旗 else "derived", 旗),
+            ).fetchall()
+            if cur:
+                made.append(f"{pt} {日} {code}")
+            # 行為の行
+            for scode, qty in conn.execute(
+                "SELECT code, qty FROM visit_services WHERE visit_id = %s::bigint",
+                (vid,),
+            ).fetchall():
+                scode, qty = str(scode), int(qty)
+                kind2, pt2, yen2, unit2, _ = master[scode]
+                旗2 = None
+                if unit2 == "per_month":
+                    dup = conn.execute(
+                        "SELECT 1 FROM charges WHERE patient = %s AND month = %s"
+                        " AND code = %s AND status <> 'dropped'"
+                        " AND (visit_id IS NULL OR visit_id <> %s::bigint)",
+                        (pt, month, scode, vid),
+                    ).fetchall()
+                    if dup:
+                        旗2 = "Already charged this month (once-a-month item) — needs a ruling"
+                elif unit2 == "per_quarter":
+                    dup = conn.execute(
+                        "SELECT 1 FROM charges WHERE patient = %s AND code = %s"
+                        " AND status <> 'dropped' AND month <> %s"
+                        " AND to_date(month || '-01', 'YYYY-MM-DD')"
+                        "     > to_date(%s || '-01', 'YYYY-MM-DD') - INTERVAL '3 months'",
+                        (pt, scode, month, month),
+                    ).fetchall()
+                    if dup:
+                        旗2 = "Charged within the last 3 months (quarterly item) — needs a ruling"
+                点2 = 0 if 旗2 else _行の点(kind2, pt2, yen2, qty)
+                cur = conn.execute(
+                    "INSERT INTO charges(patient, month, day, visit_id, code, qty, points,"
+                    " status, flag_reason)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                    " ON CONFLICT (visit_id, code) DO NOTHING RETURNING id",
+                    (pt, month, 日, vid, scode, qty, 点2,
+                     "flagged" if 旗2 else "derived", 旗2),
+                ).fetchall()
+                if cur:
+                    made.append(f"{pt} {日} {scode}")
+        # 月次の管理料(NC)——訪問料の数×重症×同一建物で区分。機械の行だけ置き直す
+        counts = dict(conn.execute(
+            "SELECT patient, COUNT(*) FROM charges"
+            " WHERE month = %s AND code = ANY(%s) AND status IN ('derived','allowed')"
+            " GROUP BY patient",
+            (month, list(_訪問料)),
+        ).fetchall())
+        建物人数 = dict(conn.execute(
+            "SELECT p.building, COUNT(DISTINCT c.patient) FROM charges c"
+            " JOIN patients p ON p.code = c.patient"
+            " WHERE c.month = %s AND p.building IS NOT NULL GROUP BY p.building",
+            (month,),
+        ).fetchall())
+        重症 = {str(c): bool(s) for c, s in conn.execute(
+            "SELECT code, severe FROM patients"
+        ).fetchall()}
+        建物 = {str(c): (str(b) if b is not None else None) for c, b in conn.execute(
+            "SELECT code, building FROM patients"
+        ).fetchall()}
+        for pt, n in counts.items():
+            pt, n = str(pt), int(n)
+            if 重症.get(pt) and n >= 2:
+                nc = "NC04"
+            elif n >= 2 and 建物.get(pt) and int(建物人数.get(建物[pt], 0)) >= 2:
+                nc = "NC02"
+            elif n >= 2:
+                nc = "NC01"
+            else:
+                nc = "NC03"
+            conn.execute(
+                "DELETE FROM charges WHERE patient = %s AND month = %s"
+                " AND visit_id IS NULL AND code LIKE 'NC%%'"
+                " AND status = 'derived' AND code <> %s",
+                (pt, month, nc),
+            )
+            nc種, nc点, nc円, _, _ = master[nc]
+            cur = conn.execute(
+                "INSERT INTO charges(patient, month, day, visit_id, code, qty, points, status)"
+                " SELECT %s, %s, (%s || '-01')::date, NULL, %s, 1, %s, 'derived'"
+                " WHERE NOT EXISTS (SELECT 1 FROM charges WHERE patient = %s"
+                "   AND month = %s AND visit_id IS NULL AND code = %s)"
+                " RETURNING id",
+                (pt, month, month, nc, _行の点(nc種, nc点, nc円, 1), pt, month, nc),
+            ).fetchall()
+            if cur:
+                made.append(f"{pt} {month} {nc}")
+        _請求を写す(conn, month)
+        return made
+
+
+def _請求を写す(conn: Any, month: str) -> None:
+    """月次請求の下書きを算定行から写す(確定済みは触らない——トリガも守る)。"""
+    conn.execute(
+        "INSERT INTO claims(patient, month, status, total_points, copay_rate, copay_yen)"
+        " SELECT c.patient, %s, 'draft', 0, p.copay_rate, 0"
+        " FROM charges c JOIN patients p ON p.code = c.patient"
+        " WHERE c.month = %s GROUP BY c.patient, p.copay_rate"
+        " ON CONFLICT (patient, month) DO NOTHING",
+        (month, month),
+    )
+    conn.execute(
+        "UPDATE claims cl SET"
+        " total_points = t.total,"
+        " copay_yen = ((t.total * cl.copay_rate + 5) / 10) * 10"
+        " FROM (SELECT patient, COALESCE(SUM(points), 0) AS total FROM charges"
+        "       WHERE month = %s AND status IN ('derived','allowed')"
+        "       GROUP BY patient) t"
+        " WHERE cl.patient = t.patient AND cl.month = %s AND cl.status = 'draft'",
+        (month, month),
+    )
+
+
+class EmrClaims:
+    """旗の裁きと確定 — `EmrClaimPort` の実装。**人の操作だけが呼ぶ。**
+
+    通す(allow)は点数を点数表から蘇らせ、理由は摘要の写しとして行に残る。
+    確定は月が終わってから・旗が残っていれば断り。確定後の錠は DB のトリガ。
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def resolve(self, charge_id: str, action: str, reason: str, by: str) -> str | None:
+        if self._dsn is None:
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "Could not reach the EMR — try again in a moment"
+        try:
+            with conn.transaction():
+                row = conn.execute(
+                    "SELECT c.code, c.qty, c.patient, c.month, f.kind, f.points, f.price_yen"
+                    " FROM charges c JOIN fee_schedule f ON f.code = c.code"
+                    " WHERE c.id = %s::bigint AND c.status = 'flagged'",
+                    (charge_id,),
+                ).fetchall()
+                if not row:
+                    return "That line is not waiting for a ruling"
+                code, qty, patient, month, kind, pts, yen = row[0]
+                点 = (_行の点(str(kind), int(pts) if pts is not None else None,
+                             Decimal(str(yen)) if yen is not None else None, int(qty))
+                      if action == "allow" else 0)
+                conn.execute(
+                    "UPDATE charges SET status = %s, points = %s,"
+                    " resolve_reason = %s, resolved_by = %s"
+                    " WHERE id = %s::bigint AND status = 'flagged'",
+                    ("allowed" if action == "allow" else "dropped",
+                     点, reason or None, by, charge_id),
+                )
+                _請求を写す(conn, str(month))
+            return None
+        except Exception:
+            return "Could not rule on the line — the month may already be confirmed"
+        finally:
+            conn.close()
+
+    def confirm(self, patient: str, month: str, by: str) -> str | None:
+        if self._dsn is None:
+            return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "Could not reach the EMR — try again in a moment"
+        try:
+            with conn.transaction():
+                今月 = str(conn.execute(
+                    f"SELECT to_char({TODAY}, 'YYYY-MM')"
+                ).fetchall()[0][0])
+                if month >= 今月:
+                    return "The month is not over yet — a claim is confirmed after month end"
+                旗 = conn.execute(
+                    "SELECT COUNT(*) FROM charges WHERE patient = %s AND month = %s"
+                    " AND status = 'flagged'",
+                    (patient, month),
+                ).fetchall()
+                if int(旗[0][0]):
+                    return f"{int(旗[0][0])} flagged line(s) still need a ruling first"
+                _請求を写す(conn, month)
+                cur = conn.execute(
+                    "UPDATE claims SET status = 'confirmed', confirmed_by = %s,"
+                    " confirmed_at = now()"
+                    " WHERE patient = %s AND month = %s AND status = 'draft'",
+                    (by, patient, month),
+                )
+                if not cur.rowcount:
+                    return "No draft claim for that patient and month (already confirmed?)"
+            return None
+        except Exception:
+            return "Could not confirm — the EMR refused"
+        finally:
+            conn.close()
+
+
+class PostgresBilling:
+    """会計の読み — `BillingReader` の実装。読むだけ・文字とIDのまま。"""
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_month(self, month: str) -> tuple[ClaimView, ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()
+        try:
+            claims = conn.execute(
+                "SELECT patient, status, total_points, copay_rate, copay_yen,"
+                " confirmed_by, (confirmed_at AT TIME ZONE 'Asia/Tokyo')::text"
+                " FROM claims WHERE month = %s ORDER BY patient",
+                (month,),
+            ).fetchall()
+            lines = conn.execute(
+                "SELECT c.id, c.patient, c.day::text, c.code, f.name, c.qty, c.points,"
+                " c.status, c.flag_reason, c.resolve_reason, c.visit_id"
+                " FROM charges c JOIN fee_schedule f ON f.code = c.code"
+                " WHERE c.month = %s ORDER BY c.patient, c.day, c.id",
+                (month,),
+            ).fetchall()
+            行 = {}
+            for cid, pt, day, code, name, qty, points, st, fr, rr, vid in lines:
+                行.setdefault(str(pt), []).append(ChargeRow(
+                    id=str(cid), patient=str(pt), day=str(day), code=str(code),
+                    name=str(name), qty=int(qty), points=int(points), status=str(st),
+                    flag_reason=str(fr) if fr is not None else None,
+                    resolve_reason=str(rr) if rr is not None else None,
+                    visit_id=str(vid) if vid is not None else None,
+                ))
+            return tuple(
+                ClaimView(
+                    patient=str(pt), month=month, status=str(st),
+                    total_points=int(total), copay_rate=int(rate), copay_yen=int(copay),
+                    confirmed_by=str(cb) if cb is not None else None,
+                    confirmed_at=str(ca)[:16] if ca is not None else None,
+                    charges=tuple(行.get(str(pt), ())),
+                )
+                for pt, st, total, rate, copay, cb, ca in claims
+            )
+        except Exception:
+            return ()
+        finally:
+            conn.close()

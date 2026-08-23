@@ -68,6 +68,7 @@ class EmrSource:
     - `db:visit-schedule`     … 訪問予定（指示書の期限と状態変化を添えて）
     - `db:physician-orders`   … 指示書の台帳
     - `db:care-plans`         … 記録の鮮度と状態変化の一覧
+    - `db:billing`            … 今月の会計抽出（算定・旗・未署名の実施済み・請求の下書き）
 
     繋がっていなければ「読めなかった理由」に倒す——**読めなければ `fail` へ**の材料。
     帳簿と同じ器（Cloud SQL）に住むが、**帳簿とは別の入れ物**——
@@ -110,6 +111,8 @@ class EmrSource:
                 return _orders(conn)
             if 道 == "care-plans":
                 return _care_plans(conn)
+            if 道 == "billing":
+                return _billing(conn)
             return None
         finally:
             conn.close()  # type: ignore[attr-defined]
@@ -279,3 +282,76 @@ class Sources:
         if source.location.startswith(EMR_PREFIX):
             return self._emr.read(source)
         return self._file.read(source)
+
+
+def _billing(conn: object) -> str | None:
+    """会計抽出 — 今月の算定・旗・未署名の実施済み・請求の下書きを1枚の文へ。
+
+    **読むだけ**。点数の計算は導出（機械）が済ませている——ここは AI が検算し、
+    取りこぼしと旗を人に説明するための写し。週次と月次の両方の受け入れ基準が
+    通るよう、月とISO週の両方の名札を持つ。**全部架空**（Nagisa Schedule）。
+    """
+    head = _rows(conn, """
+        SELECT to_char((now() AT TIME ZONE 'Asia/Tokyo')::date, 'YYYY-MM'),
+               to_char((now() AT TIME ZONE 'Asia/Tokyo')::date, 'IYYY-"W"IW')
+    """)
+    month, week = str(head[0][0]), str(head[0][1])
+    lines = [
+        "# Billing extract - Riverbend Home Medical Clinic (fictional)",
+        "# Nagisa Schedule: every code, point value and payer here is INVENTED.",
+        f"Month: {month}",
+        f"ISO week: {week}",
+        "",
+        "## Claims (draft) this month",
+    ]
+    for pt, st, total, rate, copay in _rows(conn, """
+        SELECT patient, status, total_points, copay_rate, copay_yen
+        FROM claims WHERE month = %s ORDER BY patient""", (month,)):
+        lines.append(f"- {pt}: {st}, {total} points, copay {copay} yen at {rate}0%")
+    lines.append("")
+    lines.append("## Flagged lines needing a human ruling")
+    旗 = _rows(conn, """
+        SELECT c.patient, c.day::text, c.code, f.name, c.flag_reason
+        FROM charges c JOIN fee_schedule f ON f.code = c.code
+        WHERE c.month = %s AND c.status = 'flagged' ORDER BY c.patient, c.day""", (month,))
+    if 旗:
+        for pt, day, code, name, reason in 旗:
+            lines.append(f"- {pt} {day} {code} ({name}): {reason}")
+    else:
+        lines.append("- none")
+    lines.append("")
+    lines.append("## Completed visits with NO signed note (nothing derives until signed)")
+    未署名 = _rows(conn, """
+        SELECT v.patient, v.visit_date::text, v.clinician
+        FROM visits v
+        WHERE v.status = 'done' AND to_char(v.visit_date, 'YYYY-MM') = %s
+          AND NOT EXISTS (SELECT 1 FROM clinical_notes n WHERE n.visit_id = v.id)
+        ORDER BY v.visit_date, v.patient""", (month,))
+    if 未署名:
+        for pt, day, cl in 未署名:
+            lines.append(f"- {pt} {day} ({cl}): done, unsigned - unbilled revenue at risk")
+    else:
+        lines.append("- none")
+    lines.append("")
+    lines.append("## Visits under an expired physician order this month (billing risk)")
+    期限切れ = _rows(conn, """
+        SELECT DISTINCT v.patient, v.visit_date::text
+        FROM visits v JOIN physician_orders o ON o.patient = v.patient
+        WHERE v.status = 'done' AND to_char(v.visit_date, 'YYYY-MM') = %s
+          AND v.visit_date > o.expires
+          AND NOT EXISTS (SELECT 1 FROM physician_orders o2
+                          WHERE o2.patient = v.patient AND o2.expires >= v.visit_date)
+        ORDER BY v.patient, v.visit_date::text""", (month,))
+    if 期限切れ:
+        for pt, day in 期限切れ:
+            lines.append(f"- {pt} {day}: visited after every order expired")
+    else:
+        lines.append("- none")
+    lines.append("")
+    lines.append("## Same-building groups this month")
+    for b, n in _rows(conn, """
+        SELECT p.building, COUNT(DISTINCT c.patient) FROM charges c
+        JOIN patients p ON p.code = c.patient
+        WHERE c.month = %s AND p.building IS NOT NULL GROUP BY p.building""", (month,)):
+        lines.append(f"- {b}: {n} managed patients (shared-building tier applies at 2+)")
+    return "\n".join(lines)

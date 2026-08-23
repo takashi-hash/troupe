@@ -1,0 +1,15 @@
+{
+  "instruction": "Read the billing extract in the source. It is entirely fictional (Nagisa Schedule). Draft the month-end claim review for the reporting period named in the acceptance criteria: for each patient claim in the extract, restate the total points and copay, and check the monthly management tier against the visit counts and same-building groups in the extract - say plainly whether the tier looks right and why. Then list what still blocks closing the month: flagged lines without a ruling, and completed visits without a signed note. Close with the order of operations for the director: rule on flags, chase signatures, then confirm each claim on the Billing page. A claim is confirmed by a human after month end - never by you. Quote the extract lines you rely on.",
+  "source": "db:billing",
+  "required_terms": [
+    "{対象期間}",
+    "claim"
+  ],
+  "description": "Every claim in the extract is restated with its total and copay. The tier check refers only to counts and groups present in the extract. The blockers list matches the extract's flagged and unsigned sections.",
+  "cycle": "monthly",
+  "days": 5,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 4
+}

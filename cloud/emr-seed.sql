@@ -1,5 +1,13 @@
--- EMR (electronic medical record) - Riverbend Home Medical Clinic (fictional)  -- schema v5
+-- EMR (electronic medical record) - Riverbend Home Medical Clinic (fictional)  -- schema v6
 -- NOTE: Entirely synthetic. No real patient, clinician, practice or visit exists here.
+--
+-- v6: fictional billing (Nagisa Schedule). fee_schedule master / visit_services
+-- (entered before signing, frozen by it) / charges (derived by the pulse from
+-- SIGNED visits only; over-cap lines are 0-point FLAGS for a human ruling) /
+-- claims (one per patient-month; confirmed claims and their charges are locked
+-- by a trigger). July is imported pre-Troupe as confirmed legacy. Every code,
+-- point value and payer is INVENTED - the structure mirrors reality, the
+-- numbers do not.
 --
 -- v5: clinicians master (FK from patterns/visits/notes) / signing closes the loop
 -- (signed note INSERT + visit done + draft used, one transaction; enforced by
@@ -11,10 +19,12 @@
 -- note_drafts is the draft inbox: Troupe deposits approved drafts here, a doctor
 -- rewrites and signs elsewhere. Troupe has no path that writes a signed note.
 
-DROP TABLE IF EXISTS note_drafts, clinical_notes, visit_notes, condition_events,
+DROP TABLE IF EXISTS charges, claims, visit_services, fee_schedule,
+  note_drafts, clinical_notes, visit_notes, condition_events,
   visits, visit_patterns, physician_orders, medications, patient_conditions,
   patients, clinicians, clinic CASCADE;
 DROP FUNCTION IF EXISTS clinical_notes_immutable() CASCADE;
+DROP FUNCTION IF EXISTS billing_locked() CASCADE;
 
 -- ========== master ==========
 
@@ -39,7 +49,11 @@ CREATE TABLE patients(
   -- has real geography while pointing at nobody's actual home.
   address TEXT NOT NULL,
   lat DOUBLE PRECISION NOT NULL,
-  lng DOUBLE PRECISION NOT NULL
+  lng DOUBLE PRECISION NOT NULL,
+  -- billing (all fictional): copay 10/20/30%, same-building grouping, severe flag
+  copay_rate INTEGER NOT NULL DEFAULT 3 CHECK (copay_rate IN (1,2,3)),
+  building TEXT,                       -- null = own home; shared id = same building
+  severe BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE patient_conditions(
@@ -98,6 +112,8 @@ CREATE TABLE visits(
   status TEXT NOT NULL DEFAULT 'scheduled'
     CHECK (status IN ('scheduled','done','cancelled')),
   cancelled_reason TEXT,
+  -- regular = planned care (visit fee, weekly cap applies) / urgent = on-call
+  kind TEXT NOT NULL DEFAULT 'regular' CHECK (kind IN ('regular','urgent')),
   UNIQUE (pattern_id, visit_date)                             -- 取り決め×日付は一度だけ
 );
 
@@ -127,6 +143,63 @@ CREATE INDEX idx_visits_patient ON visits(patient, visit_date DESC);
 CREATE INDEX idx_notes_patient ON clinical_notes(patient, note_date DESC);
 CREATE INDEX idx_drafts_patient ON note_drafts(patient) WHERE used_at IS NULL;
 
+-- ========== billing (Nagisa Schedule - entirely fictional) ==========
+
+CREATE TABLE fee_schedule(
+  code TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('visit','oncall','act','drug','material','addon','monthly')),
+  points INTEGER,                      -- direct points (visit/oncall/act/addon/monthly)
+  price_yen NUMERIC(10,2),             -- drugs & materials are priced in yen, converted at derivation
+  unit TEXT NOT NULL CHECK (unit IN ('per_event','per_day','per_week','per_month','per_quarter')),
+  weekly_cap INTEGER,
+  note TEXT NOT NULL DEFAULT '',
+  CHECK ((points IS NULL) <> (price_yen IS NULL))
+);
+
+CREATE TABLE visit_services(            -- what was done at the bedside. Human-entered, frozen by signing.
+  id BIGSERIAL PRIMARY KEY,
+  visit_id BIGINT NOT NULL REFERENCES visits(id),
+  code TEXT NOT NULL REFERENCES fee_schedule(code),
+  qty INTEGER NOT NULL CHECK (qty >= 1),
+  recorded_by TEXT NOT NULL,
+  UNIQUE (visit_id, code)
+);
+
+CREATE TABLE claims(                    -- one per patient-month. confirmed = fact, locked.
+  id BIGSERIAL PRIMARY KEY,
+  patient TEXT NOT NULL REFERENCES patients(code),
+  month TEXT NOT NULL,                  -- 'YYYY-MM'
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','confirmed')),
+  total_points INTEGER NOT NULL DEFAULT 0,
+  copay_rate INTEGER NOT NULL,
+  copay_yen INTEGER NOT NULL DEFAULT 0,
+  confirmed_by TEXT,
+  confirmed_at TIMESTAMPTZ,
+  CHECK ((status = 'confirmed') = (confirmed_by IS NOT NULL)),
+  UNIQUE (patient, month)
+);
+
+CREATE TABLE charges(                   -- derived lines. flagged = 0 points, waiting for a human ruling.
+  id BIGSERIAL PRIMARY KEY,
+  patient TEXT NOT NULL REFERENCES patients(code),
+  month TEXT NOT NULL,
+  day DATE NOT NULL,
+  visit_id BIGINT REFERENCES visits(id),
+  code TEXT NOT NULL REFERENCES fee_schedule(code),
+  qty INTEGER NOT NULL DEFAULT 1,
+  points INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'derived'
+    CHECK (status IN ('derived','flagged','allowed','dropped')),
+  flag_reason TEXT,
+  resolve_reason TEXT,
+  resolved_by TEXT,
+  UNIQUE (visit_id, code)               -- derivation is idempotent per visit x item
+);
+CREATE UNIQUE INDEX idx_charges_monthly ON charges(patient, month, code)
+  WHERE visit_id IS NULL AND code LIKE 'NC%';
+CREATE INDEX idx_charges_month ON charges(month, patient);
+
 CREATE TABLE condition_events(
   patient TEXT NOT NULL REFERENCES patients(code),
   event_date DATE NOT NULL,
@@ -142,16 +215,16 @@ INSERT INTO clinic VALUES
  ('Riverbend Home Medical Clinic', 'near Sangenjaya Sta. (public landmark)', 35.6433, 139.6690);
 
 INSERT INTO patients VALUES
- ('P-001', 82, 'lives alone, daughter visits weekends', 'Setagaya City Hall (public landmark stand-in)', 35.6432, 139.6532),
- ('P-002', 74, 'lives with spouse', 'Komazawa Olympic Park (public landmark stand-in)', 35.6265, 139.6620),
- ('P-003', 76, 'lives with spouse', 'Shoin Shrine (public landmark stand-in)', 35.6444, 139.6567),
- ('P-004', 88, 'assisted living apartment', 'Gotokuji Temple (public landmark stand-in)', 35.6488, 139.6470),
- ('P-005', 68, 'lives with son''s family', 'Setagaya Park (public landmark stand-in)', 35.6398, 139.6720),
- ('P-006', 79, 'lives alone, neighbour checks in', 'Shimokitazawa Sta. (public landmark stand-in)', 35.6613, 139.6667),
- ('P-007', 84, 'lives with spouse', 'Meidaimae Sta. (public landmark stand-in)', 35.6685, 139.6371),
- ('P-008', 71, 'lives alone', 'Futako-Tamagawa Sta. (public landmark stand-in)', 35.6117, 139.6265),
- ('P-009', 90, 'lives with daughter', 'Kinuta Park (public landmark stand-in)', 35.6270, 139.6205),
- ('P-010', 66, 'lives with spouse', 'Soshigaya-Okura Sta. (public landmark stand-in)', 35.6417, 139.6089);
+ ('P-001', 82, 'lives alone, daughter visits weekends', 'Setagaya City Hall (public landmark stand-in)', 35.6432, 139.6532, 1, NULL, false),
+ ('P-002', 74, 'lives with spouse', 'Komazawa Olympic Park (public landmark stand-in)', 35.6265, 139.6620, 2, NULL, false),
+ ('P-003', 76, 'lives with spouse', 'Shoin Shrine (public landmark stand-in)', 35.6444, 139.6567, 1, NULL, false),
+ ('P-004', 88, 'Nagisa Court (fictional care facility), room 101', 'Gotokuji Temple (public landmark stand-in)', 35.6488, 139.6470, 1, 'nagisa-court', false),
+ ('P-005', 68, 'lives with son''s family', 'Setagaya Park (public landmark stand-in)', 35.6398, 139.6720, 3, NULL, false),
+ ('P-006', 79, 'lives alone, neighbour checks in', 'Shimokitazawa Sta. (public landmark stand-in)', 35.6613, 139.6667, 1, NULL, false),
+ ('P-007', 84, 'lives with spouse', 'Meidaimae Sta. (public landmark stand-in)', 35.6685, 139.6371, 1, NULL, false),
+ ('P-008', 71, 'lives alone', 'Futako-Tamagawa Sta. (public landmark stand-in)', 35.6117, 139.6265, 2, NULL, false),
+ ('P-009', 90, 'Nagisa Court (fictional care facility), room 203', 'Gotokuji Temple (public landmark stand-in)', 35.6488, 139.6470, 1, 'nagisa-court', false),
+ ('P-010', 66, 'lives with spouse', 'Soshigaya-Okura Sta. (public landmark stand-in)', 35.6417, 139.6089, 3, NULL, true);
 
 INSERT INTO patient_conditions VALUES
  ('P-001','congestive heart failure, NYHA II', true,  '2023-11-01'),
@@ -234,6 +307,18 @@ WHERE EXTRACT(dow FROM d) = p.weekday
 INSERT INTO visits(pattern_id, visit_date, patient, clinician, purpose, status)
 VALUES (NULL, '2026-08-18', 'P-010', 'Dr-A', 'palliative intake', 'done');
 
+-- P-001 acute week: three EXTRA planned visits after a decompensation (08-19..21).
+-- Four visit fees land in one week - the fourth is exactly what the weekly cap flags.
+INSERT INTO visits(pattern_id, visit_date, patient, clinician, purpose, status, kind) VALUES
+ (NULL, '2026-08-19', 'P-001', 'Dr-A', 'acute CHF follow-up', 'done', 'regular'),
+ (NULL, '2026-08-20', 'P-001', 'Dr-A', 'acute CHF follow-up', 'done', 'regular'),
+ (NULL, '2026-08-21', 'P-001', 'Dr-A', 'acute CHF follow-up', 'done', 'regular');
+
+-- P-007 urgent call on a scheduled-visit day (08-13 evening) - the same-day
+-- exclusivity between an urgent call and a regular visit fee needs a ruling.
+INSERT INTO visits(pattern_id, visit_date, patient, clinician, purpose, status, kind)
+VALUES (NULL, '2026-08-13', 'P-007', 'Dr-A', 'urgent call - palpitations', 'done', 'urgent');
+
 -- ========== seed: signed notes (history, oldest first per patient) ==========
 
 INSERT INTO clinical_notes(patient, note_date, clinician, s, o, a, p, signed_at) VALUES
@@ -302,6 +387,51 @@ INSERT INTO clinical_notes(patient, note_date, clinician, s, o, a, p, signed_at)
   'AF rate-controlled on increased metoprolol dose. Anticoagulation adherence good.',
   'Continue apixaban and metoprolol 50mg. Renewal of physician order is pending - flagged to office.',
   '2026-08-13 10:40+09'),
+ -- P-001 acute week (08-19..21): decompensation after the stable 08-17 note
+ ('P-001','2026-08-19','Dr-A',
+  'Daughter called: "ankles ballooned overnight, short of breath on the stairs." Ate salted fish gifts over the weekend.',
+  'BP 146/88, HR 84 reg, wt 63.0kg (+1.8 from 08-17), crackles both bases, +3 pitting edema to knees',
+  'Acute CHF decompensation on dietary sodium load.',
+  'Double furosemide for 3 days per standing protocol. Daily visits while decompensated. Strict fluid restriction.',
+  '2026-08-19 11:30+09'),
+ ('P-001','2026-08-20','Dr-A',
+  '"Passed a lot of water since yesterday. Breathing a bit easier lying down."',
+  'BP 140/84, HR 80 reg, wt 62.4kg (-0.6), crackles reduced, +2 edema to mid-shin',
+  'Responding to increased diuretic. Still congested.',
+  'Continue doubled dose. Recheck tomorrow. Daughter staying over this week.',
+  '2026-08-20 10:50+09'),
+ ('P-001','2026-08-21','Dr-A',
+  '"Much better. Slept flat for the first time this week."',
+  'BP 136/80, HR 76 reg, wt 61.8kg (-0.6), lungs nearly clear, +1 edema ankles',
+  'Decompensation resolving. Diuretic response good.',
+  'Taper back to usual dose from tomorrow. Return to weekly schedule. Sodium counselling with daughter done.',
+  '2026-08-21 11:05+09'),
+ -- P-004 & P-009 (Nagisa Court): two signed Mondays each - the same-building
+ -- pair and the 2-visit monthly tier both need signed facts to derive from
+ ('P-004','2026-08-10','Dr-C',
+  '"The right hand is slow but I can hold the rail now."',
+  'BP 128/76. Right grip weak, unchanged. Transfers with one-person assist, steadier than July.',
+  'Stroke sequelae stable. Rehab gains holding.',
+  'Continue facility rehab plan. Review clopidogrel adherence with staff.',
+  '2026-08-10 14:20+09'),
+ ('P-004','2026-08-17','Dr-C',
+  'Staff: "walked the corridor twice with the frame this week."',
+  'BP 126/74. Gait with frame, supervised, 20m without rest.',
+  'Functional trajectory improving. No new deficits.',
+  'Continue plan. Fall-precaution review with facility staff done.',
+  '2026-08-17 14:35+09'),
+ ('P-009','2026-08-10','Dr-A',
+  'Staff: "quiet week, eating well, naps often."',
+  'Calm, oriented to person only. Skin intact. Weight stable.',
+  'Advanced dementia, stable. No behavioural crises.',
+  'Continue routine. Family visit encouraged this weekend.',
+  '2026-08-10 15:05+09'),
+ ('P-009','2026-08-17','Dr-A',
+  'Staff: "restless at dusk two evenings, settled with routine."',
+  'Calm during visit. Hydration adequate. No pressure areas.',
+  'Sundowning episodes, mild - no medication change warranted.',
+  'Evening routine reinforced with staff. Melatonin timing reviewed. Comprehensive support this month.',
+  '2026-08-17 15:20+09'),
  -- P-010: palliative baseline
  ('P-010','2026-08-18','Dr-A',
   'Wife reports pain "mostly 3-4 out of 10, worse late afternoon." Appetite small but present.',
@@ -317,6 +447,82 @@ INSERT INTO condition_events VALUES
  ('P-010','2026-08-12','admitted to service - new palliative course'),
  ('P-005','2026-08-14','short-term skilled nursing order expired; successor order status unknown');
 
+-- ========== seed: Nagisa Schedule master (ALL FICTIONAL) ==========
+
+INSERT INTO fee_schedule(code, name, kind, points, price_yen, unit, weekly_cap, note) VALUES
+ ('NV01','Home visit — single home',            'visit',   800, NULL, 'per_day',   3, 'weekly cap 3; a 4th in the same week needs a human ruling'),
+ ('NV02','Home visit — same building',          'visit',   200, NULL, 'per_day',   3, 'applies when 2+ patients of one building are seen the same day'),
+ ('NO01','Urgent house call',                   'oncall',  650, NULL, 'per_event', NULL, 'exclusive with a regular visit fee on the same day'),
+ ('NC01','Monthly care management — 2+ visits', 'monthly', 4200, NULL,'per_month', NULL, 'auto tier by visit count'),
+ ('NC02','Monthly care management — 2+ visits, shared building','monthly',2600,NULL,'per_month',NULL,'2+ managed patients in one building'),
+ ('NC03','Monthly care management — 1 visit',   'monthly', 2100, NULL,'per_month', NULL, ''),
+ ('NC04','Monthly care management — severe, 2+ visits','monthly',5000,NULL,'per_month',NULL,'severe designation'),
+ ('NA02','Extended visit add-on (over 60 min)', 'addon',   100, NULL, 'per_day',   NULL, ''),
+ ('NA04','Comprehensive support add-on',        'addon',   130, NULL, 'per_month', NULL, 'once a month'),
+ ('NP01','IV drip infusion',                    'act',      50, NULL, 'per_day',   NULL, ''),
+ ('NP02','Subcutaneous injection',              'act',      22, NULL, 'per_event', NULL, ''),
+ ('NP03','Blood draw',                          'act',      40, NULL, 'per_event', NULL, ''),
+ ('NX01','Home oxygen management',              'act',    2200, NULL, 'per_month', NULL, 'once a month'),
+ ('NX02','Oxygen concentrator provision',       'act',    3800, NULL, 'per_quarter', NULL, 'once per 3 months'),
+ ('ND01','furosemide 20mg — day',               'drug',   NULL, 9.80, 'per_event', NULL, '15 yen or less = 1 point'),
+ ('ND02','levodopa/carbidopa 100/25 — day',     'drug',   NULL, 21.50,'per_event', NULL, 'yen/10, go-sha-go-cho-nyu'),
+ ('ND03','apixaban 5mg — day',                  'drug',   NULL, 244.50,'per_event',NULL, ''),
+ ('ND04','oxycodone SR 20mg — day',             'drug',   NULL, 310.40,'per_event',NULL, ''),
+ ('NB01','IV infusion set',                     'material',NULL, 120.00,'per_event',NULL,'yen/10, rounded');
+
+-- ========== seed: services entered at the bedside (August, on signed visits) ==========
+
+INSERT INTO visit_services(visit_id, code, qty, recorded_by)
+SELECT v.id, s.code, s.qty, v.clinician
+FROM visits v
+JOIN (VALUES
+  ('P-001','2026-08-17','ND01', 7),
+  ('P-001','2026-08-17','NP03', 1),
+  ('P-001','2026-08-19','NP01', 1),
+  ('P-001','2026-08-19','NB01', 1),
+  ('P-001','2026-08-19','ND01', 3),
+  ('P-003','2026-08-11','ND02', 7),
+  ('P-003','2026-08-11','NP03', 1),
+  ('P-005','2026-08-12','NX01', 1),
+  ('P-005','2026-08-12','NX02', 1),
+  ('P-007','2026-08-06','ND03', 7),
+  ('P-007','2026-08-13','NP03', 1),
+  ('P-009','2026-08-17','NA04', 1),
+  ('P-010','2026-08-18','ND04', 7),
+  ('P-010','2026-08-18','NA02', 1)
+) AS s(patient, day, code, qty)
+  ON s.patient = v.patient AND s.day::date = v.visit_date AND v.kind = 'regular';
+
+-- ========== seed: July, imported pre-Troupe as CONFIRMED legacy ==========
+-- The month was billed on the old system; it arrives as locked fact - which is
+-- also what lets the submission-file and invoice views show a finished month.
+
+INSERT INTO charges(patient, month, day, visit_id, code, qty, points, status)
+SELECT p.code, '2026-07', d::date, NULL, 'NV01', 1, 800, 'derived'
+FROM patients p
+JOIN (VALUES
+  ('P-001','2026-07-06'),('P-001','2026-07-13'),('P-001','2026-07-20'),('P-001','2026-07-27'),
+  ('P-002','2026-07-03'),('P-002','2026-07-17'),('P-002','2026-07-31'),
+  ('P-003','2026-07-07'),('P-003','2026-07-14'),('P-003','2026-07-21'),('P-003','2026-07-28'),
+  ('P-006','2026-07-07'),('P-006','2026-07-21'),
+  ('P-007','2026-07-02'),('P-007','2026-07-16'),('P-007','2026-07-30'),
+  ('P-008','2026-07-06'),('P-008','2026-07-20')
+) AS lv(code, d) ON lv.code = p.code;
+
+INSERT INTO charges(patient, month, day, visit_id, code, qty, points, status)
+SELECT c.patient, '2026-07', MAX(c.day), NULL,
+       CASE WHEN COUNT(*) >= 2 THEN 'NC01' ELSE 'NC03' END,
+       1, CASE WHEN COUNT(*) >= 2 THEN 4200 ELSE 2100 END, 'derived'
+FROM charges c WHERE c.month = '2026-07' GROUP BY c.patient;
+
+INSERT INTO claims(patient, month, status, total_points, copay_rate, copay_yen, confirmed_by, confirmed_at)
+SELECT c.patient, '2026-07', 'confirmed', SUM(c.points), p.copay_rate,
+       (((SUM(c.points) * p.copay_rate + 5) / 10) * 10)::int,   -- 点×10円×割/10、10円未満四捨五入
+       'Director', '2026-08-05 09:00+09'
+FROM charges c JOIN patients p ON p.code = c.patient
+WHERE c.month = '2026-07'
+GROUP BY c.patient, p.copay_rate;
+
 -- link each signed note to the visit it documents (same patient, same day, done)
 UPDATE clinical_notes n
 SET visit_id = v.id
@@ -327,6 +533,17 @@ FROM (
 ) v
 WHERE v.patient = n.patient AND v.visit_date = n.note_date;
 
+-- P-007 urgent-call note: two visits share the date, so this one is linked explicitly
+INSERT INTO clinical_notes(patient, visit_id, note_date, clinician, s, o, a, p, signed_at)
+SELECT 'P-007', v.id, '2026-08-13', 'Dr-A',
+  'Evening call from spouse: "his heart is racing again and he looks pale."',
+  'HR 118 irregularly irregular on arrival, BP 104/68, settled to HR 92 over 40 min observation.',
+  'Paroxysmal AF episode, self-terminated. No hemodynamic compromise.',
+  'Observed until stable. Reviewed evening dose timing. MD informed same evening.',
+  '2026-08-13 20:40+09'
+FROM visits v
+WHERE v.patient = 'P-007' AND v.visit_date = '2026-08-13' AND v.kind = 'urgent';
+
 -- 紐付け（移行）が済んでから、不変の錠を掛ける
 -- 署名済みは不変——憲法を DB 自身に執行させる（書き換え・削除はどの接続にもできない）
 CREATE FUNCTION clinical_notes_immutable() RETURNS trigger AS $$
@@ -335,3 +552,24 @@ BEGIN
 END $$ LANGUAGE plpgsql;
 CREATE TRIGGER clinical_notes_no_update BEFORE UPDATE OR DELETE ON clinical_notes
   FOR EACH ROW EXECUTE FUNCTION clinical_notes_immutable();
+
+-- 確定した請求とその月の算定行は不変——確定は人の判断、錠は DB 自身が掛ける
+CREATE FUNCTION billing_locked() RETURNS trigger AS $$
+BEGIN
+  IF TG_TABLE_NAME = 'claims' THEN
+    IF OLD.status = 'confirmed' THEN
+      RAISE EXCEPTION 'claims: a confirmed claim is immutable';
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+  IF EXISTS (SELECT 1 FROM claims cl
+             WHERE cl.patient = OLD.patient AND cl.month = OLD.month
+               AND cl.status = 'confirmed') THEN
+    RAISE EXCEPTION 'charges: the claim for this month is confirmed - lines are locked';
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER claims_confirmed_locked BEFORE UPDATE OR DELETE ON claims
+  FOR EACH ROW EXECUTE FUNCTION billing_locked();
+CREATE TRIGGER charges_confirmed_locked BEFORE UPDATE OR DELETE ON charges
+  FOR EACH ROW EXECUTE FUNCTION billing_locked();

@@ -29,7 +29,7 @@ def _頁(
         + "".join(_tab(t) for t in ("day", "patients"))
         + "<span class='nav__sep' role='separator'></span>"
         + "<span class='nav__label'>Back office</span>"
-        + "".join(_tab(t) for t in ("inbox", "agreements", "automations", "activity", "search"))
+        + "".join(_tab(t) for t in ("inbox", "agreements", "billing", "fees", "automations", "activity", "search"))
         + "<span class='nav__sep' role='separator'></span>"
         + "<span class='nav__label'>Help</span>"
         + "".join(_tab(t) for t in ("guide", "how"))

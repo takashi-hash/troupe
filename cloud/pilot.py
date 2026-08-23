@@ -100,13 +100,34 @@ def sign_ready_visits() -> int:
     return done
 
 
+def confirm_last_month() -> int:
+    """終わった月の下書き請求を確定する。旗が残る月は窓が断る——それでよい(裁きは残る)。"""
+    page = _get("/billing")
+    m = re.search(r"href='/billing\?month=(\d{4}-\d{2})'>\s*←", page)
+    if not m:
+        return 0
+    prev = m.group(1)
+    page = _get("/billing?month=" + prev)
+    done = 0
+    for pt in sorted(set(re.findall(
+            r"name='what' value='confirm_claim'.*?name='patient' value='([^']+)'", page, re.S))):
+        try:
+            _post("/billing/act", {"what": "confirm_claim", "patient": pt, "month": prev})
+            done += 1
+            print(f"confirm: {pt} {prev}")
+        except Exception as e:
+            print(f"confirm failed: {pt}: {e}", file=sys.stderr)
+    return done
+
+
 def main() -> int:
     if not BASE:
         print("TROUPE_WINDOW is not set — nothing to drive", file=sys.stderr)
         return 1
     approved = approve_pending()
     signed = sign_ready_visits()
-    print(f"pilot done: approved {approved}, signed {signed}")
+    confirmed = confirm_last_month()
+    print(f"pilot done: approved {approved}, signed {signed}, confirmed {confirmed}")
     return 0
 
 

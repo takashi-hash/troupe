@@ -1,0 +1,15 @@
+{
+  "instruction": "Read the billing extract in the source. It is entirely fictional (Nagisa Schedule). Write a short integrity report for the reporting period named in the acceptance criteria, with these sections in this order: 1) every flagged line, with the flag reason and what ruling you recommend (allow with what reason, or drop) - the ruling itself belongs to a human; 2) every completed visit with no signed note - name the patient, date and clinician, and state the points that cannot derive until it is signed; 3) every visit made after all physician orders expired - these cannot be billed and belong in front of a human; 4) anything else in the extract that looks like lost or wrong revenue. Quote the extract lines you rely on. Do not invent patients, dates or amounts that are not in the extract.",
+  "source": "db:billing",
+  "required_terms": [
+    "{対象期間}",
+    "flagged"
+  ],
+  "description": "Every flagged line in the extract appears in the report with a recommended ruling. Every unsigned completed visit and every expired-order visit is listed. No patient or amount appears that is not in the extract.",
+  "cycle": "weekly",
+  "days": 3,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 4
+}

@@ -13,6 +13,8 @@ from app.dto.pattern_row import PatternRow
 from app.dto.visit_view import VisitView
 from app.dto.route_stop import RouteStop
 from app.dto.patient_view import PatientView
+from app.dto.claim_view import ClaimView
+from app.dto.fee_row import FeeRow
 from app.dto.today_row import TodayRow
 
 class 読む手(Protocol):
@@ -95,6 +97,18 @@ class 道順の手(Protocol):
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]: ...
 
 
+class 点数表の手(Protocol):
+    def __call__(self) -> tuple[FeeRow, ...]: ...
+
+
+class 会計の手(Protocol):
+    def __call__(self, month: str) -> tuple[ClaimView, ...]: ...
+
+
+class 会計を押す手(Protocol):
+    def __call__(self, what: str, fields: dict[str, str]) -> str | None: ...
+
+
 class 案内の手(Protocol):
     def __call__(
         self, question: str, digest: str, history: tuple[tuple[str, str], ...]
@@ -132,6 +146,9 @@ class 手(NamedTuple):
     visit_act: 訪問を押す手
     route: 道順の手
     today: 今日の手
+    fees: 点数表の手
+    billing: 会計の手
+    billing_act: 会計を押す手
     guide: 案内の手
     close: Callable[[], None]
 

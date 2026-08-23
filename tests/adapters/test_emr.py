@@ -221,3 +221,84 @@ def test_単発の休みは理由つきで倒れ_取り決めは生きたまま(
                 "UPDATE visits SET status='scheduled', cancelled_reason=NULL WHERE id=%s::bigint",
                 (vid,))
             conn.commit()
+
+
+# --- 会計 — 点の換算は純関数(門なし)。実行系は自己整合で見る(状態に依存しない) ---
+
+
+def test_薬剤の円から点は五捨五超入() -> None:
+    """15円以下=1点。端数ちょうど0.5は捨て、超えたら上げ——四捨五入ではない。"""
+    from decimal import Decimal
+
+    from adapters.emr import _薬剤点
+
+    assert _薬剤点(Decimal("9.80")) == 1     # 15円以下は1点
+    assert _薬剤点(Decimal("15.00")) == 1
+    assert _薬剤点(Decimal("15.10")) == 2    # 1.51 → 上げ
+    assert _薬剤点(Decimal("104.00")) == 10  # 10.4 → 捨て
+    assert _薬剤点(Decimal("105.00")) == 10  # 10.5 ちょうど → 捨て(五捨)
+    assert _薬剤点(Decimal("105.10")) == 11  # 10.51 → 上げ(五超入)
+    assert _薬剤点(Decimal("21.50")) == 2
+    assert _薬剤点(Decimal("244.50")) == 24
+    assert _薬剤点(Decimal("310.40")) == 31
+
+
+def test_材料の円から点は四捨五入() -> None:
+    """材料は円/10の四捨五入——薬剤と丸めかたが違うのも本物の写し。"""
+    from decimal import Decimal
+
+    from adapters.emr import _材料点
+
+    assert _材料点(Decimal("120.00")) == 12
+    assert _材料点(Decimal("115.00")) == 12  # 11.5 → 上げ(half-up)
+    assert _材料点(Decimal("114.90")) == 11
+
+
+def test_導出は何度回しても同じ() -> None:
+    from adapters.emr import EmrCharges
+
+    dsn = _dsn()
+    EmrCharges(dsn).derive()
+    assert EmrCharges(dsn).derive() == ()  # 2度目は何も生まれない
+
+
+def test_請求の合計は算定行の和と一致する() -> None:
+    """下書き請求の総点数 = 数えられる行(導出+通った)の和。負担金は点×割を10円丸め。"""
+    from adapters.emr import EmrCharges, PostgresBilling
+
+    dsn = _dsn()
+    EmrCharges(dsn).derive()
+    month = __import__("datetime").date.today().strftime("%Y-%m")
+    for view in PostgresBilling(dsn).read_month(month):
+        if view.status != "draft":
+            continue
+        和 = sum(c.points for c in view.charges if c.status in ("derived", "allowed"))
+        assert view.total_points == 和, f"{view.patient}: {view.total_points} != {和}"
+        assert view.copay_yen == ((view.total_points * view.copay_rate + 5) // 10) * 10
+
+
+def test_旗の行は0点で理由を持つ() -> None:
+    from adapters.emr import EmrCharges, PostgresBilling
+
+    dsn = _dsn()
+    EmrCharges(dsn).derive()
+    month = __import__("datetime").date.today().strftime("%Y-%m")
+    for view in PostgresBilling(dsn).read_month(month):
+        for c in view.charges:
+            if c.status == "flagged":
+                assert c.points == 0 and c.flag_reason
+
+
+def test_確定は月が終わるまで断られる() -> None:
+    from adapters.emr import EmrClaims
+
+    month = __import__("datetime").date.today().strftime("%Y-%m")
+    なぜ = EmrClaims(_dsn()).confirm("P-001", month, "Director")
+    assert なぜ is not None and "not over" in なぜ
+
+
+def test_裁きは旗の行にだけ() -> None:
+    from adapters.emr import EmrClaims
+
+    なぜ = EmrClaims(_dsn()).resolve("999999", "drop", "", "Director")
+    assert なぜ is not None and "not waiting" in なぜ

@@ -29,8 +29,13 @@ from adapters.acl.llm import GeminiGuide, GeminiLlm, OllamaLlm, SilentGuide
 from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
 from adapters.emr import (
+    EmrCharges,
+    EmrClaims,
     EmrDrafts,
+    EmrServices,
     EmrVisits,
+    PostgresBilling,
+    PostgresFees,
     PostgresPatients,
     PostgresPatterns,
     PostgresRoute,
@@ -66,6 +71,7 @@ from app.dto.history_row import HistoryRow
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
 from app.dto.route_stop import RouteStop
+from app.dto.claim_view import ClaimView
 from app.dto.visit_view import VisitView
 from app.dto.patient_view import PatientView
 from app.dto.row_filter import RowFilter
@@ -83,6 +89,7 @@ from app.services.clock.create import create
 from app.services.clock.deliver_drafts import deliver_drafts
 from app.services.clock.hand_out import hand_out
 from app.services.clock.mark_overdue import mark_overdue
+from app.services.clock.derive_charges import derive_charges
 from app.services.clock.plan_visits import plan_visits
 from app.services.clock.return_timed_out import return_timed_out
 from app.services.clock.run_check import run_check
@@ -94,6 +101,10 @@ from app.services.human.add_pattern import add_pattern
 from app.services.human.answer import answer
 from app.services.human.cancel_visit import cancel_visit
 from app.services.human.end_pattern import end_pattern
+from app.services.human.add_service import add_service
+from app.services.human.confirm_claim import confirm_claim
+from app.services.human.remove_service import remove_service
+from app.services.human.resolve_charge import resolve_charge
 from app.services.human.sign_note import sign_note
 from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
@@ -107,6 +118,8 @@ from app.services.screen.gather_patient import gather_patient
 from app.services.screen.gather_patients import gather_patients
 from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
 from app.services.screen.gather_search import gather_search
+from app.services.screen.gather_billing import gather_billing
+from app.services.screen.gather_fees import gather_fees
 from app.services.screen.gather_visit import gather_visit
 from app.services.screen.ask_guide import ask_guide
 from app.services.screen.gather_today import gather_today
@@ -159,6 +172,11 @@ class Ichiza:
         self.route = PostgresRoute(emr_dsn)
         self.visits_port = EmrVisits(emr_dsn)
         self.visit_view = PostgresVisit(emr_dsn)
+        self.fees_view = PostgresFees(emr_dsn)
+        self.services_port = EmrServices(emr_dsn)
+        self.charges_port = EmrCharges(emr_dsn)
+        self.claims_port = EmrClaims(emr_dsn)
+        self.billing_view = PostgresBilling(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
         # 案内は仕事の外の一呼び——書く道具を持たない(設計 §4 GuidePort)
@@ -278,6 +296,33 @@ def _手(za: Ichiza, viewer: str) -> 手:
             )
         elif what == "cancel_visit":
             断り = cancel_visit(za.visits_port, fields.get("id", ""), fields.get("reason", ""), by=viewer)
+        elif what == "add_service":
+            断り = add_service(
+                za.services_port, fields.get("id", ""), fields.get("code", ""),
+                fields.get("qty", "1"), by=viewer,
+            )
+        elif what == "remove_service":
+            断り = remove_service(
+                za.services_port, fields.get("id", ""), fields.get("code", ""), by=viewer,
+            )
+        else:
+            return f"Unknown action: {what}"
+        return None if 断り is None else 断り.reason
+
+    def 会計を読む(month: str) -> tuple[ClaimView, ...]:
+        return gather_billing(za.billing_view, month)
+
+    def 会計を押す(what: str, fields: dict[str, str]) -> str | None:
+        if what == "resolve_charge":
+            断り = resolve_charge(
+                za.claims_port, fields.get("id", ""), fields.get("action", ""),
+                fields.get("reason", ""), by=viewer,
+            )
+        elif what == "confirm_claim":
+            断り = confirm_claim(
+                za.claims_port, fields.get("patient", ""), fields.get("month", ""),
+                by=viewer,
+            )
         else:
             return f"Unknown action: {what}"
         return None if 断り is None else 断り.reason
@@ -311,6 +356,9 @@ def _手(za: Ichiza, viewer: str) -> 手:
         visit_act=訪問を押す,
         route=道順を読む,
         today=今日,
+        fees=lambda: gather_fees(za.fees_view),
+        billing=会計を読む,
+        billing_act=会計を押す,
         guide=案内,
         close=za.conn.close,
     )
@@ -322,6 +370,10 @@ def _tick(za: Ichiza) -> None:
     if planned:
         print(f"plan_visits: {len(planned)} visits ({', '.join(planned[:3])}…)"
               if len(planned) > 3 else f"plan_visits: {', '.join(planned)}")
+    charged = derive_charges(za.charges_port)
+    if charged:
+        print(f"derive_charges: {len(charged)} lines ({', '.join(charged[:3])}…)"
+              if len(charged) > 3 else f"derive_charges: {', '.join(charged)}")
     made = create(za.jobs, za.rules, za.active, za.origins, za.ids, za.clock)
     handed = hand_out(za.jobs, za.states, za.clock)
     returned = return_timed_out(za.jobs, za.states, za.clock)
