@@ -5,6 +5,15 @@ from ui.words import 操作
 from urllib.parse import quote
 
 def _取り決めたち(rows: tuple[PatternRow, ...], added: str | None = None) -> str:
+    # 有効＝active_to が無いもの。終わった数は脇に添える
+    有効 = sum(1 for r in rows if r.active_to is None)
+    終了 = len(rows) - 有効
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>Agreements</h1>"
+        f"<span class='count-pill'><strong>{有効}</strong> in force</span>"
+        + (f"<span class='page-head__aside'>{終了} ended</span>" if 終了 else "")
+        + "</div>"
+    )
     バナー = (f"<div class='banner banner--success'>✓ {escape(added)}</div>" if added else "")
     行 = "".join(
         f"<tr{' class=agreement-row--ended' if r.active_to else ''}>"
@@ -48,7 +57,8 @@ def _取り決めたち(rows: tuple[PatternRow, ...], added: str | None = None) 
         "</form></aside>"
     )
     return (
-        バナー
+        頭
+        + バナー
         + "<div class='agreements-layout'>"
         "<div class='agreements-table'>"
         "<div class='wrap'><table><tr><th>Patient</th><th>Weekday</th><th>Cadence</th>"

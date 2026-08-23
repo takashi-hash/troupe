@@ -12,6 +12,10 @@ def _帯(rows: tuple[TodayRow, ...], in_flight: int) -> str:
     人に見えるもの §4「先の予定は今日に載せない（赤が埋もれる）」——
     だからここに出すのは数と道案内であって、押しつけの行ではない。
     数は下に並んでいる行の集計そのもの（別の判定を持たない）。
+
+    頁の頭（.page-head）もここで出す——routes が _帯 を _今日 の上に描くので、
+    頭を帯の上に置くにはここしかない（見た目の正本 §2「数を先に言う」）。
+    件数は len(rows) そのもの。帯は頭の直下に残る。
     """
     from ui.words import STATE_GLOSS
 
@@ -26,7 +30,12 @@ def _帯(rows: tuple[TodayRow, ...], in_flight: int) -> str:
         f"<strong>{in_flight}</strong> job{'s' if in_flight != 1 else ''} in flight"
         " — <a href='/automations'>automations</a>",
     ]
-    return f"<div class='brief inbox-brief'>{' · '.join(組)}</div>"
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>Inbox</h1>"
+        f"<span class='count-pill'><strong>{len(rows)}</strong>"
+        f" decision{'s' if len(rows) != 1 else ''} waiting</span></div>"
+    )
+    return 頭 + f"<div class='brief inbox-brief'>{' · '.join(組)}</div>"
 
 
 #: /inbox だけの絞り込み。style.py（正本）には触らず、inbox- 接頭辞で**足すだけ**。

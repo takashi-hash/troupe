@@ -1,4 +1,21 @@
-# --- 見せかた。ここから下は「入っているものを出す」だけ ---
+"""Troupe の画面の決まり — 見た目の正本（設計/人に見えるもの §5 が指す1枚。CSS が執行者）。
+
+主題は「静かな自動化」。臨床の静けさの上に、脈が打っていることだけを感じさせる。
+
+1. **背景は舞台、内容は紙。** 舞台＝インクの棚と点格子の地（自動化の場）。
+   内容＝白い紙（.paper）。紙の上のカードは1段まで——紙に紙を重ねない。
+2. **頁の頭は「見出し・数・次の一手」**（.page-head）。数えられるものは数を先に言う
+   （"3 decisions waiting"）。最初の一画面で「何件・次に何を」が読める。
+   スクロールは詳細のためだけ。
+3. **塗るのは判断だけ。** 塗りボタンは Sign / Approve / Reply の3つ。脈の存在は
+   ブランドの鼓動1つで示す——AI らしさで画面を飾らない（動きはこの1点だけ。
+   prefers-reduced-motion では止まる）。
+4. **色は語彙**: 緑=署名済み/通った・琥珀=人が要る・赤=破壊/期限切れ・青=情報・灰=不活性。
+   人格の色（who の点・地図の担当色）は状態の5色と混ぜない。
+5. **表は貼り付く頭と件数を持つ。** 長い一覧は頁送り（100件）か絞りを持つ。
+6. **携帯（≤900px）は棚が上バーに畳まれ、2ペインは1列に落ちる。** 横スクロールは表の中だけ。
+7. **言葉は用語集の橋そのまま。** 和語を画面に出さない。
+"""
 
 _STYLE = """
 /* ================================================================
@@ -46,13 +63,26 @@ _STYLE = """
   --muted:       color-mix(in srgb, CanvasText 75%, Canvas); /* 二次テキストは75%が下限 */
   --faint:       color-mix(in srgb, CanvasText 4%, Canvas);  /* うっすらした地 */
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* 舞台の色 — インクの棚（両テーマで不変）と、脈の鼓動 */
+  --ink:       #10161d;
+  --ink-line:  #232c36;
+  --ink-text:  #e8edf2;
+  --ink-muted: #93a1af;
+  --beat:      #4cc3ff;
 }
 * { box-sizing: border-box; }
+html { height: 100%; }
 body {
+  min-height: 100%;
   margin: 0;
   font: 14.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
-  background: Canvas; color: CanvasText;
+  color: CanvasText;
+  /* 舞台 — 点格子の地は body に敷く(短い頁でも下まで舞台が続く) */
+  background-color: color-mix(in srgb, CanvasText 3%, Canvas);
+  background-image: radial-gradient(color-mix(in srgb, CanvasText 8%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -66,38 +96,57 @@ body {
   display: flex; flex-direction: column;
   position: sticky; top: 0; height: 100vh; overflow-y: auto;
   padding: 16px 12px 14px;
-  border-right: 1px solid var(--line);
-  background: color-mix(in srgb, CanvasText 2.5%, Canvas);
+  border-right: 1px solid var(--ink-line);
+  background: var(--ink); color: var(--ink-text);
 }
 .brand {
-  display: block; font-size: 15.5px; font-weight: 700; letter-spacing: .01em;
-  padding: 2px 10px 13px; margin: 0 0 4px;
-  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15.5px; font-weight: 700; letter-spacing: .01em;
+  color: var(--ink-text); text-decoration: none;
+  padding: 2px 10px 10px; margin: 0;
+}
+/* 鼓動 — 60秒の脈の、画面でのただ1つの動き */
+.pulse-dot {
+  flex: none; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--beat);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--beat) 45%, transparent);
+  animation: beat 2.4s ease-out infinite;
+}
+@keyframes beat {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--beat) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .pulse-dot { animation: none; } }
+.brand-sub {
+  font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-muted); padding: 0 10px 12px; margin: 0 0 4px;
+  border-bottom: 1px solid var(--ink-line);
 }
 .nav { display: flex; flex-direction: column; gap: 1px; }
 .nav__label {
   display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--muted);
+  text-transform: uppercase; color: var(--ink-muted);
   margin: 18px 10px 4px; user-select: none;
 }
 .nav > .nav__label:first-child { margin-top: 8px; }
 /* 縦組では見出し前の余白が区切り。横組（§15）で線として復活 */
-.nav__sep { display: none; width: 1px; height: 16px; background: var(--line-strong); }
+.nav__sep { display: none; width: 1px; height: 16px; background: var(--ink-line); }
 .nav a {
-  display: block; text-decoration: none; color: var(--muted);
+  display: block; text-decoration: none; color: var(--ink-muted);
   font-size: 13.5px; padding: 5.5px 10px; border-radius: 7px;
 }
-.nav a:hover { color: CanvasText; background: color-mix(in srgb, CanvasText 6%, Canvas); }
+.nav a:hover { color: var(--ink-text); background: rgba(255,255,255,.05); }
 .nav a[aria-current="page"], .nav a.is-active {
-  color: CanvasText; font-weight: 600;
-  background: color-mix(in srgb, CanvasText 8%, Canvas);
-  box-shadow: inset 2px 0 0 0 CanvasText;
+  color: var(--ink-text); font-weight: 600;
+  background: rgba(255,255,255,.08);
+  box-shadow: inset 2px 0 0 0 var(--beat);
 }
 .whoami {
-  margin-top: auto; padding: 12px 10px 2px; border-top: 1px solid var(--line);
-  font-size: 12px; color: var(--muted); line-height: 1.5;
+  margin-top: auto; padding: 12px 10px 2px; border-top: 1px solid var(--ink-line);
+  font-size: 12px; color: var(--ink-muted); line-height: 1.5;
 }
-.whoami strong { display: block; color: CanvasText; font-weight: 600; font-size: 12.5px; }
+.whoami strong { display: block; color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
 
 .app-content { flex: 1 1 auto; min-width: 0; }
 /* 開示バー — 合成の座長が動いているあいだの、細い琥珀の帯 */
@@ -108,7 +157,26 @@ body {
   border-bottom: 1px solid color-mix(in srgb, var(--warn) 26%, transparent);
 }
 
-main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 26px 36px 56px; }
+main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 24px 32px 56px; }
+.paper {
+  background: Canvas; border: 1px solid var(--line); border-radius: 14px;
+  padding: 26px 30px 34px; min-height: calc(100vh - 128px);
+  box-shadow: 0 1px 2px rgba(16,22,29,.05), 0 10px 30px rgba(16,22,29,.04);
+}
+/* 頁の頭 — 見出し・数・次の一手(§5)。数えられるものは数を先に言う */
+.page-head {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 6px;
+}
+.page-head .page-title { margin: 0; }
+.page-head__aside { margin-left: auto; font-size: 13.5px; color: var(--muted); }
+.count-pill {
+  display: inline-block; font-size: 12.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  padding: 2px 11px; border-radius: 999px;
+  color: var(--muted); background: var(--faint); border: 1px solid var(--line);
+}
+.count-pill strong { color: CanvasText; }
 .page-title { font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin: 0 0 4px; }
 .page-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 22px; max-width: 68ch; }
 .section-title { font-size: 15px; font-weight: 650; margin: 30px 0 10px; }
@@ -285,6 +353,9 @@ th {
   text-align: left; font-size: 11.5px; font-weight: 600;
   letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
   padding: 8px 12px; border-bottom: 1px solid var(--line-strong);
+}
+@media (min-width: 900.1px) {
+  th { position: sticky; top: 0; z-index: 2; background: Canvas; }
 }
 td {
   padding: 9px 12px; border-bottom: 1px solid var(--line);
@@ -526,6 +597,61 @@ tbody tr:hover { background: var(--faint); }
 }
 .guide-input { flex: 1 1 auto; min-width: 0; padding: 8px 12px; }
 
+/* ---------- 12b2. ask — どの頁にも浮かぶ案内 ----------
+   右下の襟(launcher)と、その場で開く札(panel)。往復は sessionStorage
+   ——帳簿に書かない。JS が無ければ /guide の頁がそのまま受ける。 */
+.ask-launcher {
+  position: fixed; right: 22px; bottom: 22px; z-index: 40;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 600; text-decoration: none;
+  padding: 9px 16px; border-radius: 999px; cursor: pointer;
+  background: var(--ink); color: var(--ink-text);
+  border: 1px solid var(--ink-line);
+  box-shadow: 0 4px 16px rgba(16,22,29,.25);
+}
+.ask-launcher:hover { background: #1a232d; }
+.ask-launcher .pulse-dot { width: 6px; height: 6px; }
+.ask-panel {
+  position: fixed; right: 22px; bottom: 74px; z-index: 41;
+  width: 390px; max-width: calc(100vw - 32px); max-height: 72vh;
+  display: none; flex-direction: column;
+  background: Canvas; border: 1px solid var(--line-strong);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 8px 40px rgba(16,22,29,.28);
+}
+.ask-panel.is-open { display: flex; }
+.ask-panel__head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; background: var(--ink); color: var(--ink-text);
+  font-size: 13px; font-weight: 600;
+}
+.ask-panel__head small { font-weight: 400; color: var(--ink-muted); }
+.ask-panel__close {
+  margin-left: auto; border: 0; background: none; color: var(--ink-muted);
+  font-size: 16px; cursor: pointer; padding: 0 2px;
+}
+.ask-panel__close:hover { color: var(--ink-text); background: none; }
+.ask-panel__log { flex: 1 1 auto; overflow-y: auto; padding: 14px 14px 4px; }
+.ask-panel__log .guide-q { font-size: 13.5px; }
+.ask-panel__log .guide-a { font-size: 13.5px; max-width: 100%; }
+.ask-panel__log .guide-turn { margin: 0 0 14px; }
+.ask-suggest { display: flex; flex-direction: column; gap: 8px; padding: 2px 0 10px; }
+.ask-suggest button {
+  text-align: left; font-size: 13px; padding: 7px 12px;
+  border: 1px dashed var(--line-strong); border-radius: 10px; background: none;
+  color: var(--muted); cursor: pointer;
+}
+.ask-suggest button:hover { color: CanvasText; background: var(--faint); }
+.ask-thinking { font-size: 12.5px; color: var(--muted); padding: 0 2px 10px; }
+.ask-panel__form {
+  display: flex; gap: 8px; padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+.ask-panel__form input { flex: 1 1 auto; min-width: 0; font-size: 13.5px; }
+.ask-panel__note {
+  font-size: 11px; color: var(--muted); padding: 0 14px 10px; margin: 0;
+}
+
 /* ---------- 12c. how (/how) — 説明の読みもの ---------- */
 .how { max-width: 760px; }
 .how p, .how li { line-height: 1.7; }
@@ -569,9 +695,10 @@ tbody tr:hover { background: var(--faint); }
   .app-header {
     width: auto; height: auto; overflow: visible; z-index: 30;
     flex-direction: row; align-items: center; gap: 12px;
-    padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--line);
+    padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--ink-line);
   }
   .brand { padding: 0; margin: 0; border-bottom: 0; font-size: 15px; }
+  .brand-sub { display: none; }
   .nav {
     flex-direction: row; align-items: center; gap: 2px;
     flex: 1 1 auto; min-width: 0;
@@ -586,14 +713,21 @@ tbody tr:hover { background: var(--faint); }
   }
   .whoami { display: none; }
   .notice-bar { padding: 6px 16px; }
-  main, .page { padding: 18px 16px 48px; }
+  main, .page { padding: 12px 10px 48px; }
+  .paper { padding: 18px 14px 28px; border-radius: 10px; min-height: 0; }
+  .ask-launcher { right: 14px; bottom: 14px; }
+  .ask-panel {
+    right: 8px; left: 8px; bottom: 64px; width: auto; max-height: 76vh;
+  }
 }
 
 /* ---------- 16. print — day sheet ---------- */
 @media print {
   .app-header, .notice-bar, .filter-chips, .map-slot, #gmap, .sign-bar,
-  .cancel-zone, .pager, .guide-form,
+  .cancel-zone, .pager, .guide-form, .ask-launcher, .ask-panel,
   button, .btn, form, .banner, .fold { display: none !important; }
+  html, body { background: none; height: auto; min-height: 0; }
+  .paper { border: 0; box-shadow: none; padding: 0; min-height: 0; }
   .app-shell { display: block; }
   .day-grid { display: block; }
   .day-map { position: static; }

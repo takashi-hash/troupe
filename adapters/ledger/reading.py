@@ -306,6 +306,10 @@ class SqliteHistory:
             )
         return tuple(out)
 
+    def count(self) -> int:
+        row = self._conn.execute("SELECT COUNT(*) FROM job_events").fetchone()
+        return int(row[0]) if row else 0
+
 
 class SqliteSearch:
     """`SearchReader` — 絞り込みの条件で仕事を引く。終わったものも含めて（F1）。

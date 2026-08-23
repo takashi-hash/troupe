@@ -31,8 +31,15 @@ def _予定(rules: tuple[ScheduleRow, ...], jobs: tuple[SearchRow, ...]) -> str:
         for j in jobs
     )
     仕事が無い = "" if jobs else "<p class='empty'>No jobs in flight.</p>"
+    # 頭は頁の決まり（style.py §2）——数を先に言う。routes.py の page-sub の下に載る
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>Automations</h1>"
+        f"<span class='count-pill'><strong>{len(rules)}</strong> rules</span>"
+        f"<span class='page-head__aside'>{len(jobs)} jobs in flight</span></div>"
+    )
     return (
-        _様式
+        頭
+        + _様式
         + f"<h3 class='section-title'>{語('業務ルール')}</h3><div class='wrap'><table>"
         "<tr><th>Rule</th><th>Instruction</th><th>Version</th><th>Active version</th>"
         "<th>Next period</th></tr>" + 決まり + "</table></div>"

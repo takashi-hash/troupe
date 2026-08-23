@@ -111,8 +111,19 @@ def _道順(
     バナー = (
         f"<div class='banner banner--success'>✓ Signed: {escape(signed)}</div>" if signed else ""
     )
+    # 頁の頭 — 数は絞り込みに関わらず全担当の合計（見出し・数・次の一手）
+    全地点 = [st for stops in 道順ごと.values() for st in stops]
+    署名済み数 = sum(1 for st in 全地点 if st.status == "done")
+    下書き数 = sum(1 for st in 全地点 if st.prep == "draft" and st.status == "scheduled")
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>My Day</h1>"
+        f"<span class='count-pill'><strong>{len(全地点)}</strong> stops</span>"
+        + (f"<span class='page-head__aside'>{署名済み数} signed · {下書き数} draft ready</span>"
+           if 全地点 else "")
+        + "</div>"
+    )
     if not 道順ごと:
-        return バナー + nav + "<p class='empty'>No visits scheduled this day.</p>"
+        return バナー + 頭 + nav + "<p class='empty'>No visits scheduled this day.</p>"
 
     医師たち = sorted(道順ごと)
     絞り = {who: 道順ごと[who]} if who in 道順ごと else 道順ごと
@@ -194,9 +205,10 @@ def _道順(
             + (f"<div class='stop-return'>⌂ Return to clinic · {帰路:.1f} km</div>" if base and 予定 else "")
             + "</section>"
         )
-    # 2面 — 左：日送り・進み具合・地図・注記／右：絞り込みと回る先。バナーは全幅で最上段
+    # 2面 — 左：日送り・進み具合・地図・注記／右：絞り込みと回る先。バナーと頭は全幅で最上段
     return (
         バナー
+        + 頭
         + "<div class='day-grid'>"
         + "<div class='day-map'>"
         + nav

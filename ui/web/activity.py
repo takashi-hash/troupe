@@ -45,7 +45,17 @@ def _頁送り(page: int, per: int, count: int) -> str:
     )
 
 
-def _履歴(rows: tuple[HistoryRow, ...], page: int = 0, per: int = 100) -> str:
+def _履歴(
+    rows: tuple[HistoryRow, ...], page: int = 0, per: int = 100, total: int = 0
+) -> str:
+    始 = page * per + 1 if rows else 0
+    終 = page * per + len(rows)
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>Activity</h1>"
+        f"<span class='count-pill'><strong>{total}</strong> events</span>"
+        + (f"<span class='page-head__aside'>showing {始}–{終}</span>" if rows else "")
+        + "</div>"
+    )
     副題 = ("<p class='page-sub'>Every event ever appended to the ledger — who did "
             "what, newest first. Nothing here is ever overwritten or deleted.</p>")
     行 = "".join(
@@ -56,7 +66,8 @@ def _履歴(rows: tuple[HistoryRow, ...], page: int = 0, per: int = 100) -> str:
     )
     empty = "" if rows else "<p class='empty'>No events on this page.</p>"
     return (
-        副題
+        頭
+        + 副題
         + "<div class='wrap'><table><tr><th>When</th><th>Who</th><th>What happened</th>"
         "<th>Job</th></tr>" + 行 + "</table></div>"
         + empty

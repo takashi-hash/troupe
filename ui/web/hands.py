@@ -45,6 +45,10 @@ class 履歴の手(Protocol):
         ...
 
 
+class 履歴の数の手(Protocol):
+    def __call__(self) -> int: ...
+
+
 class 検索の手(Protocol):
     def __call__(self, filter: RowFilter) -> tuple[SearchRow, ...]: ...
 
@@ -116,6 +120,7 @@ class 手(NamedTuple):
     schedule_fetch: 予定の手
     schedule_act: 決まりを押す手
     history_fetch: 履歴の手
+    history_count: 履歴の数の手
     search: 検索の手
     request: 頼む手
     upcoming: 来ている仕事の手

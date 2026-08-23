@@ -8,7 +8,7 @@ from ui.web.automations import _予定
 from ui.web.day import _道順
 from ui.web.detail import _詳細
 from ui.web.frame import _頁
-from ui.web.guide import _写し, _案内, 往復を読む
+from ui.web.guide import _リンク, _写し, _案内, 往復を読む
 from ui.web.hands import 手
 from ui.web.hands import 手を開く
 from ui.web.how import _説明
@@ -96,7 +96,9 @@ def make_app(
     @app.get("/activity", response_class=HTMLResponse)
     def _履歴の頁(page: int = 0) -> HTMLResponse:
         頁 = max(page, 0)
-        return 見せる("activity", lambda h: _履歴(h.history_fetch(頁), 頁))
+        return 見せる(
+            "activity", lambda h: _履歴(h.history_fetch(頁), 頁, total=h.history_count())
+        )
 
     @app.get("/day", response_class=HTMLResponse)
     def _道順の頁(
@@ -194,6 +196,34 @@ def make_app(
             return _案内(question.strip(), answer, 往復)
 
         return 見せる("guide", 描く)
+
+    # 案内の律速 — 公開の窓で Gemini を溶かさない(器1つあたり: 最短2秒間隔・日400問)
+    案内の息 = {"last": 0.0, "day": "", "n": 0}
+
+    @app.post("/guide/turn")
+    def _案内の一手(
+        question: str = Form(""), history: str = Form(""), path: str = Form("")
+    ) -> Any:
+        from time import monotonic
+
+        from fastapi.responses import JSONResponse
+
+        往復 = 往復を読む(history)
+        手たち = 開く()
+        try:
+            today = 手たち.today()
+            if 案内の息["day"] != today:
+                案内の息["day"], 案内の息["n"] = today, 0
+            if monotonic() - float(案内の息["last"]) < 2.0 or int(案内の息["n"]) >= 400:
+                answer = "The guide is catching its breath — ask again in a moment."
+            elif not question.strip():
+                answer = ""
+            else:
+                案内の息["last"], 案内の息["n"] = monotonic(), int(案内の息["n"]) + 1
+                answer = 手たち.guide(question, _写し(手たち, path), 往復)
+        finally:
+            手たち.close()
+        return JSONResponse({"answer_html": _リンク(answer), "answer_text": answer})
 
     @app.get("/how", response_class=HTMLResponse)
     def _説明の頁() -> HTMLResponse:

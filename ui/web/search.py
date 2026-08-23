@@ -29,10 +29,16 @@ def _検索(rows: tuple[SearchRow, ...], filter: RowFilter) -> str:
         f"<td>{escape(r.assignee_name or '')}</td></tr>"
         for r in rows
     )
-    found = (f"<p class='page-sub'>{len(rows)} job{'s' if len(rows) != 1 else ''} found"
-             " — finished and abandoned ones included.</p>")
+    # 頭は頁の決まり（style.py §2）——数を先に言う。旧 page-sub の言い分は脇に移した
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>Search</h1>"
+        f"<span class='count-pill'><strong>{len(rows)}</strong> found</span>"
+        "<span class='page-head__aside'>finished and abandoned ones included"
+        "</span></div>"
+    )
     return (
-        "<form method='get' action='/search' class='search-form'>"
+        頭
+        + "<form method='get' action='/search' class='search-form'>"
         f"<input type='text' name='keyword' value='{escape(filter.keyword or '')}' "
         "placeholder='keyword'>"
         f"<select name='state'><option value=''>any state</option>{状態の選び}</select>"
@@ -41,7 +47,6 @@ def _検索(rows: tuple[SearchRow, ...], filter: RowFilter) -> str:
         f"<input type='text' name='assignee' value='{escape(filter.assignee or '')}' "
         "placeholder='assignee'>"
         "<button class='btn'>Search</button></form>"
-        + found
-        + "<div class='wrap'><table><tr><th>Id</th><th>Title</th><th>Period</th>"
+        "<div class='wrap'><table><tr><th>Id</th><th>Title</th><th>Period</th>"
         "<th>State</th><th>Due date</th><th>Assignee</th></tr>" + 行 + "</table></div>"
     )

@@ -299,6 +299,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         schedule_fetch=予定を読む,
         schedule_act=決まりを押す,
         history_fetch=履歴を読む,
+        history_count=lambda: za.history.count(),
         search=検索する,
         request=頼む,
         upcoming=来ている仕事を読む,

@@ -23,10 +23,17 @@ _PATHS = _re.compile(
 )
 
 
-def _写し(h: 手) -> str:
+#: 写しに書いてよい「いま見ている頁」。白名単の外は書かない。
+_見てよい道 = ("/day", "/patients", "/patient", "/inbox", "/detail", "/agreements",
+              "/automations", "/activity", "/search", "/visit", "/guide", "/how")
+
+
+def _写し(h: 手, viewing: str | None = None) -> str:
     """案内の材料——窓の各画面が出しているものの要約。英語（LLM への材料）。"""
     today = h.today()
     lines = [f"Date: {today}"]
+    if viewing and len(viewing) < 200 and viewing.startswith(_見てよい道):
+        lines.append(f"The director is currently looking at: {viewing}")
 
     rows = h.fetch()
     lines.append(f"\nInbox — items waiting on the director now: {len(rows)}")

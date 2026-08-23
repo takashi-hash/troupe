@@ -8,8 +8,21 @@ from urllib.parse import quote
 
 def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
     """患者の一覧 — 診療録の写し。**よその語のまま並べる**（翻訳しない）。"""
+    # 期限切れの数は表の cell-danger と同じ条件で数える（正本は _期限）
+    期限切れ = sum(
+        1 for r in rows if r.order_expires and today and r.order_expires < today
+    )
+    頭 = (
+        "<div class='page-head'><h1 class='page-title'>Patients</h1>"
+        f"<span class='count-pill'><strong>{len(rows)}</strong> patients</span>"
+        + (
+            f"<span class='page-head__aside'>{期限切れ} orders expired</span>"
+            if 期限切れ else ""
+        )
+        + "</div>"
+    )
     if not rows:
-        return (
+        return 頭 + (
             "<p class='empty'>The agency EMR is not wired (ICHIZA_EMR_DSN), "
             "or holds no patients.</p>"
         )
@@ -29,7 +42,8 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
         for r in rows
     )
     return (
-        "<p class='sub'>Read-only mirror of the agency EMR — synthetic data, no real patient exists. "
+        頭
+        + "<p class='sub'>Read-only mirror of the agency EMR — synthetic data, no real patient exists. "
         "Troupe never writes here.</p>"
         # 絞り込みは飾り — JS が無ければ欄ごと出さず、表は常に全部読める
         "<div class='table-filter' hidden>"

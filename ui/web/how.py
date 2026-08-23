@@ -7,7 +7,9 @@ from __future__ import annotations
 
 
 def _説明() -> str:
+    # 頭は頁の決まり（style.py §2）——静的な頁なので数える物は無く、件数札は出さない
     return """
+<div class='page-head'><h1 class='page-title'>How Troupe works</h1></div>
 <section class='how'>
 <p class='page-sub'>What is actually running behind this window, and who does what.</p>
 

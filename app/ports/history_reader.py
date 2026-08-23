@@ -37,3 +37,7 @@ class HistoryReader(Protocol):
     def read_latest(self, limit: int, offset: int = 0) -> tuple[HistoryEntry, ...]:
         """出来事の行を新しい順に、区切って。集約を再構成しない——画面に要る形で引く。"""
         ...
+
+    def count(self) -> int:
+        """出来事の総数。何件あるか判らない一覧を出さない（人に見えるもの §5）。"""
+        ...

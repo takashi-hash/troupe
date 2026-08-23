@@ -17,6 +17,9 @@ class 履歴読みの偽物:
         self.asked_offset = offset
         return self._entries
 
+    def count(self) -> int:
+        return len(self._entries)
+
 
 def _entry(**over: object) -> HistoryEntry:
     data: dict[str, object] = {

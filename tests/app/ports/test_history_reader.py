@@ -35,6 +35,12 @@ def test_読みは新しい順に上限と区切りつき() -> None:
     ]
 
 
+def test_総数も言える() -> None:
+    """§5「数えられるものは数を先に言う」——何件あるか判らない一覧を出さない。"""
+    hints = get_type_hints(HistoryReader.count)
+    assert hints["return"] is int
+
+
 def test_欄は出来事と見出しの材料だけ() -> None:
     """時刻・誰が・何が・仕事の識別子・業務ルール・対象期間・やること。"""
     assert set(HistoryEntry.model_fields) == {
