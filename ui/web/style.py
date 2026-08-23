@@ -779,8 +779,8 @@ tbody tr:hover { background: var(--faint); }
 
 /* ---------- 16. print — day sheet ---------- */
 @media print {
-  .app-header, .notice-bar, .filter-chips, .map-slot, #gmap, .sign-bar,
-  .cancel-zone, .pager, .guide-form, .ask-launcher, .ask-panel,
+  .topbar, .navbar, .notice-bar, .filter-chips, .map-slot, #gmap, .sign-bar,
+  .cancel-zone, .pager, .guide-form, .nav-ask, .ask-panel,
   button, .btn, form, .banner, .fold { display: none !important; }
   html, body { background: none; height: auto; min-height: 0; }
   .paper { border: 0; box-shadow: none; padding: 0; min-height: 0; }

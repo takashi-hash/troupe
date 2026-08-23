@@ -68,7 +68,7 @@ def make_app(
 
     @app.get("/", response_class=HTMLResponse)
     def _根() -> Any:
-        return RedirectResponse("/day")
+        return RedirectResponse("/day", status_code=303)
 
     # 古い道は新しい道へ——貼られたリンクを死なせない
     @app.get("/today")
