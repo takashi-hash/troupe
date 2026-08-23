@@ -1135,6 +1135,25 @@ class PostgresBilling:
         finally:
             conn.close()
 
+    def count_flagged(self) -> int:
+        if self._dsn is None:
+            return 0
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return 0
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM charges c WHERE c.status = 'flagged'"
+                " AND NOT EXISTS (SELECT 1 FROM claims cl WHERE cl.patient = c.patient"
+                "   AND cl.month = c.month AND cl.status = 'confirmed')"
+            ).fetchall()
+            return int(row[0][0]) if row else 0
+        except Exception:
+            return 0
+        finally:
+            conn.close()
+
 
 class PostgresStaff:
     """職員の登記簿の読み — `StaffReader` の実装。読むだけ。"""

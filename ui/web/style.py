@@ -168,13 +168,29 @@ body {
   background: rgba(255,255,255,.08);
   box-shadow: inset 2px 0 0 0 var(--beat);
 }
+.nav-badge {
+  display: inline-block; min-width: 16px; margin-left: 7px; padding: 0 5px;
+  font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
+  border-radius: 999px; background: var(--warn); color: #fff;
+  font-variant-numeric: tabular-nums; vertical-align: 1px;
+}
+.nav-help { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--ink-line); }
+.nav-ask {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  color: var(--ink-text); padding: 6px 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--ink-line); background: rgba(255,255,255,.04);
+  cursor: pointer;
+}
+.nav-ask:hover { background: rgba(255,255,255,.1); }
+.nav-ask .pulse-dot { width: 6px; height: 6px; }
 .nav-quiet {
-  margin-top: auto; display: block; padding: 8px 10px 0;
+  display: block; padding: 8px 10px 0;
   font-size: 11.5px; color: var(--ink-muted); text-decoration: none;
 }
 .nav-quiet:hover { color: var(--ink-text); text-decoration: underline; }
 .whoami {
-  padding: 12px 10px 2px; border-top: 1px solid var(--ink-line); margin-top: 8px;
+  padding: 12px 10px 2px; border-top: 1px solid var(--ink-line); margin-top: 10px;
   font-size: 12px; color: var(--ink-muted); line-height: 1.5;
 }
 .whoami strong { color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
@@ -760,15 +776,20 @@ tbody tr:hover { background: var(--faint); }
   .app-shell { display: block; }
   .app-header {
     width: auto; height: auto; overflow: visible; z-index: 30;
-    flex-direction: row; align-items: center; gap: 12px;
-    padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--ink-line);
+    flex-direction: row; align-items: center; gap: 10px;
+    flex-wrap: wrap;                    /* 1段目=銘・Ask・How・席 / 2段目=頁の列 */
+    padding: 8px 14px 0; border-right: 0; border-bottom: 1px solid var(--ink-line);
   }
   .brand { padding: 0; margin: 0; border-bottom: 0; font-size: 15px; }
-  .brand-sub, .cadence, .nav-quiet { display: none; }
+  .brand-sub, .cadence { display: none; }
+  .nav-help { margin: 0 0 0 auto; padding: 0; border: 0; display: flex; gap: 8px; align-items: center; }
+  .nav-ask { padding: 4px 9px; font-size: 12px; white-space: nowrap; }
+  .nav-quiet { padding: 0 4px; white-space: nowrap; }
   .nav {
+    order: 9; flex: 1 1 100%; min-width: 0;   /* 2段目をまるごと使う——潰れない */
     flex-direction: row; align-items: center; gap: 2px;
-    flex: 1 1 auto; min-width: 0;
     overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 6px 0 8px;
   }
   .nav__label { margin: 0 4px 0 8px; }
   .nav > .nav__label:first-child { margin: 0 4px 0 0; }
@@ -777,7 +798,12 @@ tbody tr:hover { background: var(--faint); }
   .nav a[aria-current="page"], .nav a.is-active {
     background: none; box-shadow: inset 0 -2px 0 0 CanvasText; border-radius: 0;
   }
-  .whoami { display: none; }
+  .whoami {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0; padding: 0 0 0 8px; border: 0; font-size: 11px;
+  }
+  .whoami strong, .whoami small, .seat-note { display: none; }
+  .seat-form { margin: 0; }
   .notice-bar { padding: 6px 16px; }
   main, .page { padding: 12px 10px 48px; }
   .paper { padding: 18px 14px 28px; border-radius: var(--r-md); min-height: 0; }

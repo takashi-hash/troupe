@@ -31,6 +31,19 @@ def _隣月(month: str) -> tuple[str, str]:
     return f"{前年:04d}-{前月:02d}", f"{翌年:04d}-{翌月:02d}"
 
 
+def _会計面(month: str, active: str) -> str:
+    """Billing の2面の切り替え札 — Claims と Fee schedule。routes が両面で使う。"""
+    def 札(label: str, href: str, on: bool) -> str:
+        当 = " is-on' aria-current='true" if on else ""
+        return f"<a class='filter-chip{当}' href='{href}'>{label}</a>"
+    return (
+        "<div class='filter-chips'>"
+        + 札("Claims", f"/billing?month={quote(month)}", active == "claims")
+        + 札("Fee schedule", f"/billing?month={quote(month)}&amp;view=fees", active == "fees")
+        + "</div>"
+    )
+
+
 def _状態欄(c: ChargeRow, month: str, 座長の席: bool = True) -> str:
     """算定行の Status セル — 旗の行だけが琥珀のチップと裁きのフォームを持つ。"""
     if c.status == "flagged":
@@ -119,7 +132,53 @@ def _請求札(v: ClaimView, month: str, today_month: str, 座長の席: bool = 
         )
     else:
         足 = "<div class='card-actions'><span class='sub'>Confirms after month end</span></div>"
-    return f"<article class='card'>{頭}{表}{足}</article>"
+    return f"<article class='card' id='claim-{escape(v.patient)}'>{頭}{表}{足}</article>"
+
+
+def _右欄(
+    views: tuple[ClaimView, ...], month: str, today_month: str, 座長の席: bool
+) -> str:
+    """座長の一瞥 — 旗の列と、確定を待つ下書きの列。行はカードの錨へ飛ぶ。"""
+    旗行 = [
+        "<a class='billing-rail-row' href='#claim-" + quote(v.patient) + "'>"
+        f"<span class='mono billing-rail-pt'>{escape(v.patient)}</span>"
+        f"<span class='mono'>{escape(c.code)}</span>"
+        f"<span class='cell-when billing-rail-end'>{escape(c.day)}</span></a>"
+        for v in views for c in v.charges if c.status == "flagged"
+    ]
+    旗塊 = (
+        "<section class='billing-rail-block'>"
+        "<h2 class='billing-rail-title'>Needs a ruling"
+        f"<span class='count-pill'><strong>{len(旗行)}</strong></span></h2>"
+        + ("".join(旗行) if 旗行
+           else "<p class='sub billing-rail-empty'>No flags waiting.</p>")
+        + "</section>"
+    )
+    if month < today_month:
+        下書き = [v for v in views if v.status != "confirmed"]
+        確認行 = [
+            "<div class='billing-rail-row'>"
+            f"<span class='mono billing-rail-pt'>{escape(v.patient)}</span>"
+            f"<span class='num billing-rail-end'>{v.total_points:,} pts</span></div>"
+            for v in 下書き
+        ]
+        確認中身 = (
+            "".join(確認行) + "<p class='sub billing-rail-empty'>Confirm on each card.</p>"
+            if 下書き else "<p class='sub billing-rail-empty'>No draft claims to confirm.</p>"
+        )
+    else:
+        確認中身 = "<p class='sub billing-rail-empty'>The month confirms after it ends.</p>"
+    確認塊 = (
+        "<section class='billing-rail-block'>"
+        "<h2 class='billing-rail-title'>Ready to confirm</h2>"
+        + 確認中身 + "</section>"
+    )
+    席注 = (
+        "" if 座長の席
+        else "<p class='sub billing-rail-seat'>Only the director's seat rules"
+             " — switch the seat.</p>"
+    )
+    return f"<aside class='page-rail'>{旗塊}{確認塊}{席注}</aside>"
 
 
 def _会計(
@@ -165,11 +224,37 @@ def _会計(
         )
         本体 = 提出行 + "".join(_請求札(v, month, today_month, is_director) for v in views)
     return (
-        頭 + 月帯 + 帯 + 本体
+        頭 + _会計面(month, "claims")
+        + "<div class='page-cols'><div class='page-main'>"
+        + 月帯 + 帯 + 本体
+        + "</div>"
+        + _右欄(views, month, today_month, is_director)
+        + "</div>"
         + "<p class='sub billing-fictional'>Nagisa Schedule — every code, point value and payer"
         " on this page is invented; no real billing system is involved.</p>"
         # この頁だけの化粧 — 正本の style は触らない
         + "<style>"
+        # 2列 — 左が帳簿、右が座長の一瞥。狭ければ右欄は下に積む(消さない)
+        ".page-cols { display: grid; grid-template-columns: minmax(0,1fr) 340px;"
+        " gap: 28px; align-items: start; }"
+        ".page-rail { position: sticky; top: 20px; }"
+        "@media (max-width: 1100px) { .page-cols { display: block; }"
+        " .page-rail { position: static; margin-top: 24px; } }"
+        # 右欄の塊は札1段・中は罫線の行(帳簿の作法)
+        ".billing-rail-block { border: 1px solid var(--line); border-radius: var(--r-md);"
+        " padding: 12px 16px 10px; margin-bottom: 14px; background: Canvas; }"
+        ".billing-rail-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px;"
+        " font-size: 11.5px; font-weight: 650; letter-spacing: .07em;"
+        " text-transform: uppercase; color: var(--muted); }"
+        ".billing-rail-row { display: flex; align-items: baseline; gap: 8px;"
+        " padding: 6.5px 0; border-top: 1px solid var(--line);"
+        " font-size: 13px; text-decoration: none; }"
+        "a.billing-rail-row:hover { background: var(--faint); }"
+        ".billing-rail-pt { font-weight: 600; }"
+        ".billing-rail-end { margin-left: auto; text-align: right;"
+        " font-variant-numeric: tabular-nums; }"
+        ".billing-rail-empty { margin: 4px 0 2px; }"
+        ".billing-rail-seat { margin: 0 2px; }"
         # 金の列は右寄せ・等幅数字。刻みは 4px の格子(帳簿を目で走る密度)
         ".billing-monthbar { font-variant-numeric: tabular-nums; }"
         ".billing-charges td { padding: 8px 12px; }"

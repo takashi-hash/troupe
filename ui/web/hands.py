@@ -110,6 +110,10 @@ class 会計の手(Protocol):
     def __call__(self, month: str) -> tuple[ClaimView, ...]: ...
 
 
+class 旗の数の手(Protocol):
+    def __call__(self) -> int: ...
+
+
 class 会計を押す手(Protocol):
     def __call__(self, what: str, fields: dict[str, str]) -> str | None: ...
 
@@ -154,6 +158,7 @@ class 手(NamedTuple):
     staff: 職員の手
     fees: 点数表の手
     billing: 会計の手
+    billing_flags: 旗の数の手
     billing_act: 会計を押す手
     guide: 案内の手
     close: Callable[[], None]

@@ -1,12 +1,64 @@
 from __future__ import annotations
 from app.dto.patient_row import PatientRow
 from app.dto.patient_view import PatientView
+from app.dto.pattern_row import PatternRow
 from html import escape
+from ui.web.agreements import _取り決め数
+from ui.web.agreements import _取り決め表
+from ui.web.agreements import _取り決めフォーム
+from ui.web.agreements import _患者の取り決めフォーム
+from ui.web.agreements import _追加バナー
 from ui.web.frame import _md
 from ui.web.frame import _欄
 from urllib.parse import quote
 
-def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
+#: 右レールの列組 — 表が主役で幅を取り、人の操作は右の脇。狭い幅では下に積む（消さない）
+_列組 = (
+    ".page-cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px;"
+    " gap: 28px; align-items: start; }"
+    ".page-rail { position: sticky; top: 20px; }"
+    "@media (max-width: 1100px) { .page-cols { display: block; }"
+    " .page-rail { position: static; margin-top: 24px; } }"
+)
+
+
+def _取り決め節(patterns: tuple[PatternRow, ...], added: str | None) -> str:
+    """一覧頁の下に足す罫の節 — 表が主役、右レールに結びフォーム。"""
+    有効, 終了 = _取り決め数(patterns)
+    return (
+        "<section class='pl-agreements'>"
+        "<div class='pl-agr-head'><h2 class='pl-agr-title'>Agreements in force</h2>"
+        f"<span class='count-pill'><strong>{有効}</strong> in force</span>"
+        + (f"<span class='pl-agr-aside'>{終了} ended</span>" if 終了 else "")
+        + "</div>"
+        + _追加バナー(added)
+        + "<p class='sub'>An agreement is a fact about the patient — it lives here,"
+        " and the pulse expands it into the calendar.</p>"
+        "<div class='page-cols'><div class='page-main'>"
+        + _取り決め表(patterns)
+        + "</div><aside class='page-rail'>"
+        + _取り決めフォーム("/patients")
+        + "</aside></div></section>"
+        "<style>"
+        ".pl-agreements { border-top: 1px solid var(--line-strong);"
+        " margin-top: 32px; padding-top: 20px; }"
+        ".pl-agr-head { display: flex; align-items: baseline; gap: 12px;"
+        " flex-wrap: wrap; margin: 0 0 4px; }"
+        ".pl-agr-title { font-family: var(--serif); font-size: 17px;"
+        " font-weight: 600; margin: 0; }"
+        ".pl-agr-aside { margin-left: auto; font-size: 13.5px; color: var(--muted); }"
+        ".pl-agreements .form-card { margin-top: 0; }"
+        + _列組 +
+        "</style>"
+    )
+
+
+def _患者たち(
+    rows: tuple[PatientRow, ...],
+    today: str = "",
+    patterns: tuple[PatternRow, ...] = (),
+    added: str | None = None,
+) -> str:
     """患者の一覧 — 診療録の写し。**よその語のまま並べる**（翻訳しない）。"""
     # 期限切れの数は表の cell-danger と同じ条件で数える（正本は _期限）
     期限切れ = sum(
@@ -22,10 +74,11 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
         + "</div>"
     )
     if not rows:
+        # 取り決めは一座の帳簿のもの — EMR の鏡が空でも節は出す
         return 頭 + (
             "<p class='empty'>The agency EMR is not wired (ICHIZA_EMR_DSN), "
             "or holds no patients.</p>"
-        )
+        ) + _取り決め節(patterns, added)
     def _期限(r: PatientRow) -> str:
         if not r.order_expires:
             return "<td class='cell-when'>—</td>"
@@ -52,7 +105,8 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
         "<div class='wrap'><table id='patients-table'><tr><th>Code</th>"
         "<th class='patients-num'>Age</th><th>Diagnosis</th>"
         "<th>Living</th><th>Next visit</th><th>Order expires</th></tr>" + 行 + "</table></div>"
-        "<script>(function () {"
+        + _取り決め節(patterns, added)
+        + "<script>(function () {"
         "var box = document.getElementById('patient-filter');"
         "box.closest('.patients-filter').hidden = false;"
         "box.addEventListener('input', function () {"
@@ -72,7 +126,11 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
     )
 
 
-def _患者(view: PatientView | None) -> str:
+def _患者(
+    view: PatientView | None,
+    patterns: tuple[PatternRow, ...] = (),
+    added: str | None = None,
+) -> str:
     if view is None:
         return "<p class='empty'>No patient with that code exists in the EMR mirror.</p>"
     # 柱の中の note-card が唯一の枠（紙の上のカードは1段まで）——頭は枠でなく罫線で区切る
@@ -120,6 +178,20 @@ def _患者(view: PatientView | None) -> str:
             ]
         )
         + "</section>"
+        # 取り決めは患者についての事実 — 素性と診療録の柱のあいだに、罫の節で置く
+        + "<section class='pd-agreements'>"
+        + _柱頭("Agreements", sum(1 for r in patterns if r.active_to is None))
+        + _追加バナー(added)
+        + "<div class='page-cols'><div class='page-main'>"
+        + _取り決め表(
+            patterns,
+            back=f"/patient?code={quote(view.code)}",
+            患者列=False,
+            空文="No agreement yet — record one and Monday's pulse plans the visits.",
+        )
+        + "</div><aside class='page-rail'>"
+        + _患者の取り決めフォーム(view.code, f"/patient?code={quote(view.code)}")
+        + "</aside></div></section>"
         # 下書きと正記録は別の柱 — 混ぜて並べず、見出しつきの2欄で分ける
         + "<div class='patient-cols'>"
         "<section class='patient-col'>" + _柱頭("Drafts — awaiting a clinician", len(view.drafts))
@@ -148,5 +220,9 @@ def _患者(view: PatientView | None) -> str:
         " border-bottom: 1px solid var(--line); padding-bottom: 7px; }"
         ".patient-col__n { margin-left: auto; font-size: 12.5px; font-weight: 500;"
         " color: var(--muted); }"
+        ".pd-agreements { border-bottom: 1px solid var(--line-strong);"
+        " padding-bottom: 20px; margin-bottom: 24px; }"
+        ".pd-agreements .form-card { margin-top: 0; }"
+        + _列組 +
         "</style>"
     )

@@ -18,24 +18,27 @@ def _頁(
     断り: str | None = None,
     notice: str | None = None,
     席たち: tuple[StaffRow, ...] = (),
+    旗数: int = 0,
 ) -> str:
     """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。
 
     `notice` は開示のバナー——**合成の座長が動いているあいだは、動いていると言う**。
     """
-    def _tab(識別子: str, 行き先: str | None = None, 名: str | None = None) -> str:
-        # Ledger は出来事と仕事の2面を束ねる1枚——どちらの頁でも灯る
-        灯る = 見出し == 識別子 or (識別子 == "ledger" and 見出し in ("activity", "search"))
+    def _tab(識別子: str, 行き先: str | None = None, 名: str | None = None,
+             札: str = "") -> str:
+        # Ledger は2面(出来事と仕事)、Billing も2面(請求と点数表)——どの面でも灯る
+        灯る = 見出し == 識別子 or (識別子 == "ledger" and 見出し in ("activity", "search")) \
+            or (識別子 == "billing" and 見出し == "fees")
         現在 = " aria-current='page'" if 灯る else ""
         return (f"<a href='{行き先 or '/' + 識別子}'{現在}>"
-                f"{escape(名 or 読める(識別子))}</a>")
+                f"{escape(名 or 読める(識別子))}{札}</a>")
 
+    # 平らな1列——左ほど「今すぐ」、右ほど「記録」。括りの札は置かない
+    旗札 = f"<span class='nav-badge'>{旗数}</span>" if 旗数 else ""
     tabs = (
-        "<span class='nav__label'>Care</span>"
-        + "".join(_tab(t) for t in ("day", "patients"))
-        + "<span class='nav__sep' role='separator'></span>"
-        + "<span class='nav__label'>Back office</span>"
-        + "".join(_tab(t) for t in ("inbox", "agreements", "billing", "automations"))
+        "".join(_tab(t) for t in ("day", "inbox", "patients"))
+        + _tab("billing", None, None, 旗札)
+        + _tab("automations")
         + _tab("ledger", "/activity")
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
@@ -55,7 +58,13 @@ def _頁(
         "<span class='brand-sub'>two pulses · every 60s</span>"
         "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
-        "<a class='nav-quiet' href='/how'>How Troupe works</a>"
+        "<div class='nav-help'>"
+        + ("<a id='ask-launcher' class='nav-ask' href='/guide'>"
+           "<span class='pulse-dot'></span>Ask the guide</a>"
+           if 見出し != "guide" else
+           "<a class='nav-ask' href='/guide' aria-current='page'>"
+           "<span class='pulse-dot'></span>Ask the guide</a>")
+        + "<a class='nav-quiet' href='/how'>How Troupe works</a></div>"
         f"{_席の札(viewer, 席たち)}</header>"
         f"<div class='app-content'>{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
         f"</div>{襟}</body></html>"
@@ -77,7 +86,7 @@ def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
         "<span class='whoami'>Sitting as: "
         f"<strong>{escape(席)}</strong> <small>{escape(役の名)}</small>"
         "<form class='seat-form' method='post' action='/seat'>"
-        f"<select name='seat'>{選び}</select>"
+        f"<select name='seat' onchange='this.form.submit()'>{選び}</select>"
         "<button class='btn btn--small'>Switch</button></form>"
         "<small class='seat-note'>A seat is a name, not a login — powers come"
         " from the register.</small></span>"
@@ -87,8 +96,6 @@ def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
 def _案内の襟() -> str:
     """右下の襟と札。往復は sessionStorage——帳簿に書かない。JS が無ければ /guide が受ける。"""
     return (
-        "<a id='ask-launcher' class='ask-launcher' href='/guide'>"
-        "<span class='pulse-dot'></span>Ask</a>"
         "<section id='ask-panel' class='ask-panel' aria-label='Guide'>"
         "<div class='ask-panel__head'><span class='pulse-dot'></span>Guide"
         "<small>&nbsp;— can point, never press</small>"

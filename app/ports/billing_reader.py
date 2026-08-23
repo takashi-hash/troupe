@@ -16,3 +16,7 @@ class BillingReader(Protocol):
     def read_month(self, month: str) -> tuple[ClaimView, ...]:
         """その月の請求の写し。読めなければ空。"""
         ...
+
+    def count_flagged(self) -> int:
+        """裁き待ちの旗の総数（確定していない月ぶん）。読めなければ0。"""
+        ...

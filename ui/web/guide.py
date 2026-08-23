@@ -18,14 +18,15 @@ from ui.words import 状態
 
 #: 貼ってよい行き先。**ここに無い道は文字のまま**——LLM の吐いた URL を貼らない。
 _PATHS = _re.compile(
-    r"(?<![\w/])(/(?:day|patients|inbox|agreements|automations|activity|search|how"
+    r"(?<![\w/])(/(?:day|patients|inbox|agreements|billing|fees|automations|activity|search|how"
     r"|patient\?code=[\w-]+|visit\?id=[\w-]+|detail\?id=[\w-]+))(?![\w?=&-])"
 )
 
 
 #: 写しに書いてよい「いま見ている頁」。白名単の外は書かない。
 _見てよい道 = ("/day", "/patients", "/patient", "/inbox", "/detail", "/agreements",
-              "/automations", "/activity", "/search", "/visit", "/guide", "/how")
+              "/billing", "/fees", "/automations", "/activity", "/search", "/visit",
+              "/guide", "/how")
 
 
 def _写し(h: 手, viewing: str | None = None) -> str:
@@ -64,8 +65,9 @@ def _写し(h: 手, viewing: str | None = None) -> str:
 
     lines.append(f"\nAutomation jobs in flight (not finished): {len(h.upcoming())}")
     lines.append(
-        "\nPages: /day (routes+visits) /patients /inbox (decisions) "
-        "/agreements /automations /activity /search /how"
+        "\nPages: /day (routes+visits) /inbox (decisions) "
+        "/patients (incl. agreements) /billing (claims+fee schedule) "
+        "/automations (rules+one-off requests) /activity /search /how"
     )
     return "\n".join(lines)
 
