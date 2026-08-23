@@ -19,6 +19,8 @@ class HistoryRow(BaseModel):
 
     at: str
     by: str
+    #: 起こす者の種別（human・agent・clock）——画面で人・AI・時計の見分けになる。
+    by_kind: str
     #: 何が起きたか — 用語集の語そのまま。
     what: str
     job_id: str

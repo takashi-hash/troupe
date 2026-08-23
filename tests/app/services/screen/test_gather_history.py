@@ -10,9 +10,11 @@ class 履歴読みの偽物:
     def __init__(self, entries: tuple[HistoryEntry, ...]) -> None:
         self._entries = entries
         self.asked_limit: int | None = None
+        self.asked_offset: int | None = None
 
-    def read_latest(self, limit: int) -> tuple[HistoryEntry, ...]:
+    def read_latest(self, limit: int, offset: int = 0) -> tuple[HistoryEntry, ...]:
         self.asked_limit = limit
+        self.asked_offset = offset
         return self._entries
 
 
@@ -49,3 +51,11 @@ def test_上限が読みに渡る() -> None:
     読み = 履歴読みの偽物(())
     gather_history(読み, limit=50)
     assert 読み.asked_limit == 50
+
+
+def test_区切りが読みに渡り_種別が行に残る() -> None:
+    """新しい順の区切り(§2)と、人・AI・時計の見分け(§2)。"""
+    読み = 履歴読みの偽物((_entry(),))
+    rows = gather_history(読み, limit=100, offset=200)
+    assert 読み.asked_offset == 200
+    assert rows[0].by_kind == "clock"

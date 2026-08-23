@@ -12,6 +12,7 @@ def make_row(**over: object) -> HistoryRow:
     data: dict[str, object] = {
         "at": "2026-08-22 09:00",
         "by": "時計",
+        "by_kind": "clock",
         "what": "仕事が作られた",
         "job_id": "J-0001",
         "head": "週次の依存の棚卸し　2026-W34",
@@ -20,8 +21,8 @@ def make_row(**over: object) -> HistoryRow:
 
 
 def test_欄は設計の履歴の行そのまま() -> None:
-    """時刻・誰が・何が起きたか・仕事の識別子・見出し。"""
-    assert set(HistoryRow.model_fields) == {"at", "by", "what", "job_id", "head"}
+    """時刻・誰が（種別と名）・何が起きたか・仕事の識別子・見出し。"""
+    assert set(HistoryRow.model_fields) == {"at", "by", "by_kind", "what", "job_id", "head"}
 
 
 def test_文字とIDだけ_domainの値は運ばない() -> None:

@@ -40,7 +40,9 @@ class 決まりを押す手(Protocol):
 
 
 class 履歴の手(Protocol):
-    def __call__(self) -> tuple[HistoryRow, ...]: ...
+    def __call__(self, page: int = 0) -> tuple[HistoryRow, ...]:
+        """新しい順に、頁で区切って。机の窓は頁を渡さない（先頭だけ）。"""
+        ...
 
 
 class 検索の手(Protocol):

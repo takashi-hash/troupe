@@ -26,15 +26,18 @@ def heading(rule: str | None, period: str | None, instruction: str) -> str:
     return instruction.splitlines()[0] if instruction else ""
 
 
-def gather_history(history: HistoryReader, limit: int = 200) -> tuple[HistoryRow, ...]:
-    """出来事の列を新しい順に、履歴の行にして返す。読むだけ——帳簿に書かない。"""
+def gather_history(
+    history: HistoryReader, limit: int = 200, offset: int = 0
+) -> tuple[HistoryRow, ...]:
+    """出来事の列を新しい順に、区切って履歴の行にして返す。読むだけ——帳簿に書かない。"""
     return tuple(
         HistoryRow(
             at=e.at,
             by=e.by_name if e.by_name else _起こす者の語.get(e.by_kind, e.by_kind),
+            by_kind=e.by_kind,
             what=_出来事の語.get(e.name, e.name),
             job_id=e.job_id,
             head=heading(e.rule, e.period, e.instruction),
         )
-        for e in history.read_latest(limit)
+        for e in history.read_latest(limit, offset)
     )

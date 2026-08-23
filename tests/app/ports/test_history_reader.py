@@ -24,11 +24,15 @@ def _材料() -> HistoryEntry:
     )
 
 
-def test_読みは新しい順に上限つき() -> None:
+def test_読みは新しい順に上限と区切りつき() -> None:
+    """§2「列は新しい順に区切って引ける——全部を一度に運ばない」。"""
     hints = get_type_hints(HistoryReader.read_latest)
     assert hints["limit"] is int
+    assert hints["offset"] is int
     assert hints["return"] == tuple[HistoryEntry, ...]
-    assert list(inspect.signature(HistoryReader.read_latest).parameters) == ["self", "limit"]
+    assert list(inspect.signature(HistoryReader.read_latest).parameters) == [
+        "self", "limit", "offset",
+    ]
 
 
 def test_欄は出来事と見出しの材料だけ() -> None:

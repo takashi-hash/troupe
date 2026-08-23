@@ -34,6 +34,6 @@ class HistoryEntry(Value):
 
 
 class HistoryReader(Protocol):
-    def read_latest(self, limit: int) -> tuple[HistoryEntry, ...]:
-        """出来事の行を新しい順に。集約を再構成しない——画面に要る形で引く。"""
+    def read_latest(self, limit: int, offset: int = 0) -> tuple[HistoryEntry, ...]:
+        """出来事の行を新しい順に、区切って。集約を再構成しない——画面に要る形で引く。"""
         ...

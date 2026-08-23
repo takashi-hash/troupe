@@ -283,14 +283,14 @@ class SqliteHistory:
     def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
-    def read_latest(self, limit: int) -> tuple[HistoryEntry, ...]:
+    def read_latest(self, limit: int, offset: int = 0) -> tuple[HistoryEntry, ...]:
         out: list[HistoryEntry] = []
         for at, kind, name, ev_name, job_id, rule, period, body in self._conn.execute(
             "SELECT e.at, e.by_kind, e.by_name, e.name, e.job_id,"
             " j.rule_name, j.period, j.body"
             " FROM job_events e JOIN jobs j ON j.id = e.job_id"
-            " ORDER BY e.at DESC, e.seq DESC LIMIT ?",
-            (limit,),
+            " ORDER BY e.at DESC, e.seq DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall():
             out.append(
                 HistoryEntry(

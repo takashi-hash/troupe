@@ -89,8 +89,9 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
         return 見せる("automations", lambda h: 副題 + _予定(h.schedule_fetch(), h.upcoming()))
 
     @app.get("/activity", response_class=HTMLResponse)
-    def _履歴の頁() -> HTMLResponse:
-        return 見せる("activity", lambda h: _履歴(h.history_fetch()))
+    def _履歴の頁(page: int = 0) -> HTMLResponse:
+        頁 = max(page, 0)
+        return 見せる("activity", lambda h: _履歴(h.history_fetch(頁), 頁))
 
     @app.get("/day", response_class=HTMLResponse)
     def _道順の頁(
@@ -202,9 +203,16 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
         return 見せる("patients", lambda h: _患者(h.patient(code)))
 
     @app.get("/search", response_class=HTMLResponse)
-    def _検索の頁(keyword: str = "") -> HTMLResponse:
-        条件 = RowFilter(keyword=keyword or None)
-        return 見せる("search", lambda h: _検索(h.search(条件), keyword))
+    def _検索の頁(
+        keyword: str = "", state: str = "", rule: str = "", assignee: str = ""
+    ) -> HTMLResponse:
+        条件 = RowFilter(
+            keyword=keyword or None,
+            state_label=state or None,
+            rule=rule or None,
+            assignee=assignee or None,
+        )
+        return 見せる("search", lambda h: _検索(h.search(条件), 条件))
 
     @app.post("/act")
     def _押す(

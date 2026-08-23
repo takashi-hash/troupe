@@ -220,8 +220,9 @@ def _手(za: Ichiza, viewer: str) -> 手:
             return f"Unknown action: {what}"
         return None if 断り is None else 断り.reason
 
-    def 履歴を読む() -> tuple[HistoryRow, ...]:
-        return gather_history(za.history)
+    def 履歴を読む(page: int = 0) -> tuple[HistoryRow, ...]:
+        # 頁は100行で区切る——器はどこから読むかだけを言う
+        return gather_history(za.history, limit=100, offset=max(page, 0) * 100)
 
     def 検索する(filter: RowFilter) -> tuple[SearchRow, ...]:
         return gather_search(za.search_hits, filter)
