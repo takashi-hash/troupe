@@ -14,6 +14,7 @@ import re as _re
 from html import escape
 
 from ui.web.hands import 手
+from ui.words import 状態
 
 #: 貼ってよい行き先。**ここに無い道は文字のまま**——LLM の吐いた URL を貼らない。
 _PATHS = _re.compile(
@@ -34,7 +35,7 @@ def _写し(h: 手) -> str:
         extra = ("question pending" if r.question_body else
                  "assessment attached" if r.assessments else "")
         lines.append(
-            f"- job {r.id}: {ref} — {r.state_name}"
+            f"- job {r.id}: {ref} — {状態(r.state_name)}"
             + (f" ({extra})" if extra else "")
             + f" — open /detail?id={r.id}"
         )

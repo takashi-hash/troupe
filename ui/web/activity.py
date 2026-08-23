@@ -9,7 +9,7 @@ from __future__ import annotations
 from html import escape
 
 from app.dto.history_row import HistoryRow
-from ui.words import 出来事
+from ui.words import ACTOR_GLOSS, 出来事, 読める
 
 #: 種別 → （チップの類・画面の名）。**種別は識別子で届く**——ここは見た目だけ。
 _WHO = {
@@ -21,9 +21,12 @@ _WHO = {
 
 def _誰(by: str, kind: str) -> str:
     cls, label = _WHO.get(kind, ("", kind))
+    # 名が無いとき by には起こす者の語(和語)が入る——橋で識別子に写す(訳を発明しない)
+    名 = 読める(ACTOR_GLOSS[by]) if by in ACTOR_GLOSS else by
+    小 = "" if 名.lower() == label.lower() else f"<small>{escape(label)}</small>"
     return (
         f"<span class='who {cls}'><span class='who-dot'></span>"
-        f"{escape(by)}<small>{escape(label)}</small></span>"
+        f"{escape(名)}{小}</span>"
     )
 
 

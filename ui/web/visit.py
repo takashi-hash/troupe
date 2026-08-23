@@ -30,6 +30,18 @@ def _soap分解(body: str) -> dict[str, str] | None:
 
 
 
+#: 2面の並びはこの頁だけのもの——枠の1枚（style.py）に足さず、頁が持って出る。
+_様式 = """<style>
+/* 訪問の2面 — 左（患者札と下書き・貼り付く）/ 右（記録の欄）。1100px 未満で1段 */
+.visit-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 34px; align-items: start; }
+.visit-aside, .visit-main { min-width: 0; }
+@media (min-width: 1100px) {
+  .visit-grid { grid-template-columns: minmax(300px, 43fr) minmax(0, 57fr); }
+  .visit-aside { position: sticky; top: 22px; max-height: calc(100vh - 44px); overflow-y: auto; }
+}
+</style>"""
+
+
 def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
     if view is None:
         return "<p class='empty'>No such visit.</p>"
@@ -44,6 +56,8 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
         f"<div class='visit-head'><h1 class='page-title'>{escape(pt.code)} · Visit</h1>"
         f"<span class='chip'>{escape(view.status.capitalize())}</span>"
         f"<span class='visit-head__meta'>{escape(view.visit_date)} · {escape(view.clinician)}</span></div>"
+    )
+    患者札 = (
         f"<div class='card snapshot'><div class='snapshot__head'>"
         f"<span class='snapshot__title'>Patient snapshot</span>"
         f"<a class='link-action push' href='/patient?code={quote(pt.code)}'>Full chart →</a></div>"
@@ -59,7 +73,12 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
             + _欄([("S", n.s), ("O", n.o), ("A", n.a), ("P", n.p)]) + "</div>"
             for n in view.notes[:1]
         )
-        return 頭 + f"<p class='sub'>This visit is {escape(view.status)} — read-only.</p>" + 済み
+        return (
+            頭 + _様式
+            + f"<div class='visit-grid'><div class='visit-aside'>{患者札}</div>"
+            + f"<div class='visit-main'><p class='sub'>This visit is {escape(view.status)}"
+            " — read-only.</p>" + 済み + "</div></div>"
+        )
     draft = view.drafts[0] if view.drafts else None
     分解 = _soap分解(draft.body) if draft else None
     下書きパネル = ""
@@ -113,6 +132,11 @@ def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
         "<p class='sub'>The agreement stays — only this one visit is cancelled.</p>"
         "</details></div>"
     )
-    return 頭 + 下書きパネル + 編集 + 休み
+    return (
+        頭 + _様式
+        + f"<div class='visit-grid'><div class='visit-aside'>{患者札}{下書きパネル}</div>"
+        + f"<div class='visit-main'>{編集}</div></div>"
+        + 休み
+    )
 
 

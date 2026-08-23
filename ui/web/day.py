@@ -133,6 +133,7 @@ def _道順(
            " distance. Addresses are public landmarks standing in for homes —"
            " no real residence appears.</p>")
 
+    帯たち = []
     節たち = []
     for i, (担当, stops) in enumerate(sorted(絞り.items())):
         予定 = [st for st in stops if st.seq]
@@ -152,6 +153,7 @@ def _道順(
             + (f" · next: {escape(次.patient)}" if 次 else " · round complete")
             + "</div>"
         )
+        帯たち.append(帯)
         地点 = ([f"{base[0]},{base[1]}"] if base else []) + [
             f"{st.lat},{st.lng}" for st in 予定
         ] + ([f"{base[0]},{base[1]}"] if base and 予定 else [])
@@ -186,14 +188,28 @@ def _道順(
             f"{合計 + 帰路:.1f} km incl. return"
             + (f" · <a href='{escape(gmap)}'>open in Google Maps</a>" if gmap else "")
             + "</span></div>"
-            + 帯
             + "<ol class='stop-list'>"
             + "".join(_card(st) for st in stops)
             + "</ol>"
             + (f"<div class='stop-return'>⌂ Return to clinic · {帰路:.1f} km</div>" if base and 予定 else "")
             + "</section>"
         )
-    return バナー + nav + フィルタ + f"<div class='map-slot'>{地図}</div>" + but + "".join(節たち)
+    # 2面 — 左：日送り・進み具合・地図・注記／右：絞り込みと回る先。バナーは全幅で最上段
+    return (
+        バナー
+        + "<div class='day-grid'>"
+        + "<div class='day-map'>"
+        + nav
+        + "".join(帯たち)
+        + f"<div class='map-slot'>{地図}</div>"
+        + but
+        + "</div>"
+        + "<div class='day-stops'>"
+        + フィルタ
+        + "".join(節たち)
+        + "</div>"
+        + "</div>"
+    )
 
 
 

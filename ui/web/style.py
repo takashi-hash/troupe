@@ -19,14 +19,14 @@ _STYLE = """
      · チップの記号（✓ / ⚠）は HTML 側の文字として入れる（白黒印刷でも残る）。
 
    目次:
-     0. tokens & reset        8. Visit (/visit)
-     1. shell（header/nav/page） 9. Inbox
-     2. text & links         10. Patient chart
-     3. cards & folds        11. Agreements · Automations
-     4. chips·badges·seals   12. markdown (.md)
-     5. buttons & forms      13. banners · refusal · empty
-     6. tables               14. focus & a11y
-     7. My Day (/day)        15. print（day sheet）
+     0. tokens & reset          8. Visit (/visit)
+     1. shell（sidebar/nav/page） 9. Inbox
+     2. text & links           10. Patient chart
+     3. cards & folds          11. Agreements · Automations
+     4. chips·badges·seals·who 12. markdown (.md) · guide · how
+     5. buttons & forms        13. banners · refusal · empty
+     6. tables · pager         14. focus & a11y
+     7. My Day (/day)          15. narrow（top bar）· 16. print（day sheet）
    ================================================================ */
 
 /* ---------- 0. tokens & reset ---------- */
@@ -50,40 +50,65 @@ _STYLE = """
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  font: 14.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
   background: Canvas; color: CanvasText;
   -webkit-text-size-adjust: 100%;
 }
 
-/* ---------- 1. shell — header / nav / page ---------- */
+/* ---------- 1. shell — sidebar / nav / page ----------
+   骨組み:  .app-shell > .app-header（左の縦ナビ・幅216px固定）
+                       + .app-content（.notice-bar → main）
+   900px 未満は §15 で上のバーに畳む。 */
+.app-shell { display: flex; align-items: stretch; min-height: 100vh; }
 .app-header {
-  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  padding: 12px 28px;
+  flex: none; width: 216px;
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  padding: 16px 12px 14px;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, CanvasText 2.5%, Canvas);
+}
+.brand {
+  display: block; font-size: 15.5px; font-weight: 700; letter-spacing: .01em;
+  padding: 2px 10px 13px; margin: 0 0 4px;
   border-bottom: 1px solid var(--line);
 }
-.brand { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
-.nav { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.nav { display: flex; flex-direction: column; gap: 1px; }
 .nav__label {
-  font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
+  display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
   text-transform: uppercase; color: var(--muted);
-  margin: 0 6px 0 2px; user-select: none;
+  margin: 18px 10px 4px; user-select: none;
 }
-.nav__sep { width: 1px; height: 18px; background: var(--line-strong); margin: 0 12px; }
+.nav > .nav__label:first-child { margin-top: 8px; }
+/* 縦組では見出し前の余白が区切り。横組（§15）で線として復活 */
+.nav__sep { display: none; width: 1px; height: 16px; background: var(--line-strong); }
 .nav a {
-  text-decoration: none; color: var(--muted);
-  font-size: 14px; padding: 6px 10px; border-radius: 7px;
+  display: block; text-decoration: none; color: var(--muted);
+  font-size: 13.5px; padding: 5.5px 10px; border-radius: 7px;
 }
-.nav a:hover { color: CanvasText; background: var(--faint); }
+.nav a:hover { color: CanvasText; background: color-mix(in srgb, CanvasText 6%, Canvas); }
 .nav a[aria-current="page"], .nav a.is-active {
   color: CanvasText; font-weight: 600;
-  box-shadow: inset 0 -2px 0 0 CanvasText;
-  border-radius: 7px 7px 0 0; background: none;
+  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  box-shadow: inset 2px 0 0 0 CanvasText;
 }
-.whoami { margin-left: auto; font-size: 13px; color: var(--muted); }
-.whoami strong { color: CanvasText; font-weight: 600; }
+.whoami {
+  margin-top: auto; padding: 12px 10px 2px; border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+}
+.whoami strong { display: block; color: CanvasText; font-weight: 600; font-size: 12.5px; }
 
-main, .page { max-width: 960px; margin: 0 auto; padding: 26px 28px 48px; }
+.app-content { flex: 1 1 auto; min-width: 0; }
+/* 開示バー — 合成の座長が動いているあいだの、細い琥珀の帯 */
+.notice-bar {
+  font-size: 12.5px; line-height: 1.5; padding: 6px 36px;
+  color: color-mix(in srgb, var(--warn) 72%, CanvasText);
+  background: color-mix(in srgb, var(--warn) 8%, Canvas);
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 26%, transparent);
+}
+
+main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 26px 36px 56px; }
 .page-title { font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin: 0 0 4px; }
 .page-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 22px; max-width: 68ch; }
 .section-title { font-size: 15px; font-weight: 650; margin: 30px 0 10px; }
@@ -176,6 +201,23 @@ a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
   font-size: 12px; padding: 1.5px 9px; border-radius: 999px;
   background: color-mix(in srgb, CanvasText 9%, Canvas);
 }
+/* who = 履歴の「誰が」。状態でなく人格の見分け——点にだけ色を置く。
+   紫は地図の担当色と同系（状態の5色とは別の、人格の色）。 */
+.who {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; white-space: nowrap;
+}
+.who small {
+  font-size: 10px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted);
+}
+.who-dot {
+  flex: none; width: 8px; height: 8px; border-radius: 50%;
+  background: color-mix(in srgb, CanvasText 35%, Canvas);
+}
+.who--human .who-dot { background: var(--ok); }
+.who--agent .who-dot { background: #7c3aed; }
+.who--clock .who-dot { background: color-mix(in srgb, CanvasText 40%, Canvas); }
 
 /* ---------- 5. buttons & forms ----------
    3階層:  primary(塗り) = Sign / Approve / Reply だけ
@@ -228,21 +270,40 @@ form.act { display: inline-flex; gap: 8px; margin: 0; align-items: center; } /* 
 .actions, .card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .card-actions { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .push { margin-left: auto; }
+/* 検索の一列 — 欄・選択・ボタンを1行に。狭ければ折り返す */
+.search-form {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 20px;
+}
+.search-form input[type=text] { flex: 1 1 150px; min-width: 0; max-width: 260px; }
+.search-form select { flex: none; }
 
-/* ---------- 6. tables ---------- */
+/* ---------- 6. tables · pager ---------- */
 .wrap { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 th {
   text-align: left; font-size: 11.5px; font-weight: 600;
   letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
-  padding: 8px 10px; border-bottom: 1px solid var(--line-strong);
+  padding: 8px 12px; border-bottom: 1px solid var(--line-strong);
 }
 td {
-  padding: 9px 10px; border-bottom: 1px solid var(--line);
+  padding: 9px 12px; border-bottom: 1px solid var(--line);
   vertical-align: top; font-variant-numeric: tabular-nums;
 }
 tbody tr:hover { background: var(--faint); }
 .cell-danger { color: color-mix(in srgb, var(--danger) 75%, CanvasText); font-weight: 600; }
+.cell-when {
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+  white-space: nowrap;
+}
+/* 頁送り — 表の下の一列 */
+.pager {
+  display: flex; align-items: baseline; gap: 16px;
+  margin: 14px 0 0; font-size: 13.5px;
+}
+.pager-link { text-decoration: none; font-weight: 550; white-space: nowrap; }
+.pager-link:hover { text-decoration: underline; }
+.pager-page { margin-left: auto; font-size: 12.5px; color: var(--muted); }
 
 /* ---------- 7. My Day (/day) ---------- */
 .day-bar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
@@ -288,10 +349,10 @@ tbody tr:hover { background: var(--faint); }
   font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums;
 }
 .stop-card__main { flex: 1 1 230px; min-width: 0; }
-.stop-card__patient { font-weight: 600; }
+.stop-card__patient { font-weight: 600; display: block; }
 .stop-card__patient a { text-decoration: none; }
 .stop-card__patient a:hover { text-decoration: underline; }
-.stop-card__place { font-size: 13px; color: var(--muted); }
+.stop-card__place { font-size: 13px; color: var(--muted); display: block; margin-top: 2px; }
 .stop-card__status { flex: none; }
 .stop-card__leg {
   flex: none; width: 64px; text-align: right;
@@ -312,6 +373,19 @@ tbody tr:hover { background: var(--faint); }
 .stop-return .stop-card__seq {
   background: transparent; color: var(--muted);
   border: 1px dashed var(--line-strong);
+}
+/* 2面 — 左（地図と進み具合・貼り付く）44% / 右（回る先の列）。1100px 未満で1段 */
+.day-grid {
+  display: grid; grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
+  gap: 28px; align-items: start;
+}
+.day-map { position: sticky; top: 20px; min-width: 0; }
+.day-map .map-slot, .day-map #gmap, .day-map svg { max-width: none !important; }
+.day-stops { min-width: 0; }
+.day-stops .clinician-day:first-child { margin-top: 0; }
+@media (max-width: 1100px) {
+  .day-grid { display: block; }
+  .day-map { position: static; }
 }
 
 /* ---------- 8. Visit (/visit) ---------- */
@@ -428,6 +502,41 @@ tbody tr:hover { background: var(--faint); }
 .md hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 .md strong { font-weight: 650; }
 
+/* ---------- 12b. guide (/guide) — 案内の会話 ----------
+   問いは右寄せの吹き出し、答えは静かな札。読み幅 760px。 */
+.guide { max-width: 760px; }
+.guide-hint { font-size: 14px; color: var(--muted); margin: 0 0 20px; max-width: 62ch; }
+.guide-turn { margin: 0 0 20px; }
+.guide-q {
+  width: max-content; max-width: 85%; margin: 0 0 10px auto;
+  font-size: 14px; font-weight: 600;
+  padding: 7px 14px; border-radius: 12px 12px 3px 12px;
+  background: var(--faint); border: 1px solid var(--line);
+}
+.guide-a {
+  max-width: 92%; padding: 12px 16px;
+  font-size: 14px; line-height: 1.65; white-space: pre-wrap;
+  border: 1px solid var(--line); border-radius: 12px 12px 12px 3px;
+}
+.guide-form {
+  position: sticky; bottom: 0; z-index: 10;
+  display: flex; gap: 8px; align-items: center;
+  background: Canvas; border-top: 1px solid var(--line);
+  padding: 12px 0; margin-top: 24px;
+}
+.guide-input { flex: 1 1 auto; min-width: 0; padding: 8px 12px; }
+
+/* ---------- 12c. how (/how) — 説明の読みもの ---------- */
+.how { max-width: 760px; }
+.how p, .how li { line-height: 1.7; }
+.how h2 { font-size: 15.5px; font-weight: 650; margin: 0 0 8px; }
+.how-steps { margin: 10px 0; padding-left: 22px; }
+.how-steps li { margin: 8px 0; }
+.how-who { margin: 8px 0 0; }
+.how-who td:first-child { white-space: nowrap; }
+.how-who tr:last-child td { border-bottom: 0; }
+.how-who tr:hover { background: none; }
+
 /* ---------- 13. banners · refusal · empty ---------- */
 .banner {
   display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
@@ -445,7 +554,7 @@ tbody tr:hover { background: var(--faint); }
   border-radius: 0 10px 10px 0;
   padding: 10px 16px; margin: 0 0 18px;
 }
-.empty { color: var(--muted); padding: 36px 0; }
+.empty { color: var(--muted); padding: 36px 0; font-size: 14px; max-width: 68ch; }
 
 /* ---------- 14. focus & a11y ---------- */
 :focus-visible {
@@ -454,10 +563,40 @@ tbody tr:hover { background: var(--faint); }
 }
 ::selection { background: color-mix(in srgb, var(--primary) 22%, Canvas); }
 
-/* ---------- 15. print — day sheet ---------- */
+/* ---------- 15. narrow — 900px 未満は上の小さなバー ---------- */
+@media (max-width: 900px) {
+  .app-shell { display: block; }
+  .app-header {
+    width: auto; height: auto; overflow: visible; z-index: 30;
+    flex-direction: row; align-items: center; gap: 12px;
+    padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--line);
+  }
+  .brand { padding: 0; margin: 0; border-bottom: 0; font-size: 15px; }
+  .nav {
+    flex-direction: row; align-items: center; gap: 2px;
+    flex: 1 1 auto; min-width: 0;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .nav__label { margin: 0 4px 0 8px; }
+  .nav > .nav__label:first-child { margin: 0 4px 0 0; }
+  .nav__sep { display: block; flex: none; margin: 0 6px; align-self: center; }
+  .nav a { white-space: nowrap; font-size: 13px; padding: 5px 9px; }
+  .nav a[aria-current="page"], .nav a.is-active {
+    background: none; box-shadow: inset 0 -2px 0 0 CanvasText; border-radius: 0;
+  }
+  .whoami { display: none; }
+  .notice-bar { padding: 6px 16px; }
+  main, .page { padding: 18px 16px 48px; }
+}
+
+/* ---------- 16. print — day sheet ---------- */
 @media print {
-  .app-header, .filter-chips, .map-slot, #gmap, .sign-bar, .cancel-zone,
+  .app-header, .notice-bar, .filter-chips, .map-slot, #gmap, .sign-bar,
+  .cancel-zone, .pager, .guide-form,
   button, .btn, form, .banner, .fold { display: none !important; }
+  .app-shell { display: block; }
+  .day-grid { display: block; }
+  .day-map { position: static; }
   main, .page { max-width: none; padding: 0; }
   body { font-size: 12px; }
   a { text-decoration: none; color: #000; }

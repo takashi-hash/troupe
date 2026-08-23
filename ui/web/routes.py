@@ -20,7 +20,12 @@ from ui.web.search import _検索
 from ui.web.visit import _訪問
 from urllib.parse import quote
 
-def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> Any:
+def make_app(
+    開く: 手を開く,
+    viewer: str,
+    maps_key: str | None = None,
+    notice: str | None = None,
+) -> Any:
     """web の器を組む。**手は1回ごとに開いて閉じる。**
 
     返すのは ASGI のアプリ——立てるのは main.py（**注ぐのはそこだけ**）。
@@ -33,7 +38,7 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
     def 見せる(見出し: str, 描く: Callable[[手], str], 断り: str | None = None) -> HTMLResponse:
         手たち = 開く()
         try:
-            return HTMLResponse(_頁(見出し, 描く(手たち), viewer, 断り))
+            return HTMLResponse(_頁(見出し, 描く(手たち), viewer, 断り, notice))
         finally:
             手たち.close()
 

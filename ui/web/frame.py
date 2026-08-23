@@ -9,8 +9,17 @@ import re as _re
 _書く欄 = {"answer": "Answer", "send_back": "Reason", "abandon": "Reason"}
 
 
-def _頁(見出し: str, 中身: str, viewer: str, 断り: str | None = None) -> str:
-    """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。"""
+def _頁(
+    見出し: str,
+    中身: str,
+    viewer: str,
+    断り: str | None = None,
+    notice: str | None = None,
+) -> str:
+    """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。
+
+    `notice` は開示のバナー——**合成の座長が動いているあいだは、動いていると言う**。
+    """
     def _tab(識別子: str) -> str:
         現在 = " aria-current='page'" if 識別子 == 見出し else ""
         return f"<a href='/{識別子}'{現在}>{escape(読める(識別子))}</a>"
@@ -21,16 +30,22 @@ def _頁(見出し: str, 中身: str, viewer: str, 断り: str | None = None) ->
         + "<span class='nav__sep' role='separator'></span>"
         + "<span class='nav__label'>Back office</span>"
         + "".join(_tab(t) for t in ("inbox", "agreements", "automations", "activity", "search"))
+        + "<span class='nav__sep' role='separator'></span>"
+        + "<span class='nav__label'>Help</span>"
+        + "".join(_tab(t) for t in ("guide", "how"))
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
+    開示 = f"<div class='notice-bar'>{escape(notice)}</div>" if notice else ""
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
+        "<div class='app-shell'>"
         f"<header class='app-header'><span class='brand'>Troupe</span>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
         f"<span class='whoami'>Signed in as: <strong>{escape(viewer)}</strong></span></header>"
-        f"<main>{警告}{中身}</main></body></html>"
+        f"<div class='app-content'>{開示}<main>{警告}{中身}</main></div>"
+        "</div></body></html>"
     )
 
 

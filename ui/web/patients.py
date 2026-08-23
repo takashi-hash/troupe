@@ -31,8 +31,27 @@ def _患者たち(rows: tuple[PatientRow, ...], today: str = "") -> str:
     return (
         "<p class='sub'>Read-only mirror of the agency EMR — synthetic data, no real patient exists. "
         "Troupe never writes here.</p>"
-        "<div class='wrap'><table><tr><th>Code</th><th>Age</th><th>Diagnosis</th>"
+        # 絞り込みは飾り — JS が無ければ欄ごと出さず、表は常に全部読める
+        "<div class='table-filter' hidden>"
+        "<input type='text' id='patient-filter' aria-label='Filter patients'"
+        " placeholder='Filter — code, diagnosis, living…' autocomplete='off'></div>"
+        "<div class='wrap'><table id='patients-table'><tr><th>Code</th><th>Age</th><th>Diagnosis</th>"
         "<th>Living</th><th>Next visit</th><th>Order expires</th></tr>" + 行 + "</table></div>"
+        "<script>(function () {"
+        "var box = document.getElementById('patient-filter');"
+        "box.closest('.table-filter').hidden = false;"
+        "box.addEventListener('input', function () {"
+        "  var q = box.value.trim().toLowerCase();"
+        "  document.querySelectorAll('#patients-table tr').forEach(function (tr) {"
+        "    if (tr.querySelector('th')) return;"
+        "    tr.hidden = q !== '' && tr.textContent.toLowerCase().indexOf(q) < 0;"
+        "  });"
+        "});"
+        "})();</script>"
+        "<style>"
+        ".table-filter { margin: 0 0 14px; }"
+        ".table-filter input { width: 300px; max-width: 100%; }"
+        "</style>"
     )
 
 
@@ -75,8 +94,20 @@ def _患者(view: PatientView | None) -> str:
         )
         + f"<p class='sub'><a href='/search?keyword={quote(view.code)}'>"
         f"Jobs for this patient →</a></p></div>"
-        + 下書き
-        + 記録
+        # 下書きと正記録は別の柱 — 混ぜて並べず、見出しつきの2欄で分ける
+        + "<div class='chart-cols'>"
+        "<section class='chart-col'><h3 class='chart-col__head'>Drafts — awaiting a clinician</h3>"
+        + (下書き or "<p class='sub'>No drafts waiting.</p>")
+        + "</section>"
+        "<section class='chart-col'><h3 class='chart-col__head'>Signed record</h3>"
+        + (記録 or "<p class='sub'>No signed notes yet.</p>")
+        + "</section></div>"
+        "<style>"
+        ".chart-cols { display: grid; grid-template-columns: minmax(0, 1fr);"
+        " gap: 28px; align-items: start; margin-top: 8px; }"
+        "@media (min-width: 1100px) {"
+        " .chart-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; } }"
+        ".chart-col__head { margin: 0 0 12px; font-size: 11.5px; font-weight: 600;"
+        " letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }"
+        "</style>"
     )
-
-
