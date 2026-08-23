@@ -93,6 +93,10 @@ class 取り決めを押す手(Protocol):
     def __call__(self, what: str, fields: dict[str, str]) -> str | None: ...
 
 
+class 今日の手(Protocol):
+    def __call__(self) -> str: ...
+
+
 class 道順の手(Protocol):
     def __call__(
         self, day: str
@@ -124,6 +128,7 @@ class 手(NamedTuple):
     patterns: 取り決めの手
     pattern_act: 取り決めを押す手
     route: 道順の手
+    today: 今日の手
     close: Callable[[], None]
 
 
@@ -496,7 +501,45 @@ def _地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, f
     return "".join(parts)
 
 
-def _道順(day: str, 道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, float] | None) -> str:
+def _本物の地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, float] | None, key: str) -> str:
+    """Google Maps JavaScript API の地図。**鍵は窓の出自だけに効く制限つき。**"""
+    import json as _json
+
+    経路 = [
+        {
+            "color": _色[i % len(_色)],
+            "stops": [{"lat": s.lat, "lng": s.lng, "n": s.seq, "p": s.patient} for s in stops],
+        }
+        for i, (_, stops) in enumerate(sorted(道順ごと.items()))
+    ]
+    data = _json.dumps({"base": {"lat": base[0], "lng": base[1]} if base else None, "routes": 経路})
+    return (
+        "<div id='gmap' style='width:100%;max-width:680px;height:440px;border-radius:10px;"
+        "border:1px solid color-mix(in srgb, CanvasText 15%, transparent)'></div>"
+        f"<script>const R={data};"
+        "window.__troupeMap=function(){const m=new google.maps.Map("
+        "document.getElementById('gmap'),{mapTypeControl:false,streetViewControl:false});"
+        "const b=new google.maps.LatLngBounds();"
+        "if(R.base){b.extend(R.base);new google.maps.Marker({position:R.base,map:m,"
+        "label:{text:'C',color:'white'},title:'Clinic'});}"
+        "for(const r of R.routes){const path=R.base?[R.base]:[];"
+        "for(const s of r.stops){b.extend(s);path.push({lat:s.lat,lng:s.lng});"
+        "new google.maps.Marker({position:s,map:m,label:{text:String(s.n),color:'white'},"
+        "title:s.p});}"
+        "new google.maps.Polyline({path,map:m,strokeColor:r.color,strokeOpacity:.8,"
+        "strokeWeight:3});}"
+        "m.fitBounds(b,48);};</script>"
+        f"<script async src='https://maps.googleapis.com/maps/api/js?key={key}"
+        "&callback=__troupeMap&loading=async'></script>"
+    )
+
+
+def _道順(
+    day: str,
+    道順ごと: dict[str, tuple[RouteStop, ...]],
+    base: tuple[float, float] | None,
+    maps_key: str | None = None,
+) -> str:
     from datetime import date, timedelta
 
     d = date.fromisoformat(day)
@@ -505,7 +548,13 @@ def _道順(day: str, 道順ごと: dict[str, tuple[RouteStop, ...]], base: tupl
            f" · <a href='/route?day={翌日}'>{翌日} →</a></p>")
     if not 道順ごと:
         return nav + "<p class='empty'>No visits scheduled this day.</p>"
-    表たち = []
+    地図 = (
+        _本物の地図(道順ごと, base, maps_key) if maps_key else _地図(道順ごと, base)
+    )
+    とび = " · ".join(
+        f"<a href='#{escape(担当)}'>{escape(担当)}</a>" for 担当 in sorted(道順ごと)
+    )
+    表たち = [f"<p class='sub'>Jump to: {とび}</p>"] if len(道順ごと) > 1 else []
     for i, (担当, stops) in enumerate(sorted(道順ごと.items())):
         色 = _色[i % len(_色)]
         行 = "".join(
@@ -514,19 +563,18 @@ def _道順(day: str, 道順ごと: dict[str, tuple[RouteStop, ...]], base: tupl
             f"<td>{escape(s.place)}</td><td>{escape(s.purpose)}</td><td>{escape(s.leg_km)} km</td></tr>"
             for s in stops
         )
-        径路 = "/".join([f"{base[0]},{base[1]}"] if base else [] )
-        待ち = "/".join(f"{s.lat},{s.lng}" for s in stops)
-        gmap = f"https://www.google.com/maps/dir/{径路}/{待ち}" if 待ち else ""
+        地点 = ([f"{base[0]},{base[1]}"] if base else []) + [f"{s.lat},{s.lng}" for s in stops]
+        gmap = "https://www.google.com/maps/dir/" + "/".join(地点) if 地点 else ""
         合計 = sum(float(s.leg_km) for s in stops)
         表たち.append(
-            f"<h3 style='color:{色}'>{escape(担当)}"
+            f"<h3 id='{escape(担当)}' style='color:{色}'>{escape(担当)}"
             f" <span class='sub'>{len(stops)} visits · {合計:.1f} km"
             + (f" · <a href='{escape(gmap)}'>open in Google Maps</a>" if gmap else "")
             + "</span></h3>"
             "<div class='wrap'><table><tr><th>#</th><th>Patient</th><th>Place (public stand-in)"
             "</th><th>Purpose</th><th>Leg</th></tr>" + 行 + "</table></div>"
         )
-    return (nav + _地図(道順ごと, base)
+    return (nav + 地図
             + "<p class='sub'>Stops are greedy nearest-neighbour from the clinic."
               " Addresses are public landmarks standing in for homes — no real residence appears.</p>"
             + "".join(表たち))
@@ -542,7 +590,7 @@ def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
             f"<form class='act' method='post' action='/patterns/act'>"
             f"<input type='hidden' name='what' value='end_pattern'>"
             f"<input type='hidden' name='id' value='{escape(r.id)}'>"
-            f"<button>End</button></form>" if r.active_to is None else ""
+            f"<button>{escape(操作('end_pattern'))}</button></form>" if r.active_to is None else ""
         ) + "</td></tr>"
         for r in rows
     )
@@ -558,7 +606,7 @@ def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
         "<input type='text' name='clinician' placeholder='Dr-A' required>"
         "<input type='text' name='purpose' placeholder='weekly home visit' required>"
         "<input type='date' name='start' required>"
-        "<button>Add</button></form>"
+        f"<button>{escape(操作('add_pattern'))}</button></form>"
     )
     return (
         "<div class='wrap'><table><tr><th>Patient</th><th>Weekday</th><th>Clinician</th>"
@@ -566,7 +614,7 @@ def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
     )
 
 
-def make_app(開く: 手を開く, viewer: str) -> Any:
+def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> Any:
     """web の器を組む。**手は1回ごとに開いて閉じる。**
 
     返すのは ASGI のアプリ——立てるのは main.py（**注ぐのはそこだけ**）。
@@ -617,14 +665,16 @@ def make_app(開く: 手を開く, viewer: str) -> Any:
 
     @app.get("/route", response_class=HTMLResponse)
     def _道順の頁(day: str | None = None) -> HTMLResponse:
-        from datetime import datetime, timedelta, timezone
-
-        きょう = (datetime.now(timezone(timedelta(hours=9)))).date().isoformat()
-        対象 = day or きょう
+        from datetime import date
 
         def 描く(h: 手) -> str:
+            対象 = day or h.today()
+            try:
+                date.fromisoformat(対象)
+            except ValueError:
+                対象 = h.today()  # 壊れた日付は今日に倒す——500 は出さない
             拠点, 道順ごと = h.route(対象)
-            return _道順(対象, 道順ごと, 拠点)
+            return _道順(対象, 道順ごと, 拠点, maps_key)
 
         return 見せる("route", 描く)
 

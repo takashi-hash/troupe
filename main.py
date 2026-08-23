@@ -245,6 +245,12 @@ def _手(za: Ichiza, viewer: str) -> 手:
             return f"知らない操作です: {what}"
         return None if 断り is None else 断り.reason
 
+    def 今日() -> str:
+        # 事業所の暦は Asia/Tokyo。ここ（組み立ての根）で1度だけ決める——器は尋ねるだけ
+        from datetime import timedelta, timezone
+
+        return za.clock.now().astimezone(timezone(timedelta(hours=9))).date().isoformat()
+
     def 道順を読む(
         day: str,
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]:
@@ -265,6 +271,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         patterns=取り決めを読む,
         pattern_act=取り決めを押す,
         route=道順を読む,
+        today=今日,
         close=za.conn.close,
     )
 
@@ -443,7 +450,7 @@ def main() -> None:
 
         za.conn.close()  # 立てるだけの接続は持たない
         uvicorn.run(
-            make_app(開く, args.viewer),
+            make_app(開く, args.viewer, os.environ.get("ICHIZA_MAPS_KEY")),
             host="0.0.0.0",
             port=int(os.environ.get("PORT", "8080")),
         )

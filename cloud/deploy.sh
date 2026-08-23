@@ -93,7 +93,7 @@ gcloud run deploy troupe-window \
   --image="$IMAGE" --region="$REGION" --project="$PROJECT" \
   --service-account="$SA" \
   --set-cloudsql-instances="$CONNECTION" \
-  --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest,ICHIZA_EMR_DSN=troupe-emr-dsn:latest" \
+  --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest,ICHIZA_EMR_DSN=troupe-emr-dsn:latest,ICHIZA_MAPS_KEY=troupe-maps-key:latest" \
   --set-env-vars="$MODEL_ENV" \
   --args="serve,--viewer,Director" \
   --allow-unauthenticated \

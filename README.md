@@ -66,7 +66,7 @@ This is not a lucky accident. The design said so before the code existed: *"the 
    start → consult Gemini → submit / ask / fail → patrol and assess
                                           │
  Cloud Run Service  troupe-window ────────┤     Vertex AI · Gemini 3.5 Flash
-   today · schedule · history · search    │        (no API key — workload identity)
+   today · route · patterns · patients …  │        (no API key — workload identity)
    approve · send back · answer · abandon │
                                           ▼
                               Cloud SQL for PostgreSQL
@@ -101,7 +101,7 @@ Inside the container, dependencies point inward only:
 
 **A runaway agent hits a wall, not a bill.** Every job carries a budget in calls and seconds and a retry limit, copied from the rule version at creation. Crossing either ends the job and puts it in front of a human with an assessment attached.
 
-**Business rules are data, not code.** The three care workflows in `custom/` are JSON plus a text source. Swapping the entire domain of work — from a software team's dependency review to a home-care agency's compliance calendar — took no code change at all.
+**Business rules are data, not code.** The seven care workflows in `custom/` are JSON (plus, for the document check, a text source). Swapping the entire domain of work — from a software team's dependency review to a home-care agency's compliance calendar — took no code change at all.
 
 ---
 

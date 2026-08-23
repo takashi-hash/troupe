@@ -59,9 +59,10 @@ CREATE TABLE physician_orders(
 --   visit_patterns  = the recurring plan  (who visits whom, which weekday)   - master
 --   visits          = generated instances (one row per planned visit)        - schedule
 --   clinical_notes  = the signed record, linked to the visit it documents    - record
--- Generating instances from patterns is the AGENCY's job, not Troupe's.
--- Troupe only reads - and its Weekly Visit Prep flags patterns with no
--- scheduled instance, so a hole in the schedule reaches a human.
+-- Deciding a pattern is the human judgment; EXPANDING it into instances is
+-- bookkeeping, and Troupe's pulse does it (plan_visits, idempotent on
+-- (pattern_id, visit_date)). Weekly Visit Prep still flags patterns with no
+-- scheduled instance - the safety net for silent write failures.
 
 CREATE TABLE visit_patterns(
   id BIGSERIAL PRIMARY KEY,

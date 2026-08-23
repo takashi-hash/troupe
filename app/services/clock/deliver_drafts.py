@@ -56,6 +56,9 @@ def deliver_drafts(
             if not drafts.deposit(id.text, job.source.location.removeprefix(_CHART), result.body):
                 continue  # 診療録に届かなかった——刻まず、次の脈がまた来る
             next_job, event = 対
-            jobs.save(next_job, (event,))
+            try:
+                jobs.save(next_job, (event,))
+            except RuntimeError:
+                continue  # 誰かが先に書いた（AI の脈の見立てなど）——次の脈がまた来る
             delivered.append(id)
     return tuple(delivered)

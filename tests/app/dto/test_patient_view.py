@@ -14,7 +14,7 @@ def _詳細(**over: object) -> PatientView:
         "age": "76",
         "living": "lives with spouse",
         "diagnosis": "Parkinson's disease",
-        "next_visit": "2026-08-25 (RN-A)",
+        "next_visit": "2026-08-25 (Dr-A)",
         "order": "certification, expires 2026-12-19",
         "meds": ("levodopa/carbidopa 100/25 tid",),
         "events": ("2026-08-02: fall at home",),

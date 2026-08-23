@@ -125,12 +125,12 @@
   <!-- human -->
   <rect x="56" y="820" width="672" height="86" rx="14" class="human"/>
   <text x="80" y="850" class="h2">What is left for the person</text>
-  <text x="80" y="876" class="t">APPROVE · SEND BACK · ANSWER · ABANDON</text>
-  <text x="80" y="896" class="sm">the four operations the design places on the human side of the line</text>
+  <text x="80" y="876" class="t">APPROVE · SEND BACK · ANSWER · ABANDON · agree/end a visit pattern</text>
+  <text x="80" y="896" class="sm">the operations the design places on the human side of the line</text>
 
   <!-- claim -->
   <rect x="756" y="820" width="628" height="86" rx="14" class="swap"/>
   <text x="780" y="850" class="h2">What this submission demonstrates</text>
   <text x="780" y="874" class="t">Three pillars swapped — model, ledger, scheduler.</text>
-  <text x="780" y="896" class="mono">git diff --stat main..HEAD -- domain app  →  empty</text>
+  <text x="780" y="896" class="mono">git diff --stat baseline..pillars-swapped -- domain app  →  empty</text>
 </svg>

@@ -14,7 +14,7 @@ def _行(**over: object) -> PatientRow:
         "age": "82",
         "living": "lives alone",
         "diagnosis": "CHF, NYHA II",
-        "next_visit": "2026-08-24 (RN-A)",
+        "next_visit": "2026-08-24 (Dr-A)",
         "order_expires": "2026-08-13",
     }
     return PatientRow.model_validate(data | over)

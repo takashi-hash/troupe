@@ -132,7 +132,7 @@ class PostgresPatients:
             (code,),
         ).fetchall()
         drafts = conn.execute(
-            "SELECT delivered_at::text, body, based_on_job FROM note_drafts"
+            "SELECT (delivered_at AT TIME ZONE 'Asia/Tokyo')::text, body, based_on_job FROM note_drafts"
             " WHERE patient = %s ORDER BY delivered_at DESC",
             (code,),
         ).fetchall()
@@ -255,7 +255,7 @@ class PostgresPatterns:
             )
             return None
         except Exception as なぜ:
-            return f"載せられませんでした: 患者か日付が診療録と合いません（{type(なぜ).__name__}）"
+            return "載せられませんでした——その患者が診療録に居ないか、日付の形が違います"
         finally:
             conn.close()
 
@@ -272,7 +272,17 @@ class PostgresPatterns:
                 " WHERE id = %s::bigint AND active_to IS NULL",
                 (on, pattern_id),
             )
-            return None if cur.rowcount else "その取り決めはありません（または終わっています）"
+            if not cur.rowcount:
+                return "その取り決めはありません（または終わっています）"
+            # 判断の帳簿づけの巻き戻し——この取り決め由来で、まだ来ていない予定は中止に倒す。
+            # 実施済み（done）と臨時（pattern_id なし）には触らない。
+            conn.execute(
+                "UPDATE visits SET status = 'cancelled'"
+                " WHERE pattern_id = %s::bigint AND status = 'scheduled'"
+                "   AND visit_date > %s::date",
+                (pattern_id, on),
+            )
+            return None
         except Exception:
             return "終えられませんでした"
         finally:
@@ -304,7 +314,7 @@ class PostgresSchedule:
                 INSERT INTO visits(pattern_id, visit_date, patient, clinician, purpose)
                 SELECT p.id, d::date, p.patient, p.clinician, p.purpose
                 FROM visit_patterns p,
-                     generate_series({TODAY}, {TODAY} + %s, INTERVAL '1 day') d
+                     generate_series({TODAY}, {TODAY} + (%s - 1), INTERVAL '1 day') d
                 WHERE EXTRACT(dow FROM d) = p.weekday
                   AND d::date >= p.active_from
                   AND (p.active_to IS NULL OR d::date <= p.active_to)

@@ -18,8 +18,11 @@ from typing import Protocol
 
 class EmrDraftPort(Protocol):
     def deposit(self, job_id: str, patient_code: str, body: str) -> bool:
-        """下書き受けに置く。置けたら True、既に同じ仕事から置いていたら False。
+        """**受けに在る状態にできたら True。** 届かなかったときだけ False。
 
-        冪等の鍵は仕事の識別子——**同じ仕事から二度置かない**。
+        既に在った（一意の鍵に弾かれた）も True——望んだ姿には既に成っている。
+        **False-on-重複 で実装してはいけない**: 置いてから刻む順なので、置けたのに
+        刻めず落ちた仕事は、次の脈の再置きが True を返して初めて印を刻める。
+        重複を False にすると、その仕事は永遠に印を刻めない。
         """
         ...

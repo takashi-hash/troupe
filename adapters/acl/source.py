@@ -54,8 +54,8 @@ class FileSource:
 #: 診療録の在りかの形。`db:` に続く道が、診療録のどの抽出かを名指す。
 EMR_PREFIX = "db:"
 
-#: 事業所の「今日」。器（Cloud SQL）の時刻帯は UTC なので、暦の比べは事業所の時刻帯で開く。
-TODAY = "(now() AT TIME ZONE 'Asia/Tokyo')::date"
+#: 事業所の「今日」。正本は診療録の口（adapters/emr）——同じ暦を2箇所で決めない。
+from adapters.emr import TODAY  # noqa: E402
 
 
 class EmrSource:
@@ -198,7 +198,7 @@ def _visit_schedule(conn: object) -> str:
     ]
     for 行 in _rows(
         conn,
-        """
+        f"""
         SELECT v.visit_date, v.patient, v.clinician, v.purpose,
                (SELECT max(o.expires) FROM physician_orders o WHERE o.patient = v.patient),
                (SELECT e.event_date || ' ' || e.description FROM condition_events e
@@ -209,7 +209,7 @@ def _visit_schedule(conn: object) -> str:
         FROM visits v
         WHERE v.status = 'scheduled' AND v.visit_date >= {TODAY} - 3
         ORDER BY v.visit_date, v.patient
-        """.replace("{TODAY}", TODAY),
+        """,
     ):
         日, code, clinician, purpose, expires, change = 行
         lines.append(f"{日} / {code} / {clinician} / {purpose} / order expires {expires} / {change or 'none'}")

@@ -38,8 +38,11 @@ class 印読みの偽物:
         return frozenset(
             job.id
             for job in self._ledger.jobs.values()
-            if any(isinstance(e, DraftDelivered) for e in self._ledger.events)
-        ) if any(isinstance(e, DraftDelivered) for e in self._ledger.events) else frozenset()
+            if any(
+                isinstance(e, DraftDelivered)
+                for e in getattr(self._ledger, "by_job", {}).get(job.id, self._ledger.events)
+            )
+        )
 
 
 def _場(state: object, location: str, result_at: str | None = None):
