@@ -1,7 +1,10 @@
 {
   "instruction": "Read the visit schedule in the source. For every visit scheduled in the reporting period, check two things against the columns in the schedule: (1) does the physician order expire on or before the visit date, and (2) has the patient had a recorded change in condition since the last note. List every visit that fails a check as one line: visit date, patient code, nurse code, and exactly what is wrong. Then list the visits that are clear, one line each. A nurse walking into a visit with a lapsed order or a stale picture of the patient is the failure this check exists to prevent.",
-  "source": "file:custom/Weekly Visit Prep/visits.txt",
-  "required_terms": ["{対象期間}", "visit"],
+  "source": "db:visit-schedule",
+  "required_terms": [
+    "{対象期間}",
+    "visit"
+  ],
   "description": "Every visit in the reporting period appears exactly once, either flagged or clear. No visit date or patient code appears that is not in the schedule.",
   "cycle": "weekly",
   "days": 2,

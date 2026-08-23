@@ -1,7 +1,10 @@
 {
   "instruction": "Read the care plan register in the source. List every patient whose plan of care needs to be reviewed in the reporting period named in the acceptance criteria. For each one write: patient code, date the plan was last written, months elapsed since then, and why the review is due (routine monthly review, or a change in the patient's condition). Sort by months elapsed, longest first.",
-  "source": "file:custom/Care Plan Review/care-plans.txt",
-  "required_terms": ["{対象期間}", "review"],
+  "source": "db:care-plans",
+  "required_terms": [
+    "{対象期間}",
+    "review"
+  ],
   "description": "Every plan last written a month or more ago is listed, and so is every patient with a recorded change in condition. No patient code appears that is not in the register.",
   "cycle": "monthly",
   "days": 7,

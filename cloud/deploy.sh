@@ -38,6 +38,11 @@ say "帳簿 — Cloud SQL の中に入れ物を1つ"
 gcloud sql databases create "$DB" --instance="$INSTANCE" --project="$PROJECT" \
   2>/dev/null || echo "  既に在る"
 
+say "診療録 — 同じ器に、別の入れ物（事業所の正本。一座は読むだけ）"
+gcloud sql databases create emr --instance="$INSTANCE" --project="$PROJECT" \
+  2>/dev/null || echo "  既に在る"
+echo "  種は cloud/emr-seed.sql — 入れるのは: sh cloud/seed-emr.sh"
+
 say "在りか — 帳簿への繋ぎを秘密に置く"
 if ! gcloud secrets describe troupe-ledger-dsn --project="$PROJECT" >/dev/null 2>&1; then
   if [ ! -f /tmp/troupe-dbpw ]; then
@@ -51,6 +56,16 @@ if ! gcloud secrets describe troupe-ledger-dsn --project="$PROJECT" >/dev/null 2
   echo "  置いた"
 else
   echo "  既に在る"
+fi
+if ! gcloud secrets describe troupe-emr-dsn --project="$PROJECT" >/dev/null 2>&1; then
+  if [ -f /tmp/troupe-dbpw ]; then
+    PW=$(cat /tmp/troupe-dbpw)
+    printf 'postgresql://postgres:%s@/emr?host=/cloudsql/%s' "$PW" "$CONNECTION" \
+      | gcloud secrets create troupe-emr-dsn --project="$PROJECT" --data-file=- >/dev/null
+    echo "  診療録の在りかも置いた"
+  fi
+else
+  echo "  診療録の在りかは既に在る"
 fi
 
 say "器を焼く"
@@ -66,7 +81,7 @@ for role in tick agent; do
     --image="$IMAGE" --region="$REGION" --project="$PROJECT" \
     --service-account="$SA" \
     --set-cloudsql-instances="$CONNECTION" \
-    --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest" \
+    --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest,ICHIZA_EMR_DSN=troupe-emr-dsn:latest" \
     --set-env-vars="$MODEL_ENV" \
     --args="$ARGS" \
     --max-retries=0 --task-timeout=300s --quiet >/dev/null
@@ -78,7 +93,7 @@ gcloud run deploy troupe-window \
   --image="$IMAGE" --region="$REGION" --project="$PROJECT" \
   --service-account="$SA" \
   --set-cloudsql-instances="$CONNECTION" \
-  --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest" \
+  --set-secrets="ICHIZA_LEDGER_DSN=troupe-ledger-dsn:latest,ICHIZA_EMR_DSN=troupe-emr-dsn:latest" \
   --set-env-vars="$MODEL_ENV" \
   --args="serve,--viewer,Director" \
   --allow-unauthenticated \

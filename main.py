@@ -26,7 +26,7 @@ import os
 from pathlib import Path
 
 from adapters.acl.llm import GeminiLlm, OllamaLlm
-from adapters.acl.source import FileSource
+from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
 from adapters.ids import UuidIds
 from adapters.ledger.db import open_cloud_ledger, open_ledger
@@ -93,7 +93,12 @@ class Ichiza:
     """一座 — 注いだ口の束。"""
 
     def __init__(
-        self, root: Path, model: str, llm: str = "ollama", dsn: str | None = None
+        self,
+        root: Path,
+        model: str,
+        llm: str = "ollama",
+        dsn: str | None = None,
+        emr_dsn: str | None = None,
     ) -> None:
         # 在りかが渡ればクラウドの帳簿、無ければ手元の帳簿。**呼ぶ側は口しか知らない。**
         self.conn = (
@@ -117,7 +122,8 @@ class Ichiza:
         self.search_hits = SqliteSearch(self.conn)
         self.clock = SystemClock()
         self.ids = UuidIds()
-        self.source = FileSource(root)
+        # 源は形で選ばれる——file: は書類、db: は診療録。**中は形を知らない**
+        self.source = Sources(FileSource(root), EmrSource(emr_dsn))
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
 
@@ -301,6 +307,11 @@ def main() -> None:
         default=os.environ.get("ICHIZA_LEDGER_DSN"),
         help="クラウドの帳簿の在りか。無ければ手元の data/ichiza.db",
     )
+    p.add_argument(
+        "--emr-dsn",
+        default=os.environ.get("ICHIZA_EMR_DSN"),
+        help="診療録（EMR）の在りか。無ければ db: の源は読めない",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("tick")
     a = sub.add_parser("agent")
@@ -329,7 +340,7 @@ def main() -> None:
     args = p.parse_args()
 
     (args.root / "data").mkdir(exist_ok=True)
-    za = Ichiza(args.root, args.model, args.llm, args.dsn)
+    za = Ichiza(args.root, args.model, args.llm, args.dsn, args.emr_dsn)
 
     if args.cmd == "window":
         # Qt は窓のときだけ読み込む——脈に起動コストを載せない。
@@ -358,7 +369,10 @@ def main() -> None:
         from ui.web import make_app
 
         def 開く() -> 手:
-            return _手(Ichiza(args.root, args.model, args.llm, args.dsn), args.viewer)
+            return _手(
+                Ichiza(args.root, args.model, args.llm, args.dsn, args.emr_dsn),
+                args.viewer,
+            )
 
         za.conn.close()  # 立てるだけの接続は持たない
         uvicorn.run(
