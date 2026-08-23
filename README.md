@@ -8,27 +8,34 @@ Troupe watches for them, does the work, and stops at exactly the point where a h
 
 **Live, running on Google Cloud right now:** https://troupe-window-834978405023.asia-northeast1.run.app
 
-Two pulses beat every 60 seconds against a Cloud SQL ledger. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide.
+Two pulses beat every 60 seconds against a Cloud SQL ledger. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide. If you are not sure where to look, open **Guide** in the sidebar and ask it, in any language: *"What needs me today?"* The guide reads the same pages you see, answers with links, and holds no writing tools at all — it can point, never press.
 
 ```
-a business rule + the calendar ──→ a job is created, handed out
-                                        ↓
-                       an AI picks it up on its own (no one calls it)
-                                        ↓
-              it reads the source, asks Gemini, and either
-                 · submits a result, quoting the source as evidence
-                 · asks the owner a question, when it cannot know
-                 · reports that it is stuck, with an assessment
-                                        ↓
-                    a machine checks the result against the criteria
-                                        ↓
-        ┌───────────────────────────────────────────────────┐
-        │  APPROVE · SEND BACK · ANSWER · ABANDON           │
-        │  — the only things left, and only a human does them│
-        └───────────────────────────────────────────────────┘
+a recurring visit agreement, a business rule, the calendar
+                     ↓
+        a job is created, handed out
+                     ↓
+    an AI picks it up on its own (no one calls it)
+                     ↓
+  it reads the source, asks Gemini, and either
+     · submits a result, quoting the source as evidence
+     · asks the owner a question, when it cannot know
+     · reports that it is stuck, with an assessment
+                     ↓
+  a machine checks the result against the criteria
+                     ↓
+ ┌───────────────────────────────────────────────────────┐
+ │  APPROVE · SEND BACK · ANSWER · ABANDON — and, at the │
+ │  bedside, SIGN. The only things left, and only a      │
+ │  human does them.                                     │
+ └───────────────────────────────────────────────────────┘
+                     ↓
+  the approved draft is delivered to the medical record's
+  inbox; the doctor edits it on the visit and signs —
+  and the signed note becomes next week's source material
 ```
 
-Every one of those steps is an event appended to a ledger. Nothing is overwritten and nothing is deleted, so "what happened, and who decided it" is always answerable.
+Every one of those steps is an event appended to a ledger. Nothing is overwritten and nothing is deleted, so "what happened, and who decided it" is always answerable — the **Activity** page shows every event with a Human / AI / Clock chip on the actor.
 
 ---
 
@@ -50,9 +57,21 @@ git diff --stat baseline..pillars-swapped -- domain app   # empty
 uv run lint-imports                                       # 6 contracts kept
 ```
 
-`baseline` tags the last commit before the swap began and `pillars-swapped` tags its completion — every commit in between replaces infrastructure without touching the core. Features added after that point (the patient reference screens) did extend `app/`, and the discipline held in that direction too: the design tables were edited first, the reconciliation suite went red, and the code brought it back to green.
+`baseline` tags the last commit before the swap began and `pillars-swapped` tags its completion — every commit in between replaces infrastructure without touching the core. Every feature added after that point (the clinical loop, the signing screen, the guide) did extend `app/`, and the discipline held in that direction too: the design tables were edited first, the reconciliation suite went red, and the code brought it back to green.
 
 This is not a lucky accident. The design said so before the code existed: *"the mechanism that keeps the AI resident is generic — you buy it"*, *"the tool that calls an LLM is generic — you buy it."* Swapping three of them is the proof that the boundary was real.
+
+---
+
+## The clinical loop — two systems, one honest boundary
+
+Troupe's ledger is not the medical record. The agency's EMR is a **second bounded context** (a separate Cloud SQL database, fully synthetic), and the line between them is drawn in the design and enforced in code:
+
+- **Humans agree, the pulse bookkeeps.** A recurring-visit agreement (patient, weekday, cadence, clinician) is a human judgment entered on **Agreements**. Expanding it into dated visits is bookkeeping — the clock plans four weeks ahead, idempotently, under a uniqueness key.
+- **My Day** turns those visits into a route per clinician — a real map, distances, and a printable day sheet. Patient homes are stood in by **public landmarks** (a shrine, a station, a park); no real residence appears anywhere.
+- **The AI reads only signed notes.** Its own unsigned drafts are never its source. Automation can write exactly two things into the EMR: approved drafts into a drafts inbox, and agreement-derived visits. There is no code path by which automation touches a signed record — and no path that creates a patient.
+- **Signing is one transaction.** On the visit screen the doctor edits the AI's draft (S/O/A/P prefilled), picks their name from the roster, and signs. One EMR transaction stores the signed note, marks the visit done, and stamps the used draft — so every record traces back through its draft to the AI job that wrote it. From that moment a **database trigger refuses any edit or delete** of the note.
+- **And the loop closes:** next week's draft is written from this week's signed record.
 
 ---
 
@@ -60,18 +79,23 @@ This is not a lucky accident. The design said so before the code existed: *"the 
 
 ```
  Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-tick
-   create · hand out · check · sort failures · confirm · mark overdue · audit
+   create · hand out · check · sort failures · confirm · mark overdue
+   · audit · plan visits from agreements · deliver approved drafts
 
  Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-agent
    start → consult Gemini → submit / ask / fail → patrol and assess
-                                          │
- Cloud Run Service  troupe-window ────────┤     Vertex AI · Gemini 3.5 Flash
-   today · route · patterns · patients …  │        (no API key — workload identity)
-   approve · send back · answer · abandon │
+
+ Cloud Run Service  troupe-window ────────┐     Vertex AI · Gemini 3.5 Flash
+   CARE: my day (map+routes) · patients   │      (no API key — workload identity)
+   BACK OFFICE: inbox · agreements ·      │
+     automations · activity · search      │
+   HELP: guide (ask in any language) · how│
                                           ▼
-                              Cloud SQL for PostgreSQL
-                        jobs · job_events · rules · rule_events
-                        results · evidence · questions · assessments
+        Cloud SQL for PostgreSQL — two databases, one boundary
+          troupe: jobs · job_events · rules · rule_events ·
+                  results · evidence · questions · assessments
+          emr:    patients · clinicians · visit_patterns · visits ·
+                  clinical_notes (signed = immutable) · note_drafts
 ```
 
 Inside the container, dependencies point inward only:
@@ -103,6 +127,16 @@ Inside the container, dependencies point inward only:
 
 **Business rules are data, not code.** The seven care workflows in `custom/` are JSON (plus, for the document check, a text source). Swapping the entire domain of work — from a software team's dependency review to a home-care agency's compliance calendar — took no code change at all.
 
+**The guide can talk, and cannot act.** The chat on **Guide** is one application service and one port. The service receives only readers and the LLM port — no repository, no EMR writer appears in its signature, so there is no code path from a conversation to an action. Its context is a digest of what the window already shows; its answers may link only to a whitelist of internal pages. Prompt injection has nowhere to go.
+
+---
+
+## A note on the demo pilot
+
+While judging is under way, this deployment keeps itself moving: a scripted stand-in named **Sim-Director** presses the human buttons — it approves finished work and signs delivered drafts, on a two-hour beat. It is not hidden and it is not intelligent: it drives the same public forms a person would, every press is recorded under its own name in Activity, and a banner on every page says it is running. It never answers questions, never sends work back, never abandons a job — the operations that need actual judgment wait for an actual human, and you will find them waiting in the Inbox.
+
+Synthetic patients, synthetic director — and both say so.
+
 ---
 
 ## How the design is kept honest
@@ -122,7 +156,7 @@ Edit one row of a table in a design document and the suite goes red. Edit the co
 On top of that, `tests/break_check.py` removes each of the **66 obligations** in the domain one at a time and asserts the suite goes red for every single one — a check that the safety net is actually attached, not just present.
 
 ```bash
-uv run pytest -q            # 737 tests
+uv run pytest -q            # 815 tests (12 more run only against a live Postgres)
 uv run pyright              # domain and app are strict
 uv run lint-imports         # 6 dependency contracts
 uv run python tests/break_check.py
@@ -136,11 +170,13 @@ uv run python tests/break_check.py
 
 ```bash
 sh cloud/deploy.sh          # service account, Cloud SQL database, image, jobs, service, schedules
+sh cloud/seed-emr.sh        # the synthetic EMR — 10 invented patients, 3 invented clinicians
 sh cloud/status.sh          # ledger, window, last beat of each pulse, recent logs
+sh cloud/pilot-on.sh        # hand the seat to the demo pilot (sh cloud/pilot-off.sh takes it back)
 sh cloud/teardown.sh        # removes the pulses and the window — never the ledger
 ```
 
-It needs a Google Cloud project with billing, and these APIs enabled: `aiplatform`, `run`, `sqladmin`, `cloudscheduler`, `artifactregistry`, `cloudbuild`, `secretmanager`. The runtime service account holds `aiplatform.user`, `cloudsql.client`, `run.invoker`, `secretmanager.secretAccessor` and `logging.logWriter` — **no API key exists anywhere**; Gemini is reached with the workload's own identity.
+It needs a Google Cloud project with billing, and these APIs enabled: `aiplatform`, `run`, `sqladmin`, `cloudscheduler`, `artifactregistry`, `cloudbuild`, `secretmanager`. The runtime service account holds `aiplatform.user`, `cloudsql.client`, `run.invoker`, `secretmanager.secretAccessor` and `logging.logWriter` — **no API key exists anywhere**; Gemini is reached with the workload's own identity. (The one key that does exist is the Maps JavaScript key the browser needs, referrer-restricted and stored in Secret Manager.)
 
 **On a laptop**, with nothing cloud at all — the same code, different things poured in:
 
@@ -159,11 +195,11 @@ uv run python main.py window --viewer Director       # the desktop window
 
 ## A note on the data
 
-Every patient, clinician, practice and document in `custom/` is **invented**. "Riverbend Home Health" does not exist. No real health information appears anywhere in this repository, and the agent is never given any. The workflows are real; the data standing in for them is not.
+Every patient, clinician, practice and document in this repository is **invented**. No real health information appears anywhere, and the agent is never given any. Patient addresses are public landmarks — a shrine, a station, a ward office — standing in for homes, so the map can be real while no real residence is ever pointed at. The workflows are real; the data standing in for them is not.
 
 ## A note on judgment
 
-Troupe will not approve its own work, and it cannot be configured to. Approving, sending back, answering and abandoning are the four operations the design places on the human side of the line, and there is no code path that reaches them from the agent. That is the whole point of the thing: an agent that does the work, and a person who stays responsible for it.
+Troupe will not approve its own work, and it cannot be configured to. Approving, sending back, answering, abandoning — and in the clinic: agreeing a recurring visit, ending one, cancelling a single visit, and **signing the record** — are the operations the design places on the human side of the line, and there is no code path that reaches any of them from the agent. That is the whole point of the thing: an agent that does the work, and a person who stays responsible for it.
 
 ---
 

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 940" width="1440" height="940" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1264" width="1440" height="1264" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif">
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill="#5b6470"/>
@@ -23,45 +23,37 @@
     </style>
   </defs>
 
-  <rect width="1440" height="940" fill="#fbfbfa"/>
+  <rect width="1440" height="1264" fill="#fbfbfa"/>
 
   <text x="56" y="58" class="h1">Troupe</text>
   <text x="164" y="58" class="t" fill="#5b6470">an autonomous agent that runs a home-care agency's recurring compliance work</text>
-  <text x="56" y="86" class="sm">The AI does the work. Approving, sending back, answering and abandoning stay with a person — there is no code path from the agent to any of them.</text>
+  <text x="56" y="86" class="sm">The AI does the work. Approving, sending back, answering, abandoning — and signing the record — stay with a person: there is no code path from the agent to any of them.</text>
 
   <!-- ============ Google Cloud ============ -->
-  <rect x="56" y="122" width="700" height="516" rx="14" class="gcp"/>
+  <rect x="56" y="122" width="700" height="758" rx="14" class="gcp"/>
   <text x="80" y="152" class="lbl">Google Cloud · project ichiza-agentic · asia-northeast1</text>
 
   <!-- Scheduler -->
-  <rect x="80" y="176" width="176" height="128" rx="10" class="swap"/>
+  <rect x="80" y="176" width="176" height="182" rx="10" class="swap"/>
   <text x="96" y="202" class="h2">Cloud Scheduler</text>
   <text x="96" y="224" class="sm">two beats, every 60s</text>
-  <text x="96" y="256" class="mono">* * * * *</text>
-  <text x="96" y="284" class="sm" fill="#c2410c">replaced macOS launchd</text>
-
-  <!-- tick job -->
-  <rect x="304" y="176" width="200" height="58" rx="10" class="box"/>
-  <text x="320" y="200" class="h2">Cloud Run Job</text>
-  <text x="320" y="222" class="mono">troupe-tick</text>
+  <text x="96" y="248" class="mono">* * * * *</text>
+  <text x="96" y="276" class="sm" fill="#c2410c">replaced macOS launchd</text>
+  <text x="96" y="308" class="sm">+ a 2-hourly beat</text>
+  <text x="96" y="326" class="sm">for the demo pilot</text>
 
   <!-- agent job -->
-  <rect x="304" y="246" width="200" height="58" rx="10" class="box"/>
-  <text x="320" y="270" class="h2">Cloud Run Job</text>
-  <text x="320" y="292" class="mono">troupe-agent</text>
+  <rect x="280" y="176" width="240" height="58" rx="10" class="box"/>
+  <text x="296" y="200" class="h2">Cloud Run Job</text>
+  <text x="296" y="222" class="mono">troupe-agent</text>
 
-  <!-- window service -->
-  <rect x="304" y="326" width="200" height="72" rx="10" class="swap"/>
-  <text x="320" y="350" class="h2">Cloud Run Service</text>
-  <text x="320" y="372" class="mono">troupe-window</text>
-  <text x="320" y="390" class="sm" fill="#c2410c">replaced the desktop app</text>
-
-  <!-- Cloud SQL -->
-  <rect x="80" y="440" width="652" height="106" rx="10" class="swap"/>
-  <text x="96" y="466" class="h2">Cloud SQL for PostgreSQL — the ledger</text>
-  <text x="96" y="488" class="sm">jobs · job_events · rules · rule_events · results · evidence · questions · assessments</text>
-  <text x="96" y="510" class="sm" fill="#c2410c">replaced a local SQLite file · append-only · nothing is overwritten or deleted</text>
-  <text x="96" y="530" class="sm">both pulses and the window open it, read, write, and close — nothing is held between beats</text>
+  <!-- tick job -->
+  <rect x="280" y="246" width="240" height="112" rx="10" class="box"/>
+  <text x="296" y="270" class="h2">Cloud Run Job</text>
+  <text x="296" y="292" class="mono">troupe-tick</text>
+  <text x="296" y="314" class="sm">create · hand out · check ·</text>
+  <text x="296" y="332" class="sm">confirm · mark overdue · audit ·</text>
+  <text x="296" y="350" class="sm">plan visits · deliver drafts</text>
 
   <!-- Vertex -->
   <rect x="544" y="176" width="188" height="128" rx="10" class="swap"/>
@@ -72,65 +64,106 @@
   <text x="560" y="294" class="sm" fill="#c2410c">replaced local Ollama</text>
 
   <!-- identity -->
-  <rect x="544" y="326" width="188" height="72" rx="10" class="box"/>
-  <text x="560" y="350" class="h2">Workload identity</text>
-  <text x="560" y="372" class="mono">troupe-runtime</text>
-  <text x="560" y="390" class="sm">Gemini and Cloud SQL trust it</text>
+  <rect x="544" y="316" width="188" height="72" rx="10" class="box"/>
+  <text x="560" y="340" class="h2">Workload identity</text>
+  <text x="560" y="362" class="mono">troupe-runtime</text>
+  <text x="560" y="380" class="sm">Gemini and Cloud SQL trust it</text>
 
-  <rect x="80" y="572" width="652" height="46" rx="10" class="box"/>
-  <text x="96" y="592" class="h2">Secret Manager</text>
-  <text x="240" y="592" class="sm">holds only the ledger connection string — nothing else is a secret, because nothing else is a key</text>
+  <!-- window service -->
+  <rect x="80" y="412" width="652" height="110" rx="10" class="swap"/>
+  <text x="96" y="438" class="h2">Cloud Run Service</text>
+  <text x="262" y="438" class="mono">troupe-window</text>
+  <text x="556" y="438" class="sm" fill="#c2410c">replaced the desktop app</text>
+  <text x="96" y="464" class="sm"><tspan font-weight="650">CARE</tspan><tspan dx="14">my day (map + routes) · patients</tspan></text>
+  <text x="96" y="484" class="sm"><tspan font-weight="650">BACK OFFICE</tspan><tspan dx="14">inbox · agreements · automations · activity · search</tspan></text>
+  <text x="96" y="504" class="sm"><tspan font-weight="650">HELP</tspan><tspan dx="14">guide · how</tspan><tspan dx="14">— the guide chats with read-only tools: no path from talk to action</tspan></text>
+
+  <!-- Cloud SQL -->
+  <rect x="80" y="546" width="652" height="168" rx="10" class="swap"/>
+  <text x="96" y="572" class="h2">Cloud SQL for PostgreSQL — two databases, one boundary</text>
+  <text x="96" y="596" class="sm"><tspan class="mono">troupe</tspan><tspan dx="8">— the ledger, append-only: jobs · job_events · rules · rule_events ·</tspan></text>
+  <text x="150" y="614" class="sm">results · evidence · questions · assessments</text>
+  <text x="96" y="636" class="sm"><tspan class="mono">emr</tspan><tspan dx="8">— the synthetic EMR: patients · clinicians · visit_patterns · visits ·</tspan></text>
+  <text x="150" y="654" class="sm">clinical_notes — signed = immutable by a DB trigger · note_drafts</text>
+  <text x="96" y="676" class="sm">automation may write only the drafts inbox and agreement-derived visits — nothing else</text>
+  <text x="96" y="698" class="sm" fill="#c2410c">replaced a local SQLite file · nothing is overwritten or deleted</text>
+
+  <!-- Secret Manager -->
+  <rect x="80" y="738" width="304" height="118" rx="10" class="box"/>
+  <text x="96" y="764" class="h2">Secret Manager</text>
+  <text x="96" y="790" class="sm">the two database connection strings</text>
+  <text x="96" y="808" class="sm">and the referrer-locked Maps key —</text>
+  <text x="96" y="826" class="sm">Gemini needs no key at all</text>
+
+  <!-- demo pilot -->
+  <rect x="404" y="738" width="328" height="118" rx="10" class="box"/>
+  <text x="420" y="764" class="h2">Sim-Director</text>
+  <text x="545" y="764" class="mono">troupe-pilot</text>
+  <text x="420" y="790" class="sm">a scripted stand-in during judging —</text>
+  <text x="420" y="808" class="sm">presses the same public forms,</text>
+  <text x="420" y="826" class="sm">approve + sign only · labeled in Activity</text>
+  <text x="420" y="844" class="sm">a banner on every page says it is running</text>
 
   <!-- arrows inside GCP -->
-  <path class="flow" d="M256 212 H298"/>
-  <path class="flow" d="M256 262 H298"/>
-  <path class="flow" d="M504 275 H538"/>
-  <path class="flow" d="M404 398 V434"/>
+  <path class="flow" d="M256 205 H274"/>
+  <path class="flow" d="M256 302 H274"/>
+  <path class="flow" d="M520 205 H538"/>
+  <path class="flow" d="M406 522 V542"/>
 
   <!-- ============ what runs inside the container ============ -->
-  <rect x="800" y="122" width="584" height="516" rx="14" class="core"/>
+  <rect x="800" y="122" width="584" height="758" rx="14" class="core"/>
   <text x="824" y="152" class="lbl">inside the image · dependencies point inward only</text>
 
-  <rect x="824" y="176" width="536" height="70" rx="10" class="box"/>
-  <text x="840" y="202" class="h2">ui · adapters</text>
-  <text x="840" y="224" class="sm">the web window, the desktop window, the ledger, the anti-corruption layers. No business rules.</text>
+  <rect x="824" y="176" width="536" height="86" rx="10" class="box"/>
+  <text x="840" y="204" class="h2">ui · adapters</text>
+  <text x="840" y="228" class="sm">the web window, the desktop window, the ledger and the EMR,</text>
+  <text x="840" y="246" class="sm">the anti-corruption layers. No business rules.</text>
 
-  <rect x="864" y="266" width="456" height="70" rx="10" class="box"/>
-  <text x="880" y="292" class="h2">app</text>
-  <text x="880" y="314" class="sm">application services, ports, DTOs. Never business rules; never an outside tool.</text>
+  <rect x="864" y="294" width="456" height="86" rx="10" class="box"/>
+  <text x="880" y="322" class="h2">app</text>
+  <text x="880" y="346" class="sm">application services, ports, DTOs.</text>
+  <text x="880" y="364" class="sm">Never business rules; never an outside tool.</text>
 
-  <rect x="904" y="356" width="376" height="130" rx="10" class="box"/>
-  <text x="920" y="382" class="h2">domain</text>
-  <text x="920" y="404" class="sm">value objects · aggregates · invariants</text>
-  <text x="920" y="424" class="sm">specifications · domain events · the state machine</text>
-  <text x="920" y="450" class="sm">No clock, no randomness, no storage,</text>
-  <text x="920" y="468" class="sm">no screens, no outside tools. "Now" arrives as an argument.</text>
+  <rect x="904" y="412" width="376" height="146" rx="10" class="box"/>
+  <text x="920" y="440" class="h2">domain</text>
+  <text x="920" y="464" class="sm">value objects · aggregates · invariants</text>
+  <text x="920" y="484" class="sm">specifications · domain events · the state machine</text>
+  <text x="920" y="510" class="sm">No clock, no randomness, no storage,</text>
+  <text x="920" y="528" class="sm">no screens, no outside tools. "Now" arrives as an argument.</text>
 
-  <path class="flow" d="M1092 246 V262"/>
-  <path class="flow" d="M1092 336 V352"/>
+  <path class="flow" d="M1092 262 V290"/>
+  <path class="flow" d="M1092 380 V408"/>
 
-  <rect x="824" y="512" width="536" height="106" rx="10" class="box"/>
-  <text x="840" y="538" class="h2">Enforced, not agreed</text>
-  <text x="840" y="560" class="sm">import-linter — 6 dependency contracts, checked every run</text>
-  <text x="840" y="580" class="sm">reconciliation tests — the design tables and the code are compared line by line</text>
-  <text x="840" y="600" class="sm">break_check — each of the 66 domain obligations is removed in turn; every one must go red</text>
+  <rect x="824" y="590" width="536" height="140" rx="10" class="box"/>
+  <text x="840" y="618" class="h2">Enforced, not agreed</text>
+  <text x="840" y="644" class="sm">import-linter — 6 dependency contracts, checked every run</text>
+  <text x="840" y="664" class="sm">reconciliation tests — the design tables and the code are compared line by line</text>
+  <text x="840" y="684" class="sm">break_check — each of the 66 domain obligations is removed in turn; every one must go red</text>
+  <text x="840" y="704" class="sm">pytest — 815 tests · pyright — strict on domain and app</text>
+
+  <rect x="824" y="760" width="536" height="96" rx="10" class="box"/>
+  <text x="840" y="788" class="h2">custom — the rules are data</text>
+  <text x="840" y="812" class="sm">the seven care workflows are JSON (plus one text source) — swapping the whole</text>
+  <text x="840" y="830" class="sm">field of work, dependency reviews to home care, took no code change</text>
 
   <!-- ============ the cycle ============ -->
-  <rect x="56" y="670" width="1328" height="126" rx="14" class="box"/>
-  <text x="80" y="700" class="lbl">one job, start to finish</text>
-  <text x="80" y="732" class="t">a rule + the calendar → <tspan font-weight="650">create</tspan> → <tspan font-weight="650">hand out</tspan> → the agent arrives uncalled and <tspan font-weight="650">starts</tspan> → reads the source → asks Gemini</text>
-  <text x="80" y="762" class="t">→ <tspan font-weight="650">submits a result, quoting the source as evidence</tspan> · or <tspan font-weight="650">asks the owner a question</tspan> · or <tspan font-weight="650">reports it is stuck</tspan> → a machine checks it against the criteria</text>
-  <text x="80" y="786" class="sm">The model's word is never evidence. A result is finished only when a quote can be pulled from the source that backs it — and a human's answer does not count either.</text>
+  <rect x="56" y="912" width="1328" height="166" rx="14" class="box"/>
+  <text x="80" y="942" class="lbl">one job, start to finish — and the loop closes</text>
+  <text x="80" y="974" class="t">a rule + the calendar → <tspan font-weight="650">create</tspan> → <tspan font-weight="650">hand out</tspan> → the agent arrives uncalled and <tspan font-weight="650">starts</tspan> → reads the source → asks Gemini</text>
+  <text x="80" y="1004" class="t">→ <tspan font-weight="650">submits a result, quoting the source as evidence</tspan> · or <tspan font-weight="650">asks the owner a question</tspan> · or <tspan font-weight="650">reports it is stuck</tspan> → a machine checks it against the criteria</text>
+  <text x="80" y="1034" class="t">→ a human <tspan font-weight="650">approves</tspan> → the draft is <tspan font-weight="650">delivered to the EMR inbox</tspan> → the doctor <tspan font-weight="650">edits and signs</tspan> on the visit → the signed note becomes <tspan font-weight="650">next week's source</tspan></text>
+  <text x="80" y="1058" class="sm">The model's word is never evidence. A result is finished only when a quote can be pulled from the source that backs it — and a human's answer does not count either.</text>
 
   <!-- human -->
-  <rect x="56" y="820" width="672" height="86" rx="14" class="human"/>
-  <text x="80" y="850" class="h2">What is left for the person</text>
-  <text x="80" y="876" class="t">APPROVE · SEND BACK · ANSWER · ABANDON · agree/end a visit pattern</text>
-  <text x="80" y="896" class="sm">the operations the design places on the human side of the line</text>
+  <rect x="56" y="1102" width="740" height="128" rx="14" class="human"/>
+  <text x="80" y="1132" class="h2">What is left for the person</text>
+  <text x="80" y="1158" class="t">APPROVE · SEND BACK · ANSWER · ABANDON</text>
+  <text x="80" y="1182" class="t">AGREE / END A VISIT PATTERN · CANCEL A VISIT · SIGN THE RECORD</text>
+  <text x="80" y="1206" class="sm">signing is one EMR transaction (note stored → visit done → draft stamped) — signed notes cannot be edited</text>
 
   <!-- claim -->
-  <rect x="756" y="820" width="628" height="86" rx="14" class="swap"/>
-  <text x="780" y="850" class="h2">What this submission demonstrates</text>
-  <text x="780" y="874" class="t">Three pillars swapped — model, ledger, scheduler.</text>
-  <text x="780" y="896" class="mono">git diff --stat baseline..pillars-swapped -- domain app  →  empty</text>
+  <rect x="824" y="1102" width="560" height="128" rx="14" class="swap"/>
+  <text x="848" y="1132" class="h2">What this submission demonstrates</text>
+  <text x="848" y="1158" class="t">Three pillars swapped — model, ledger, scheduler.</text>
+  <text x="848" y="1186" class="mono">git diff --stat baseline..pillars-swapped -- domain app  →  empty</text>
 </svg>
