@@ -28,6 +28,8 @@ from app.dto.history_row import HistoryRow
 from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
+from app.dto.patient_row import PatientRow
+from app.dto.patient_view import PatientView
 from app.dto.today_row import TodayRow
 from ui.words import 操作, 状態, 語, 読める
 
@@ -72,6 +74,14 @@ class 来ている仕事の手(Protocol):
     def __call__(self) -> tuple[SearchRow, ...]: ...
 
 
+class 患者たちの手(Protocol):
+    def __call__(self) -> tuple[PatientRow, ...]: ...
+
+
+class 患者の手(Protocol):
+    def __call__(self, code: str) -> PatientView | None: ...
+
+
 class 手(NamedTuple):
     """器に注がれる手。**中身は知らない**——読む・押す、それだけ。
 
@@ -92,6 +102,8 @@ class 手(NamedTuple):
     search: 検索の手
     request: 頼む手
     upcoming: 来ている仕事の手
+    patients: 患者たちの手
+    patient: 患者の手
     close: Callable[[], None]
 
 
@@ -136,6 +148,7 @@ input[type=text] { font: inherit; padding: 5px 8px; border-radius: 8px;
 .refusal { border-left: 3px solid #c0392b; padding: 10px 14px; margin-bottom: 16px;
            background: color-mix(in srgb, #c0392b 8%, transparent); border-radius: 0 8px 8px 0; }
 .empty { opacity: .55; padding: 30px 0; }
+.sub { opacity: .6; font-size: 13px; }
 .brief { padding: 10px 16px; margin-bottom: 18px; border-radius: 10px; font-size: 13.5px;
          background: color-mix(in srgb, CanvasText 5%, transparent);
          border: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
@@ -147,7 +160,7 @@ th { font-size: 13px; opacity: .6; font-weight: 500; }
 .wrap { overflow-x: auto; }
 """
 
-_画面 = ("today", "schedule", "history", "search")
+_画面 = ("today", "schedule", "history", "search", "patients")
 
 #: 書く欄の見出し。**用語集の語ではない**——押すときの手がかりなので、そのまま英語で置く。
 _書く欄 = {"answer": "Answer", "send_back": "Reason", "abandon": "Reason"}
@@ -348,6 +361,58 @@ def _検索(rows: tuple[SearchRow, ...], keyword: str) -> str:
     )
 
 
+def _患者たち(rows: tuple[PatientRow, ...]) -> str:
+    """患者の一覧 — 診療録の写し。**よその語のまま並べる**（翻訳しない）。"""
+    if not rows:
+        return (
+            "<p class='empty'>The agency EMR is not wired (ICHIZA_EMR_DSN), "
+            "or holds no patients.</p>"
+        )
+    行 = "".join(
+        f"<tr><td><a class='id' href='/patient?code={escape(r.code)}'>{escape(r.code)}</a></td>"
+        f"<td>{escape(r.age)}</td><td>{escape(r.diagnosis)}</td>"
+        f"<td>{escape(r.living)}</td><td>{escape(r.next_visit or '—')}</td>"
+        f"<td>{escape(r.order_expires or '—')}</td></tr>"
+        for r in rows
+    )
+    return (
+        "<p class='sub'>Read-only mirror of the agency EMR — synthetic data, no real patient exists. "
+        "Troupe never writes here.</p>"
+        "<div class='wrap'><table><tr><th>Code</th><th>Age</th><th>Diagnosis</th>"
+        "<th>Living</th><th>Next visit</th><th>Order expires</th></tr>" + 行 + "</table></div>"
+    )
+
+
+def _患者(view: PatientView | None) -> str:
+    if view is None:
+        return "<p class='empty'>No such patient.</p>"
+    記録 = "".join(
+        f"<div class='row'><div class='head'><span class='title'>Visit note {escape(n.at)}</span>"
+        f"<span class='id'>{escape(n.nurse)}</span></div>"
+        + _欄([("S", n.s), ("O", n.o), ("A", n.a), ("P", n.p)])
+        + "</div>"
+        for n in view.notes
+    )
+    return (
+        f"<div class='row'><div class='head'>"
+        f"<span class='title'>{escape(view.code)}</span>"
+        f"<span class='id'>{escape(view.diagnosis)}</span></div>"
+        + _欄(
+            [
+                ("Age", view.age),
+                ("Living", view.living),
+                ("Next visit", view.next_visit),
+                ("Physician order", view.order),
+                ("Medications", "\n".join(view.meds) or None),
+                ("Condition events", "\n".join(view.events) or None),
+            ]
+        )
+        + f"<p class='sub'><a href='/search?keyword={escape(view.code)}'>"
+        f"Jobs for this patient →</a></p></div>"
+        + 記録
+    )
+
+
 def make_app(開く: 手を開く, viewer: str) -> Any:
     """web の器を組む。**手は1回ごとに開いて閉じる。**
 
@@ -396,6 +461,14 @@ def make_app(開く: 手を開く, viewer: str) -> Any:
     @app.get("/history", response_class=HTMLResponse)
     def _履歴の頁() -> HTMLResponse:
         return 見せる("history", lambda h: _履歴(h.history_fetch()))
+
+    @app.get("/patients", response_class=HTMLResponse)
+    def _患者たちの頁() -> HTMLResponse:
+        return 見せる("patients", lambda h: _患者たち(h.patients()))
+
+    @app.get("/patient", response_class=HTMLResponse)
+    def _患者の頁(code: str) -> HTMLResponse:
+        return 見せる("patients", lambda h: _患者(h.patient(code)))
 
     @app.get("/search", response_class=HTMLResponse)
     def _検索の頁(keyword: str = "") -> HTMLResponse:

@@ -28,6 +28,7 @@ from pathlib import Path
 from adapters.acl.llm import GeminiLlm, OllamaLlm
 from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
+from adapters.emr import PostgresPatients
 from adapters.ids import UuidIds
 from adapters.ledger.db import open_cloud_ledger, open_ledger
 from adapters.ledger.jobs import SqliteJobs
@@ -53,6 +54,8 @@ from adapters.ledger.stores import (
 from adapters.topic import FolderTopic
 from app.dto.detail_view import DetailView
 from app.dto.history_row import HistoryRow
+from app.dto.patient_row import PatientRow
+from app.dto.patient_view import PatientView
 from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
@@ -80,6 +83,8 @@ from app.services.human.request import request_from_fields
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
 from app.services.screen.gather_history import gather_history
+from app.services.screen.gather_patient import gather_patient
+from app.services.screen.gather_patients import gather_patients
 from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
 from app.services.screen.gather_search import gather_search
 from app.services.screen.gather_today import gather_today
@@ -124,6 +129,7 @@ class Ichiza:
         self.ids = UuidIds()
         # 源は形で選ばれる——file: は書類、db: は診療録。**中は形を知らない**
         self.source = Sources(FileSource(root), EmrSource(emr_dsn))
+        self.patients = PostgresPatients(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
 
@@ -196,6 +202,12 @@ def _手(za: Ichiza, viewer: str) -> 手:
     def 来ている仕事を読む() -> tuple[SearchRow, ...]:
         return gather_upcoming(za.today)
 
+    def 患者たちを読む() -> tuple[PatientRow, ...]:
+        return gather_patients(za.patients)
+
+    def 患者を読む(code: str) -> PatientView | None:
+        return gather_patient(za.patients, code)
+
     return 手(
         fetch=読む,
         act=押す,
@@ -206,6 +218,8 @@ def _手(za: Ichiza, viewer: str) -> 手:
         search=検索する,
         request=頼む,
         upcoming=来ている仕事を読む,
+        patients=患者たちを読む,
+        patient=患者を読む,
         close=za.conn.close,
     )
 
