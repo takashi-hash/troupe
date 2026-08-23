@@ -18,7 +18,7 @@ class PatientNote(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     at: str
-    nurse: str
+    clinician: str
     s: str
     o: str
     a: str

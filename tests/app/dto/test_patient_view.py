@@ -23,7 +23,7 @@ def _詳細(**over: object) -> PatientView:
         ),
         "notes": (
             PatientNote(
-                at="2026-08-11", nurse="RN-A", s="s", o="o", a="a", p="p",
+                at="2026-08-11", clinician="Dr-A", s="s", o="o", a="a", p="p",
                 signed_at="2026-08-11 16:05",
             ),
         ),
@@ -33,7 +33,7 @@ def _詳細(**over: object) -> PatientView:
 
 def test_カルテ抽出が丸ごと入る() -> None:
     詳細 = _詳細()
-    assert 詳細.notes[0].nurse == "RN-A"
+    assert 詳細.notes[0].clinician == "Dr-A"
     assert 詳細.events[0].startswith("2026-08-02")
 
 

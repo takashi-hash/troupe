@@ -16,6 +16,8 @@ from typing import Any
 
 from app.dto.patient_row import PatientRow
 from app.dto.patient_view import PatientDraft, PatientNote, PatientView
+from app.dto.pattern_row import PatternRow
+from app.ports.route_reader import RouteBase, RouteVisit
 
 #: 事業所の「今日」。器（Cloud SQL）の時刻帯は UTC なので、暦の比べは事業所の時刻帯で開く。
 TODAY = "(now() AT TIME ZONE 'Asia/Tokyo')::date"
@@ -55,7 +57,7 @@ class PostgresPatients:
                 SELECT p.code, p.age, p.living_situation,
                        (SELECT c.dx FROM patient_conditions c
                          WHERE c.patient = p.code ORDER BY c.is_primary DESC, c.onset LIMIT 1),
-                       (SELECT v.visit_date || ' (' || v.nurse || ')' FROM visits v
+                       (SELECT v.visit_date || ' (' || v.clinician || ')' FROM visits v
                          WHERE v.patient = p.code AND v.status = 'scheduled'
                            AND v.visit_date >= {TODAY}
                          ORDER BY v.visit_date LIMIT 1),
@@ -107,7 +109,7 @@ class PostgresPatients:
         ).fetchall()
         dx = " / ".join(f"{d}{' (primary)' if 主 else ''}" for d, 主 in 条件) or "—"
         visit = conn.execute(
-            "SELECT visit_date || ' (' || nurse || ') - ' || purpose FROM visits"
+            "SELECT visit_date || ' (' || clinician || ') - ' || purpose FROM visits"
             " WHERE patient = %s AND status = 'scheduled'"
             " AND visit_date >= " + TODAY +
             " ORDER BY visit_date LIMIT 1",
@@ -135,7 +137,7 @@ class PostgresPatients:
             (code,),
         ).fetchall()
         notes = conn.execute(
-            "SELECT note_date, nurse, s, o, a, p, signed_at::text FROM clinical_notes"
+            "SELECT note_date, clinician, s, o, a, p, signed_at::text FROM clinical_notes"
             " WHERE patient = %s ORDER BY note_date DESC",
             (code,),
         ).fetchall()
@@ -151,7 +153,7 @@ class PostgresPatients:
             ),
             notes=tuple(
                 PatientNote(
-                    at=str(at), nurse=str(n), s=str(s), o=str(o), a=str(a), p=str(pp),
+                    at=str(at), clinician=str(n), s=str(s), o=str(o), a=str(a), p=str(pp),
                     signed_at=str(署名),
                 )
                 for at, n, s, o, a, pp, 署名 in notes
@@ -198,3 +200,158 @@ class EmrDrafts:
             return False  # FK 違反（居ない患者）や一時故障——刻ませない
         finally:
             conn.close()
+
+
+#: 曜日の橋。診療録は 0=日〜6=土、画面は名で見る。
+_WEEKDAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+
+class PostgresPatterns:
+    """取り決めの口 — `EmrPatternPort` の実装。人の操作だけが呼ぶ。"""
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_all(self) -> tuple[PatternRow, ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()
+        try:
+            rows = conn.execute(
+                "SELECT id, patient, weekday, clinician, purpose,"
+                " active_from::text, active_to::text"
+                " FROM visit_patterns ORDER BY patient, weekday"
+            ).fetchall()
+        except Exception:
+            return ()
+        finally:
+            conn.close()
+        return tuple(
+            PatternRow(
+                id=str(id), patient=str(pt), weekday=_WEEKDAYS[int(wd)],
+                clinician=str(cl), purpose=str(pu), active_from=str(af), active_to=at,
+            )
+            for id, pt, wd, cl, pu, af, at in rows
+        )
+
+    def add(self, patient: str, weekday: str, clinician: str, purpose: str, start: str) -> str | None:
+        if self._dsn is None:
+            return "診療録が繋がっていません"
+        if weekday not in _WEEKDAYS:
+            return f"曜日は {'/'.join(_WEEKDAYS)} のどれかです"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "診療録に届きませんでした"
+        try:
+            conn.execute(
+                "INSERT INTO visit_patterns(patient, weekday, clinician, purpose, active_from)"
+                " VALUES (%s, %s, %s, %s, %s::date)",
+                (patient, _WEEKDAYS.index(weekday), clinician, purpose, start),
+            )
+            return None
+        except Exception as なぜ:
+            return f"載せられませんでした: 患者か日付が診療録と合いません（{type(なぜ).__name__}）"
+        finally:
+            conn.close()
+
+    def end(self, pattern_id: str, on: str) -> str | None:
+        if self._dsn is None:
+            return "診療録が繋がっていません"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "診療録に届きませんでした"
+        try:
+            cur = conn.execute(
+                "UPDATE visit_patterns SET active_to = %s::date"
+                " WHERE id = %s::bigint AND active_to IS NULL",
+                (on, pattern_id),
+            )
+            return None if cur.rowcount else "その取り決めはありません（または終わっています）"
+        except Exception:
+            return "終えられませんでした"
+        finally:
+            conn.close()
+
+
+class PostgresSchedule:
+    """予定づくりの口 — `EmrSchedulePort` の実装。**取り決め由来の予定だけを作る。**
+
+    1つの INSERT が読み（有効な取り決め×日付）と書きを兼ねる——
+    一意の鍵（取り決め×日付）に既にあれば何もしない（冪等）。
+    臨時（pattern_id が空）・中止・署名済みに触る SQL はここに1行も無い。
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def plan(self, days_ahead: int) -> tuple[str, ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()  # 届かなければ空——次の脈がまた来る
+        try:
+            rows = conn.execute(
+                f"""
+                INSERT INTO visits(pattern_id, visit_date, patient, clinician, purpose)
+                SELECT p.id, d::date, p.patient, p.clinician, p.purpose
+                FROM visit_patterns p,
+                     generate_series({TODAY}, {TODAY} + %s, INTERVAL '1 day') d
+                WHERE EXTRACT(dow FROM d) = p.weekday
+                  AND d::date >= p.active_from
+                  AND (p.active_to IS NULL OR d::date <= p.active_to)
+                ON CONFLICT (pattern_id, visit_date) DO NOTHING
+                RETURNING patient, visit_date::text
+                """,
+                (days_ahead,),
+            ).fetchall()
+        except Exception:
+            return ()
+        finally:
+            conn.close()
+        return tuple(f"{pt} {d}" for pt, d in rows)
+
+
+class PostgresRoute:
+    """道順の材料の読み — `RouteReader` の実装。その日の予定と拠点。"""
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_day(self, day: str) -> tuple[RouteBase | None, tuple[RouteVisit, ...]]:
+        if self._dsn is None:
+            return None, ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return None, ()
+        try:
+            base = conn.execute("SELECT name, lat, lng FROM clinic LIMIT 1").fetchall()
+            rows = conn.execute(
+                """
+                SELECT v.patient, v.clinician, v.purpose, p.address, p.lat, p.lng
+                FROM visits v JOIN patients p ON p.code = v.patient
+                WHERE v.visit_date = %s::date AND v.status = 'scheduled'
+                ORDER BY v.patient
+                """,
+                (day,),
+            ).fetchall()
+        except Exception:
+            return None, ()
+        finally:
+            conn.close()
+        拠点 = RouteBase(name=str(base[0][0]), lat=float(base[0][1]), lng=float(base[0][2])) if base else None
+        return 拠点, tuple(
+            RouteVisit(patient=str(pt), clinician=str(cl), purpose=str(pu),
+                       place=str(ad), lat=float(la), lng=float(ln))
+            for pt, cl, pu, ad, la, ln in rows
+        )

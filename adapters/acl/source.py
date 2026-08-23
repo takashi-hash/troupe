@@ -160,14 +160,14 @@ def _chart(conn: object, code: str) -> str | None:
         (code,),
     ):
         lines.append(f"Physician order: {kind} from {practice}, signed {signed}, expires {expires}")
-    for 日, nurse, purpose in _rows(
+    for 日, clinician, purpose in _rows(
         conn,
-        "SELECT visit_date, nurse, purpose FROM visits"
+        "SELECT visit_date, clinician, purpose FROM visits"
         " WHERE patient = %s AND status = 'scheduled'"
         f" AND visit_date >= {TODAY} ORDER BY visit_date LIMIT 1",
         (code,),
     ):
-        lines.append(f"Next visit: {日} ({nurse}) - {purpose}")
+        lines.append(f"Next visit: {日} ({clinician}) - {purpose}")
     events = _rows(
         conn,
         "SELECT event_date, description FROM condition_events"
@@ -179,12 +179,12 @@ def _chart(conn: object, code: str) -> str | None:
         lines += [f"- {日}: {何} " for 日, 何 in events]
     記録 = _rows(
         conn,
-        "SELECT note_date, nurse, s, o, a, p FROM clinical_notes"
+        "SELECT note_date, clinician, s, o, a, p FROM clinical_notes"
         " WHERE patient = %s ORDER BY note_date DESC LIMIT 3",
         (code,),
     )
-    for 日, nurse, s, o, a, p in reversed(記録):  # 古い順——傾向が読める並び
-        lines += ["", f"Signed note ({日}, {nurse}):", f"S: {s}", f"O: {o}", f"A: {a}", f"P: {p}"]
+    for 日, clinician, s, o, a, p in reversed(記録):  # 古い順——傾向が読める並び
+        lines += ["", f"Signed note ({日}, {clinician}):", f"S: {s}", f"O: {o}", f"A: {a}", f"P: {p}"]
     return "\n".join(lines)
 
 
@@ -192,14 +192,14 @@ def _visit_schedule(conn: object) -> str:
     """訪問予定 — 指示書の期限と直近の状態変化を、訪問の行に添えて。"""
     lines = [
         "# Visit schedule - Riverbend Home Health (fictional agency)  [from the agency EMR]",
-        "# NOTE: Synthetic data. Columns: visit date / patient / nurse / purpose"
+        "# NOTE: Synthetic data. Columns: visit date / patient / clinician / purpose"
         " / physician order expires / condition change since last note",
         "",
     ]
     for 行 in _rows(
         conn,
         """
-        SELECT v.visit_date, v.patient, v.nurse, v.purpose,
+        SELECT v.visit_date, v.patient, v.clinician, v.purpose,
                (SELECT max(o.expires) FROM physician_orders o WHERE o.patient = v.patient),
                (SELECT e.event_date || ' ' || e.description FROM condition_events e
                  WHERE e.patient = v.patient
@@ -211,12 +211,12 @@ def _visit_schedule(conn: object) -> str:
         ORDER BY v.visit_date, v.patient
         """.replace("{TODAY}", TODAY),
     ):
-        日, code, nurse, purpose, expires, change = 行
-        lines.append(f"{日} / {code} / {nurse} / {purpose} / order expires {expires} / {change or 'none'}")
+        日, code, clinician, purpose, expires, change = 行
+        lines.append(f"{日} / {code} / {clinician} / {purpose} / order expires {expires} / {change or 'none'}")
     穴 = _rows(
         conn,
         f"""
-        SELECT p.patient, p.nurse, p.purpose
+        SELECT p.patient, p.clinician, p.purpose
         FROM visit_patterns p
         WHERE p.active_from <= {TODAY}
           AND (p.active_to IS NULL OR p.active_to >= {TODAY})
@@ -231,7 +231,7 @@ def _visit_schedule(conn: object) -> str:
     if 穴:
         lines += ["", "# PATTERNS WITH NO VISIT SCHEDULED in the next 7 days"
                   " (the calendar has a hole - a human must fill it):"]
-        lines += [f"{code} / {nurse} / {purpose}" for code, nurse, purpose in 穴]
+        lines += [f"{code} / {clinician} / {purpose}" for code, clinician, purpose in 穴]
     return "\n".join(lines)
 
 

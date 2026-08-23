@@ -30,6 +30,8 @@ from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
 from app.dto.patient_row import PatientRow
+from app.dto.pattern_row import PatternRow
+from app.dto.route_stop import RouteStop
 from app.dto.patient_view import PatientView
 from app.dto.today_row import TodayRow
 from ui.words import 操作, 状態, 語, 読める
@@ -83,6 +85,20 @@ class 患者の手(Protocol):
     def __call__(self, code: str) -> PatientView | None: ...
 
 
+class 取り決めの手(Protocol):
+    def __call__(self) -> tuple[PatternRow, ...]: ...
+
+
+class 取り決めを押す手(Protocol):
+    def __call__(self, what: str, fields: dict[str, str]) -> str | None: ...
+
+
+class 道順の手(Protocol):
+    def __call__(
+        self, day: str
+    ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]: ...
+
+
 class 手(NamedTuple):
     """器に注がれる手。**中身は知らない**——読む・押す、それだけ。
 
@@ -105,6 +121,9 @@ class 手(NamedTuple):
     upcoming: 来ている仕事の手
     patients: 患者たちの手
     patient: 患者の手
+    patterns: 取り決めの手
+    pattern_act: 取り決めを押す手
+    route: 道順の手
     close: Callable[[], None]
 
 
@@ -164,7 +183,7 @@ th { font-size: 13px; opacity: .6; font-weight: 500; }
 .wrap { overflow-x: auto; }
 """
 
-_画面 = ("today", "schedule", "history", "search", "patients")
+_画面 = ("today", "route", "schedule", "history", "search", "patients", "patterns")
 
 #: 書く欄の見出し。**用語集の語ではない**——押すときの手がかりなので、そのまま英語で置く。
 _書く欄 = {"answer": "Answer", "send_back": "Reason", "abandon": "Reason"}
@@ -396,7 +415,7 @@ def _患者(view: PatientView | None) -> str:
         f"<span class='title'>delivered {escape(d.delivered_at[:16])}</span>"
         f"<a class='id' href='/detail?id={escape(d.job_id)}'>from job {escape(d.job_id[:8])}…</a></div>"
         f"<div style='white-space:pre-wrap'>{escape(d.body)}</div>"
-        "<p class='sub'>A proposal from Troupe. A nurse rewrites and signs it in the EMR — "
+        "<p class='sub'>A proposal from Troupe. A doctor rewrites and signs it in the EMR — "
         "this never becomes the record by itself.</p></div>"
         for d in view.drafts
     )
@@ -404,7 +423,7 @@ def _患者(view: PatientView | None) -> str:
         f"<div class='row'><div class='head'>"
         f"<span class='state state-final'>SIGNED</span>"
         f"<span class='title'>Note {escape(n.at)}</span>"
-        f"<span class='id'>{escape(n.nurse)} · signed {escape(n.signed_at[:16])}</span></div>"
+        f"<span class='id'>{escape(n.clinician)} · signed {escape(n.signed_at[:16])}</span></div>"
         + _欄([("S", n.s), ("O", n.o), ("A", n.a), ("P", n.p)])
         + "</div>"
         for n in view.notes
@@ -427,6 +446,123 @@ def _患者(view: PatientView | None) -> str:
         f"Jobs for this patient →</a></p></div>"
         + 下書き
         + 記録
+    )
+
+
+_色 = ("#2563eb", "#16a34a", "#d97706", "#dc2626", "#7c3aed")
+
+
+def _地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, float] | None) -> str:
+    """簡易の地図 — 座標をそのまま平面に引き伸ばして描く。**外の地図は呼ばない。**"""
+    点 = [(s.lat, s.lng) for stops in 道順ごと.values() for s in stops]
+    if base:
+        点.append(base)
+    if not 点:
+        return ""
+    lat0, lat1 = min(p[0] for p in 点), max(p[0] for p in 点)
+    lng0, lng1 = min(p[1] for p in 点), max(p[1] for p in 点)
+    余白 = 0.004
+    lat0, lat1, lng0, lng1 = lat0 - 余白, lat1 + 余白, lng0 - 余白, lng1 + 余白
+    W, H = 640, 420
+
+    def xy(lat: float, lng: float) -> tuple[float, float]:
+        x = (lng - lng0) / (lng1 - lng0) * W
+        y = (lat1 - lat) / (lat1 - lat0) * H
+        return round(x, 1), round(y, 1)
+
+    parts = [f"<svg viewBox='0 0 {W} {H}' style='width:100%;max-width:680px;"
+             f"border:1px solid color-mix(in srgb, CanvasText 15%, transparent);"
+             f"border-radius:10px;background:color-mix(in srgb, CanvasText 3%, transparent)'>"]
+    for i, (担当, stops) in enumerate(sorted(道順ごと.items())):
+        色 = _色[i % len(_色)]
+        前 = xy(*base) if base else None
+        for st in stops:
+            今 = xy(st.lat, st.lng)
+            if 前:
+                parts.append(f"<line x1='{前[0]}' y1='{前[1]}' x2='{今[0]}' y2='{今[1]}'"
+                             f" stroke='{色}' stroke-width='2' stroke-dasharray='5 3' opacity='.75'/>")
+            前 = 今
+        for st in stops:
+            x, y = xy(st.lat, st.lng)
+            parts.append(f"<circle cx='{x}' cy='{y}' r='11' fill='{色}'/>"
+                         f"<text x='{x}' y='{y + 4}' text-anchor='middle'"
+                         f" font-size='11' fill='white'>{st.seq}</text>")
+    if base:
+        x, y = xy(*base)
+        parts.append(f"<rect x='{x - 7}' y='{y - 7}' width='14' height='14' fill='#11161d'/>"
+                     f"<text x='{x}' y='{y + 22}' text-anchor='middle' font-size='10'"
+                     f" fill='currentColor'>clinic</text>")
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _道順(day: str, 道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, float] | None) -> str:
+    from datetime import date, timedelta
+
+    d = date.fromisoformat(day)
+    前日, 翌日 = (d - timedelta(days=1)).isoformat(), (d + timedelta(days=1)).isoformat()
+    nav = (f"<p><a href='/route?day={前日}'>← {前日}</a> · <strong>{escape(day)}</strong>"
+           f" · <a href='/route?day={翌日}'>{翌日} →</a></p>")
+    if not 道順ごと:
+        return nav + "<p class='empty'>No visits scheduled this day.</p>"
+    表たち = []
+    for i, (担当, stops) in enumerate(sorted(道順ごと.items())):
+        色 = _色[i % len(_色)]
+        行 = "".join(
+            f"<tr><td>{s.seq}</td>"
+            f"<td><a class='id' href='/patient?code={quote(s.patient)}'>{escape(s.patient)}</a></td>"
+            f"<td>{escape(s.place)}</td><td>{escape(s.purpose)}</td><td>{escape(s.leg_km)} km</td></tr>"
+            for s in stops
+        )
+        径路 = "/".join([f"{base[0]},{base[1]}"] if base else [] )
+        待ち = "/".join(f"{s.lat},{s.lng}" for s in stops)
+        gmap = f"https://www.google.com/maps/dir/{径路}/{待ち}" if 待ち else ""
+        合計 = sum(float(s.leg_km) for s in stops)
+        表たち.append(
+            f"<h3 style='color:{色}'>{escape(担当)}"
+            f" <span class='sub'>{len(stops)} visits · {合計:.1f} km"
+            + (f" · <a href='{escape(gmap)}'>open in Google Maps</a>" if gmap else "")
+            + "</span></h3>"
+            "<div class='wrap'><table><tr><th>#</th><th>Patient</th><th>Place (public stand-in)"
+            "</th><th>Purpose</th><th>Leg</th></tr>" + 行 + "</table></div>"
+        )
+    return (nav + _地図(道順ごと, base)
+            + "<p class='sub'>Stops are greedy nearest-neighbour from the clinic."
+              " Addresses are public landmarks standing in for homes — no real residence appears.</p>"
+            + "".join(表たち))
+
+
+def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
+    行 = "".join(
+        f"<tr><td>{escape(r.patient)}</td><td>{escape(r.weekday)}</td>"
+        f"<td>{escape(r.clinician)}</td><td>{escape(r.purpose)}</td>"
+        f"<td>{escape(r.active_from)}</td>"
+        f"<td>{escape(r.active_to) if r.active_to else '—'}</td>"
+        f"<td>" + (
+            f"<form class='act' method='post' action='/patterns/act'>"
+            f"<input type='hidden' name='what' value='end_pattern'>"
+            f"<input type='hidden' name='id' value='{escape(r.id)}'>"
+            f"<button>End</button></form>" if r.active_to is None else ""
+        ) + "</td></tr>"
+        for r in rows
+    )
+    曜日 = "".join(f"<option>{w}</option>" for w in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))
+    form = (
+        "<h3>Agree a new recurring visit</h3>"
+        "<p class='sub'>The agreement with the patient is the human judgment."
+        " Troupe's pulse expands it into the calendar — that part is bookkeeping.</p>"
+        "<form class='act' method='post' action='/patterns/act'>"
+        "<input type='hidden' name='what' value='add_pattern'>"
+        "<input type='text' name='patient' placeholder='P-001' required>"
+        f"<select name='weekday'>{曜日}</select>"
+        "<input type='text' name='clinician' placeholder='Dr-A' required>"
+        "<input type='text' name='purpose' placeholder='weekly home visit' required>"
+        "<input type='date' name='start' required>"
+        "<button>Add</button></form>"
+    )
+    return (
+        "<div class='wrap'><table><tr><th>Patient</th><th>Weekday</th><th>Clinician</th>"
+        "<th>Purpose</th><th>From</th><th>To</th><th></th></tr>" + 行 + "</table></div>" + form
     )
 
 
@@ -478,6 +614,45 @@ def make_app(開く: 手を開く, viewer: str) -> Any:
     @app.get("/history", response_class=HTMLResponse)
     def _履歴の頁() -> HTMLResponse:
         return 見せる("history", lambda h: _履歴(h.history_fetch()))
+
+    @app.get("/route", response_class=HTMLResponse)
+    def _道順の頁(day: str | None = None) -> HTMLResponse:
+        from datetime import datetime, timedelta, timezone
+
+        きょう = (datetime.now(timezone(timedelta(hours=9)))).date().isoformat()
+        対象 = day or きょう
+
+        def 描く(h: 手) -> str:
+            拠点, 道順ごと = h.route(対象)
+            return _道順(対象, 道順ごと, 拠点)
+
+        return 見せる("route", 描く)
+
+    @app.get("/patterns", response_class=HTMLResponse)
+    def _取り決めの頁(refused: str | None = None) -> HTMLResponse:
+        return 見せる("patterns", lambda h: _取り決めたち(h.patterns()), refused)
+
+    @app.post("/patterns/act")
+    def _取り決めを押す(
+        what: str = Form(...),
+        id: str = Form(""),
+        patient: str = Form(""),
+        weekday: str = Form(""),
+        clinician: str = Form(""),
+        purpose: str = Form(""),
+        start: str = Form(""),
+    ) -> Any:
+        手たち = 開く()
+        try:
+            断り = 手たち.pattern_act(
+                what,
+                {"id": id, "patient": patient, "weekday": weekday,
+                 "clinician": clinician, "purpose": purpose, "start": start},
+            )
+        finally:
+            手たち.close()
+        戻り = "/patterns" if 断り is None else f"/patterns?refused={quote(断り)}"
+        return RedirectResponse(戻り, status_code=303)
 
     @app.get("/patients", response_class=HTMLResponse)
     def _患者たちの頁() -> HTMLResponse:

@@ -28,7 +28,13 @@ from pathlib import Path
 from adapters.acl.llm import GeminiLlm, OllamaLlm
 from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
-from adapters.emr import EmrDrafts, PostgresPatients
+from adapters.emr import (
+    EmrDrafts,
+    PostgresPatients,
+    PostgresPatterns,
+    PostgresRoute,
+    PostgresSchedule,
+)
 from adapters.ids import UuidIds
 from adapters.ledger.db import open_cloud_ledger, open_ledger
 from adapters.ledger.jobs import SqliteJobs
@@ -56,6 +62,8 @@ from adapters.topic import FolderTopic
 from app.dto.detail_view import DetailView
 from app.dto.history_row import HistoryRow
 from app.dto.patient_row import PatientRow
+from app.dto.pattern_row import PatternRow
+from app.dto.route_stop import RouteStop
 from app.dto.patient_view import PatientView
 from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
@@ -72,19 +80,24 @@ from app.services.clock.create import create
 from app.services.clock.deliver_drafts import deliver_drafts
 from app.services.clock.hand_out import hand_out
 from app.services.clock.mark_overdue import mark_overdue
+from app.services.clock.plan_visits import plan_visits
 from app.services.clock.return_timed_out import return_timed_out
 from app.services.clock.run_check import run_check
 from app.services.clock.sort_failures import sort_failures
 from app.services.human.abandon import abandon
 from app.services.human.activate import activate
 from app.services.human.add_version import add_version, add_version_from_fields
+from app.services.human.add_pattern import add_pattern
 from app.services.human.answer import answer
+from app.services.human.end_pattern import end_pattern
 from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
 from app.services.human.request import request_from_fields
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
 from app.services.screen.gather_history import gather_history
+from app.services.screen.gather_patterns import gather_patterns
+from app.services.screen.gather_route import gather_route
 from app.services.screen.gather_patient import gather_patient
 from app.services.screen.gather_patients import gather_patients
 from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
@@ -134,6 +147,9 @@ class Ichiza:
         self.source = Sources(FileSource(root), EmrSource(emr_dsn))
         self.patients = PostgresPatients(emr_dsn)
         self.drafts = EmrDrafts(emr_dsn)
+        self.patterns_port = PostgresPatterns(emr_dsn)
+        self.schedule_port = PostgresSchedule(emr_dsn)
+        self.route = PostgresRoute(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
 
@@ -212,6 +228,28 @@ def _手(za: Ichiza, viewer: str) -> 手:
     def 患者を読む(code: str) -> PatientView | None:
         return gather_patient(za.patients, code)
 
+    def 取り決めを読む() -> tuple[PatternRow, ...]:
+        return gather_patterns(za.patterns_port)
+
+    def 取り決めを押す(what: str, fields: dict[str, str]) -> str | None:
+        if what == "add_pattern":
+            断り = add_pattern(
+                za.patterns_port,
+                fields.get("patient", ""), fields.get("weekday", ""),
+                fields.get("clinician", ""), fields.get("purpose", ""),
+                fields.get("start", ""), by=viewer,
+            )
+        elif what == "end_pattern":
+            断り = end_pattern(za.patterns_port, za.clock, fields.get("id", ""), by=viewer)
+        else:
+            return f"知らない操作です: {what}"
+        return None if 断り is None else 断り.reason
+
+    def 道順を読む(
+        day: str,
+    ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]:
+        return gather_route(za.route, day)
+
     return 手(
         fetch=読む,
         act=押す,
@@ -224,12 +262,19 @@ def _手(za: Ichiza, viewer: str) -> 手:
         upcoming=来ている仕事を読む,
         patients=患者たちを読む,
         patient=患者を読む,
+        patterns=取り決めを読む,
+        pattern_act=取り決めを押す,
+        route=道順を読む,
         close=za.conn.close,
     )
 
 
 def _tick(za: Ichiza) -> None:
     """時計のひと回り。誰も呼ばなくても回るものを、順に。"""
+    planned = plan_visits(za.schedule_port)
+    if planned:
+        print(f"plan_visits: {len(planned)} visits ({', '.join(planned[:3])}…)"
+              if len(planned) > 3 else f"plan_visits: {', '.join(planned)}")
     made = create(za.jobs, za.rules, za.active, za.origins, za.ids, za.clock)
     handed = hand_out(za.jobs, za.states, za.clock)
     returned = return_timed_out(za.jobs, za.states, za.clock)
