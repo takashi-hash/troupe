@@ -136,6 +136,10 @@ input[type=text] { font: inherit; padding: 5px 8px; border-radius: 8px;
 .refusal { border-left: 3px solid #c0392b; padding: 10px 14px; margin-bottom: 16px;
            background: color-mix(in srgb, #c0392b 8%, transparent); border-radius: 0 8px 8px 0; }
 .empty { opacity: .55; padding: 30px 0; }
+.brief { padding: 10px 16px; margin-bottom: 18px; border-radius: 10px; font-size: 13.5px;
+         background: color-mix(in srgb, CanvasText 5%, transparent);
+         border: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
+.brief a { color: inherit; }
 table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid
          color-mix(in srgb, CanvasText 12%, transparent); vertical-align: top; }
@@ -198,6 +202,29 @@ def _押せること(押せる: tuple[str, ...], job_id: str, 戻り: str) -> st
 
 def _状態(名: str) -> str:
     return f"<span class='state'>{escape(状態(名))}</span>"
+
+
+def _帯(rows: tuple[TodayRow, ...], in_flight: int) -> str:
+    """ブリーフィングの帯 — 件数と行き先だけ。**行は足さない。**
+
+    人に見えるもの §4「先の予定は今日に載せない（赤が埋もれる）」——
+    だからここに出すのは数と道案内であって、押しつけの行ではない。
+    数は下に並んでいる行の集計そのもの（別の判定を持たない）。
+    """
+    from ui.words import STATE_GLOSS
+
+    def 数える(ident: str) -> int:
+        return sum(1 for r in rows if STATE_GLOSS.get(r.state_name) == ident)
+
+    承認 = 数える("AwaitingApproval")
+    回答 = 数える("AwaitingAnswer")
+    組 = [
+        f"<strong>{承認}</strong> awaiting your approval",
+        f"<strong>{回答}</strong> awaiting an answer",
+        f"<strong>{in_flight}</strong> job{'s' if in_flight != 1 else ''} in flight"
+        " — <a href='/schedule'>schedule</a>",
+    ]
+    return f"<div class='brief'>{' · '.join(組)}</div>"
 
 
 def _今日(rows: tuple[TodayRow, ...]) -> str:
@@ -352,7 +379,11 @@ def make_app(開く: 手を開く, viewer: str) -> Any:
 
     @app.get("/today", response_class=HTMLResponse)
     def _今日の頁(refused: str | None = None) -> HTMLResponse:
-        return 見せる("today", lambda h: _今日(h.fetch()), refused)
+        def 描く(h: 手) -> str:
+            rows = h.fetch()
+            return _帯(rows, len(h.upcoming())) + _今日(rows)
+
+        return 見せる("today", 描く, refused)
 
     @app.get("/detail", response_class=HTMLResponse)
     def _詳細の頁(id: str, refused: str | None = None) -> HTMLResponse:

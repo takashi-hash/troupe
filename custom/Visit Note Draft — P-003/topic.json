@@ -1,0 +1,12 @@
+{
+  "instruction": "Read the patient chart in the source. Draft the visit note for this patient's visit scheduled in the reporting period, in SOAP form (Subjective / Objective / Assessment / Plan). Carry the previous note's Plan forward and update it: anything in 'recent events' must be reflected in Assessment and Plan, and anything the nurse must verify on arrival goes first in Plan as a checklist. Leave Objective as labelled blanks for vitals to be filled in at the bedside — never invent a measurement. Begin the draft with the patient code P-003 and the visit date. This draft saves the nurse the blank-page start; the nurse rewrites and signs — the draft is never the record.",
+  "source": "file:custom/Visit Note Draft — P-003/chart.txt",
+  "required_terms": ["{対象期間}", "P-003"],
+  "description": "The draft is in SOAP form for the visit in the reporting period, every item in 'recent events' is reflected, and Objective contains no invented measurements.",
+  "cycle": "weekly",
+  "days": 2,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 6
+}

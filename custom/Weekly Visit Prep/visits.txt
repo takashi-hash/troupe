@@ -1,0 +1,12 @@
+# Visit schedule - Riverbend Home Health (fictional agency)
+# NOTE: Synthetic data. No real patient, clinician or visit appears here.
+# Columns: visit date / patient code / nurse code / physician order expires / condition change since last note
+
+2026-08-24 / P-001 / RN-A / 2026-08-13 / none
+2026-08-24 / P-008 / RN-B / 2027-01-14 / none
+2026-08-25 / P-003 / RN-A / 2026-12-19 / fall at home (2026-08-02)
+2026-08-25 / P-006 / RN-C / 2026-11-09 / none
+2026-08-26 / P-005 / RN-B / 2026-08-14 / discharged from hospital (2026-08-08)
+2026-08-27 / P-007 / RN-A / 2026-07-30 / medication change (2026-08-12)
+2026-08-28 / P-002 / RN-B / 2026-08-31 / none
+2026-08-28 / P-010 / RN-A / 2026-08-18 / new admission (2026-08-12)

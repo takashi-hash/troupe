@@ -1,0 +1,18 @@
+# Patient chart (extract) - Riverbend Home Health (fictional agency)
+# NOTE: Entirely synthetic. No real patient exists behind this record.
+
+Patient: P-005  (68, lives with son's family)
+Primary dx: COPD GOLD III, recent exacerbation
+Meds: tiotropium 18mcg qd / salmeterol-fluticasone bid / prednisone taper (finishing 2026-08-25)
+Next visit: 2026-08-26 (RN-B)
+
+Recent events:
+- DISCHARGED from Cedar Ridge Hospital 2026-08-08 after 5-day admission for exacerbation
+- short-term skilled nursing order expires 2026-08-14 - successor order status unknown
+- new home oxygen: 2L nasal cannula at night
+
+Last visit note (2026-08-19, RN-B):
+S: "Breathing easier than before the hospital. The night oxygen takes getting used to."
+O: SpO2 93% room air at rest, 89% after hallway walk. RR 20. Breath sounds: distant, scattered wheeze right base.
+A: Post-exacerbation, recovering on expected course. Desaturation on exertion persists.
+P: Finish prednisone taper as scheduled. Reinforce inhaler technique (observed - adequate). Monitor night O2 compliance. Call MD if SpO2 <88% at rest.
