@@ -8,8 +8,10 @@ from ui.web.automations import _予定
 from ui.web.day import _道順
 from ui.web.detail import _詳細
 from ui.web.frame import _頁
+from ui.web.guide import _写し, _案内, 往復を読む
 from ui.web.hands import 手
 from ui.web.hands import 手を開く
+from ui.web.how import _説明
 from ui.web.inbox import _今日
 from ui.web.inbox import _帯
 from ui.web.patients import _患者
@@ -172,6 +174,24 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
         else:
             戻り = f"/visit?id={quote(id)}&refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
+
+    @app.get("/guide", response_class=HTMLResponse)
+    def _案内の頁() -> HTMLResponse:
+        return 見せる("guide", lambda h: _案内("", "", ()))
+
+    @app.post("/guide", response_class=HTMLResponse)
+    def _案内に問う(question: str = Form(""), history: str = Form("[]")) -> HTMLResponse:
+        往復 = 往復を読む(history)
+
+        def 描く(h: 手) -> str:
+            answer = h.guide(question, _写し(h), 往復) if question.strip() else ""
+            return _案内(question.strip(), answer, 往復)
+
+        return 見せる("guide", 描く)
+
+    @app.get("/how", response_class=HTMLResponse)
+    def _説明の頁() -> HTMLResponse:
+        return 見せる("how", lambda h: _説明())
 
     @app.get("/patients", response_class=HTMLResponse)
     def _患者たちの頁() -> HTMLResponse:

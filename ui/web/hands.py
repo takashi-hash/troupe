@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 from collections.abc import Callable
-from html import escape
-from urllib.parse import quote
-from typing import Any, NamedTuple, Protocol
+from typing import NamedTuple, Protocol
 
 from app.dto.detail_view import DetailView
 from app.dto.history_row import HistoryRow
@@ -15,11 +11,9 @@ from app.dto.search_row import SearchRow
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
 from app.dto.visit_view import VisitView
-from app.services.screen.gather_route import _km
 from app.dto.route_stop import RouteStop
 from app.dto.patient_view import PatientView
 from app.dto.today_row import TodayRow
-from ui.words import 出来事, 操作, 状態, 語, 起こす者, 読める
 
 class 読む手(Protocol):
     def __call__(self) -> tuple[TodayRow, ...]: ...
@@ -95,6 +89,14 @@ class 道順の手(Protocol):
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]: ...
 
 
+class 案内の手(Protocol):
+    def __call__(
+        self, question: str, digest: str, history: tuple[tuple[str, str], ...]
+    ) -> str:
+        """問いと写しを渡し、答えの文字を受け取る。写しを組むのは画面（案内）。"""
+        ...
+
+
 class 手(NamedTuple):
     """器に注がれる手。**中身は知らない**——読む・押す、それだけ。
 
@@ -123,6 +125,7 @@ class 手(NamedTuple):
     visit_act: 訪問を押す手
     route: 道順の手
     today: 今日の手
+    guide: 案内の手
     close: Callable[[], None]
 
 

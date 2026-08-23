@@ -319,10 +319,25 @@ _GUIDE_PROMPT = (
     "You cannot approve, sign, send back, or change anything — only a human can. "
     "Point the human to the page where they can act, "
     "naming one of these paths verbatim: "
-    "/day /patients /patient?id=... /inbox /agreements /automations "
-    "/activity /search /visit?id=... /how\n"
+    "/day /patients /patient?code=... /inbox /detail?id=... /agreements "
+    "/automations /activity /search /visit?id=... /how\n"
     "Never invent data, never include any other link or URL."
 )
+
+
+class SilentGuide:
+    """案内の不在 — Gemini の無い組み立てでは、案内は正直に黙る。
+
+    空文字は `ask_guide` が断りの文言に変える——嘘の答えを作らない。
+    """
+
+    def answer(
+        self,
+        question: str,
+        digest: str,
+        history: tuple[tuple[str, str], ...],
+    ) -> str:
+        return ""
 
 
 class GeminiGuide:

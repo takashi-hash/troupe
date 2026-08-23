@@ -25,7 +25,7 @@ import argparse
 import os
 from pathlib import Path
 
-from adapters.acl.llm import GeminiLlm, OllamaLlm
+from adapters.acl.llm import GeminiGuide, GeminiLlm, OllamaLlm, SilentGuide
 from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
 from adapters.emr import (
@@ -108,6 +108,7 @@ from app.services.screen.gather_patients import gather_patients
 from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
 from app.services.screen.gather_search import gather_search
 from app.services.screen.gather_visit import gather_visit
+from app.services.screen.ask_guide import ask_guide
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
@@ -160,6 +161,8 @@ class Ichiza:
         self.visit_view = PostgresVisit(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
+        # 案内は仕事の外の一呼び——書く道具を持たない(設計 §4 GuidePort)
+        self.guide = GeminiGuide(model or _MODELS["gemini"]) if llm == "gemini" else SilentGuide()
 
 
 #: LLM の道具の既定のモデル。**どちらも同じ口**——選ぶのはここだけ。
@@ -283,6 +286,11 @@ def _手(za: Ichiza, viewer: str) -> 手:
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]:
         return gather_route(za.route, day)
 
+    def 案内(
+        question: str, digest: str, history: tuple[tuple[str, str], ...]
+    ) -> str:
+        return ask_guide(za.guide, question, digest, history)
+
     return 手(
         fetch=読む,
         act=押す,
@@ -301,6 +309,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         visit_act=訪問を押す,
         route=道順を読む,
         today=今日,
+        guide=案内,
         close=za.conn.close,
     )
 
