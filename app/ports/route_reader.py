@@ -30,6 +30,12 @@ class RouteVisit(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    #: 訪問の識別子——停留から当日入力を開く鍵。
+    visit_id: str
+    #: 下書きの支度——signed（署名済み）/ draft（下書きあり）/ none。
+    prep: str
+    #: 状態——scheduled / done / cancelled。済んだ訪問も今日の並びに残る。
+    status: str
     patient: str
     clinician: str
     purpose: str

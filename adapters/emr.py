@@ -17,6 +17,7 @@ from typing import Any
 from app.dto.patient_row import PatientRow
 from app.dto.patient_view import PatientDraft, PatientNote, PatientView
 from app.dto.pattern_row import PatternRow
+from app.dto.visit_view import UnusedDraft, VisitView
 from app.ports.route_reader import RouteBase, RouteVisit
 
 #: 事業所の「今日」。器（Cloud SQL）の時刻帯は UTC なので、暦の比べは事業所の時刻帯で開く。
@@ -222,7 +223,7 @@ class PostgresPatterns:
             return ()
         try:
             rows = conn.execute(
-                "SELECT id, patient, weekday, clinician, purpose,"
+                "SELECT id, patient, weekday, clinician, purpose, interval_weeks,"
                 " active_from::text, active_to::text"
                 " FROM visit_patterns ORDER BY patient, weekday"
             ).fetchall()
@@ -233,25 +234,33 @@ class PostgresPatterns:
         return tuple(
             PatternRow(
                 id=str(id), patient=str(pt), weekday=_WEEKDAYS[int(wd)],
-                clinician=str(cl), purpose=str(pu), active_from=str(af), active_to=at,
+                every_weeks=str(ew), clinician=str(cl), purpose=str(pu),
+                active_from=str(af), active_to=at,
             )
-            for id, pt, wd, cl, pu, af, at in rows
+            for id, pt, wd, cl, pu, ew, af, at in rows
         )
 
-    def add(self, patient: str, weekday: str, clinician: str, purpose: str, start: str) -> str | None:
+    def add(
+        self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
+        every_weeks: str = "1",
+    ) -> str | None:
         if self._dsn is None:
             return "診療録が繋がっていません"
         if weekday not in _WEEKDAYS:
             return f"曜日は {'/'.join(_WEEKDAYS)} のどれかです"
+        if not every_weeks.isdigit() or not 1 <= int(every_weeks) <= 12:
+            return "週の間隔は 1〜12 です"
         try:
             conn = _connect(self._dsn, self._connect)
         except Exception:
             return "診療録に届きませんでした"
         try:
             conn.execute(
-                "INSERT INTO visit_patterns(patient, weekday, clinician, purpose, active_from)"
-                " VALUES (%s, %s, %s, %s, %s::date)",
-                (patient, _WEEKDAYS.index(weekday), clinician, purpose, start),
+                "INSERT INTO visit_patterns"
+                "(patient, weekday, clinician, purpose, interval_weeks, active_from)"
+                " VALUES (%s, %s, %s, %s, %s, %s::date)",
+                (patient, _WEEKDAYS.index(weekday), clinician, purpose,
+                 int(every_weeks), start),
             )
             return None
         except Exception as なぜ:
@@ -318,6 +327,7 @@ class PostgresSchedule:
                 WHERE EXTRACT(dow FROM d) = p.weekday
                   AND d::date >= p.active_from
                   AND (p.active_to IS NULL OR d::date <= p.active_to)
+                  AND (((d::date - p.active_from) / 7) %% p.interval_weeks) = 0
                 ON CONFLICT (pattern_id, visit_date) DO NOTHING
                 RETURNING patient, visit_date::text
                 """,
@@ -331,7 +341,11 @@ class PostgresSchedule:
 
 
 class PostgresRoute:
-    """道順の材料の読み — `RouteReader` の実装。その日の予定と拠点。"""
+    """道順の材料の読み — `RouteReader` の実装。その日の予定と拠点、**下書きの支度つき**。
+
+    支度は診療録だけから導く: 署名済みの記録が既に在れば「signed」、
+    未使用の下書きが在れば「draft」、どちらも無ければ「none」。
+    """
 
     def __init__(self, dsn: str | None, connect: Any = None) -> None:
         self._dsn = dsn
@@ -348,9 +362,18 @@ class PostgresRoute:
             base = conn.execute("SELECT name, lat, lng FROM clinic LIMIT 1").fetchall()
             rows = conn.execute(
                 """
-                SELECT v.patient, v.clinician, v.purpose, p.address, p.lat, p.lng
+                SELECT v.id, v.patient, v.clinician, v.purpose, p.address, p.lat, p.lng,
+                       CASE
+                         WHEN EXISTS (SELECT 1 FROM clinical_notes n WHERE n.visit_id = v.id)
+                           THEN 'signed'
+                         WHEN EXISTS (SELECT 1 FROM note_drafts d
+                                       WHERE d.patient = v.patient AND d.used_at IS NULL)
+                           THEN 'draft'
+                         ELSE 'none'
+                       END
+                     , v.status
                 FROM visits v JOIN patients p ON p.code = v.patient
-                WHERE v.visit_date = %s::date AND v.status = 'scheduled'
+                WHERE v.visit_date = %s::date
                 ORDER BY v.patient
                 """,
                 (day,),
@@ -361,7 +384,159 @@ class PostgresRoute:
             conn.close()
         拠点 = RouteBase(name=str(base[0][0]), lat=float(base[0][1]), lng=float(base[0][2])) if base else None
         return 拠点, tuple(
-            RouteVisit(patient=str(pt), clinician=str(cl), purpose=str(pu),
-                       place=str(ad), lat=float(la), lng=float(ln))
-            for pt, cl, pu, ad, la, ln in rows
+            RouteVisit(visit_id=str(vid), patient=str(pt), clinician=str(cl),
+                       purpose=str(pu), place=str(ad), lat=float(la), lng=float(ln),
+                       prep=str(prep), status=str(st))
+            for vid, pt, cl, pu, ad, la, ln, prep, st in rows
+        )
+
+
+class EmrVisits:
+    """訪問の終わり — `EmrVisitPort` の実装。**人の操作だけが呼ぶ。**
+
+    署名は1トランザクション: 記録を積む・訪問を実施済みへ・下書きに使用の印。
+    守りは診療録の側に3層——status='scheduled' のガード付き UPDATE、
+    1訪問1記録の一意鍵、署名済みの不変トリガ。**書き換える口はこのクラスに無い。**
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def sign(
+        self, visit_id: str, signer: str,
+        s: str, o: str, a: str, p: str, draft_id: str | None,
+    ) -> str | None:
+        if self._dsn is None:
+            return "診療録が繋がっていません"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "診療録に届きませんでした"
+        try:
+            with conn.transaction():
+                done = conn.execute(
+                    "UPDATE visits SET status = 'done'"
+                    " WHERE id = %s::bigint AND status = 'scheduled'",
+                    (visit_id,),
+                )
+                if not done.rowcount:
+                    return "その訪問は予定のままではありません（実施済みか中止済み）"
+                row = conn.execute(
+                    "INSERT INTO clinical_notes"
+                    "(patient, visit_id, note_date, clinician, s, o, a, p, signed_at)"
+                    " SELECT v.patient, v.id, v.visit_date, %s, %s, %s, %s, %s, now()"
+                    " FROM visits v WHERE v.id = %s::bigint"
+                    " RETURNING id",
+                    (signer, s, o, a, p, visit_id),
+                ).fetchone()
+                if draft_id:
+                    used = conn.execute(
+                        "UPDATE note_drafts SET used_at = now(), used_by_note = %s"
+                        " WHERE id = %s::bigint AND used_at IS NULL",
+                        (row[0], draft_id),
+                    )
+                    if not used.rowcount:
+                        return "その下書きは既に使われています——読み直してください"
+            return None
+        except Exception as なぜ:
+            名 = type(なぜ).__name__
+            if "ForeignKey" in 名:
+                return "署名者が名簿にありません"
+            if "Unique" in 名:
+                return "この訪問には既に署名済みの記録があります"
+            return "署名できませんでした——診療録が受けませんでした"
+        finally:
+            conn.close()
+
+    def cancel(self, visit_id: str, reason: str) -> str | None:
+        if self._dsn is None:
+            return "診療録が繋がっていません"
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return "診療録に届きませんでした"
+        try:
+            cur = conn.execute(
+                "UPDATE visits SET status = 'cancelled', cancelled_reason = %s"
+                " WHERE id = %s::bigint AND status = 'scheduled'",
+                (reason, visit_id),
+            )
+            return None if cur.rowcount else "その訪問は予定のままではありません"
+        except Exception:
+            return "休めませんでした——診療録が受けませんでした"
+        finally:
+            conn.close()
+
+
+class PostgresVisit:
+    """訪問の読み — `VisitReader` の実装。当日入力の材料ぜんぶを1回で。"""
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_one(self, visit_id: str) -> VisitView | None:
+        if self._dsn is None:
+            return None
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return None
+        try:
+            return self._読む(conn, visit_id)
+        except Exception:
+            return None
+        finally:
+            conn.close()
+
+    def _読む(self, conn: Any, visit_id: str) -> VisitView | None:
+        v = conn.execute(
+            f"""
+            SELECT v.id, v.visit_date::text, v.clinician, v.purpose, v.status,
+                   p.code, p.age, p.living_situation, p.address,
+                   (SELECT c.dx FROM patient_conditions c
+                     WHERE c.patient = p.code ORDER BY c.is_primary DESC, c.onset LIMIT 1),
+                   (SELECT max(o.expires)::text FROM physician_orders o
+                     WHERE o.patient = p.code)
+            FROM visits v JOIN patients p ON p.code = v.patient
+            WHERE v.id = %s::bigint
+            """,
+            (visit_id,),
+        ).fetchall()
+        if not v:
+            return None
+        vid, 日, 担当, 目的, 状態, code, age, living, addr, dx, expires = v[0]
+        drafts = conn.execute(
+            "SELECT id, body, (delivered_at AT TIME ZONE 'Asia/Tokyo')::text"
+            " FROM note_drafts WHERE patient = %s AND used_at IS NULL"
+            " ORDER BY delivered_at DESC",
+            (code,),
+        ).fetchall()
+        notes = conn.execute(
+            "SELECT note_date, clinician, s, o, a, p, signed_at::text FROM clinical_notes"
+            " WHERE patient = %s ORDER BY note_date DESC LIMIT 5",
+            (code,),
+        ).fetchall()
+        名簿 = conn.execute(
+            "SELECT code FROM clinicians WHERE active ORDER BY code"
+        ).fetchall()
+        return VisitView(
+            id=str(vid), visit_date=str(日), clinician=str(担当), purpose=str(目的),
+            status=str(状態),
+            patient=PatientRow(
+                code=str(code), age=str(age), living=str(living),
+                diagnosis=str(dx) if dx is not None else "—",
+                next_visit=None, order_expires=expires,
+            ),
+            drafts=tuple(
+                UnusedDraft(id=str(i), body=str(b), delivered_at=str(at)[:16])
+                for i, b, at in drafts
+            ),
+            notes=tuple(
+                PatientNote(at=str(at), clinician=str(cl), s=str(ss), o=str(oo),
+                            a=str(aa), p=str(pp), signed_at=str(sg))
+                for at, cl, ss, oo, aa, pp, sg in notes
+            ),
+            clinicians=tuple(str(c[0]) for c in 名簿),
         )

@@ -9,7 +9,8 @@ from app.services.screen.gather_route import gather_route
 
 
 def _訪問(code: str, lat: float, lng: float, 担当: str = "Dr-A") -> RouteVisit:
-    return RouteVisit(patient=code, clinician=担当, purpose="visit",
+    return RouteVisit(visit_id=f"v-{code}", prep="none", status="scheduled", patient=code,
+                      clinician=担当, purpose="visit",
                       place=f"{code} landmark", lat=lat, lng=lng)
 
 

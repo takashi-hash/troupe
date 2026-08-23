@@ -1,5 +1,10 @@
--- EMR (electronic medical record) - Riverbend Home Health (fictional agency)
+-- EMR (electronic medical record) - Riverbend Home Medical Clinic (fictional)  -- schema v5
 -- NOTE: Entirely synthetic. No real patient, clinician, practice or visit exists here.
+--
+-- v5: clinicians master (FK from patterns/visits/notes) / signing closes the loop
+-- (signed note INSERT + visit done + draft used, one transaction; enforced by
+-- UNIQUE(visit_id), a status guard, and an immutability trigger) /
+-- visit_patterns.interval_weeks (biweekly) / visits.cancelled_reason.
 --
 -- Master data (slow-changing) and clinical data (event streams) are kept apart.
 -- clinical_notes holds SIGNED (final) notes only - append-only, never edited.
@@ -7,7 +12,9 @@
 -- rewrites and signs elsewhere. Troupe has no path that writes a signed note.
 
 DROP TABLE IF EXISTS note_drafts, clinical_notes, visit_notes, condition_events,
-  visits, visit_patterns, physician_orders, medications, patient_conditions, patients, clinic CASCADE;
+  visits, visit_patterns, physician_orders, medications, patient_conditions,
+  patients, clinicians, clinic CASCADE;
+DROP FUNCTION IF EXISTS clinical_notes_immutable() CASCADE;
 
 -- ========== master ==========
 
@@ -16,6 +23,12 @@ CREATE TABLE clinic(               -- the practice's home base (route origin)
   address TEXT NOT NULL,
   lat DOUBLE PRECISION NOT NULL,
   lng DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE clinicians(
+  code TEXT PRIMARY KEY,            -- 'Dr-A' : the v4 free strings survive unchanged as keys
+  name TEXT,                        -- display name; NULL = show the code
+  active BOOLEAN NOT NULL DEFAULT true
 );
 
 CREATE TABLE patients(
@@ -68,8 +81,9 @@ CREATE TABLE visit_patterns(
   id BIGSERIAL PRIMARY KEY,
   patient TEXT NOT NULL REFERENCES patients(code),
   weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),  -- 0=Sun .. 6=Sat
-  clinician TEXT NOT NULL,
+  clinician TEXT NOT NULL REFERENCES clinicians(code),
   purpose TEXT NOT NULL,
+  interval_weeks INTEGER NOT NULL DEFAULT 1 CHECK (interval_weeks BETWEEN 1 AND 12),
   active_from DATE NOT NULL,
   active_to DATE                                              -- null = open-ended
 );
@@ -79,30 +93,39 @@ CREATE TABLE visits(
   pattern_id BIGINT REFERENCES visit_patterns(id),            -- null = ad-hoc visit
   visit_date DATE NOT NULL,
   patient TEXT NOT NULL REFERENCES patients(code),
-  clinician TEXT NOT NULL,
+  clinician TEXT NOT NULL REFERENCES clinicians(code),
   purpose TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'scheduled'
     CHECK (status IN ('scheduled','done','cancelled')),
+  cancelled_reason TEXT,
   UNIQUE (pattern_id, visit_date)                             -- 取り決め×日付は一度だけ
 );
 
-CREATE TABLE clinical_notes(          -- SIGNED notes only. Append-only.
+CREATE TABLE clinical_notes(          -- SIGNED notes only. Append-only. Immutable.
   id BIGSERIAL PRIMARY KEY,
   patient TEXT NOT NULL REFERENCES patients(code),
-  visit_id BIGINT REFERENCES visits(id),                      -- which visit it documents
+  visit_id BIGINT REFERENCES visits(id) UNIQUE,               -- one signed note per visit
   note_date DATE NOT NULL,
-  clinician TEXT NOT NULL,
+  clinician TEXT NOT NULL REFERENCES clinicians(code),
   s TEXT NOT NULL, o TEXT NOT NULL, a TEXT NOT NULL, p TEXT NOT NULL,
   signed_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE note_drafts(             -- the draft inbox. Troupe writes here and only here.
+CREATE TABLE note_drafts(             -- the draft inbox. The pulse writes here; a human uses it.
   id BIGSERIAL PRIMARY KEY,
   patient TEXT NOT NULL REFERENCES patients(code),
-  body TEXT NOT NULL,
+  body TEXT NOT NULL,                 -- immutable: the mark of use lives in the pair below
   based_on_job TEXT NOT NULL UNIQUE,  -- idempotency: one deposit per approved job
-  delivered_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  used_at TIMESTAMPTZ,                -- when a signing consumed it
+  used_by_note BIGINT UNIQUE REFERENCES clinical_notes(id),
+  CHECK ((used_at IS NULL) = (used_by_note IS NULL))
 );
+
+CREATE INDEX idx_visits_day ON visits(visit_date, status);
+CREATE INDEX idx_visits_patient ON visits(patient, visit_date DESC);
+CREATE INDEX idx_notes_patient ON clinical_notes(patient, note_date DESC);
+CREATE INDEX idx_drafts_patient ON note_drafts(patient) WHERE used_at IS NULL;
 
 CREATE TABLE condition_events(
   patient TEXT NOT NULL REFERENCES patients(code),
@@ -111,6 +134,9 @@ CREATE TABLE condition_events(
 );
 
 -- ========== seed: master ==========
+
+INSERT INTO clinicians(code, name) VALUES
+ ('Dr-A', 'Dr. Asada'), ('Dr-B', 'Dr. Baba'), ('Dr-C', 'Dr. Chiba');
 
 INSERT INTO clinic VALUES
  ('Riverbend Home Medical Clinic', 'near Sangenjaya Sta. (public landmark)', 35.6433, 139.6690);
@@ -182,17 +208,17 @@ INSERT INTO physician_orders VALUES
  ('P-010','Cedar Ridge Hospital (fictional)',    '2026-08-05','2026-08-18','Short-term skilled nursing order');
 
 -- patterns (weekday: 1=Mon .. 5=Fri)
-INSERT INTO visit_patterns(patient, weekday, clinician, purpose, active_from) VALUES
- ('P-001', 1, 'Dr-A', 'weekly skilled nursing',    '2026-08-01'),
- ('P-008', 1, 'Dr-B', 'rehab progress check',      '2026-08-01'),
- ('P-003', 2, 'Dr-A', 'weekly skilled nursing',    '2026-08-01'),
- ('P-006', 2, 'Dr-C', 'weekly skilled nursing',    '2026-08-01'),
- ('P-005', 3, 'Dr-B', 'post-discharge follow-up',  '2026-08-01'),
- ('P-007', 4, 'Dr-A', 'anticoagulation check',     '2026-08-01'),
- ('P-002', 5, 'Dr-B', 'diabetes management',       '2026-08-01'),
- ('P-010', 5, 'Dr-A', 'palliative symptom review', '2026-08-22'),
- ('P-004', 1, 'Dr-C', 'weekly skilled nursing',    '2026-08-01'),
- ('P-009', 1, 'Dr-A', 'caregiver support visit',   '2026-08-01');
+INSERT INTO visit_patterns(patient, weekday, clinician, purpose, interval_weeks, active_from) VALUES
+ ('P-001', 1, 'Dr-A', 'weekly skilled nursing', 1,    '2026-08-01'),
+ ('P-008', 1, 'Dr-B', 'rehab progress check', 2,   '2026-08-01'),
+ ('P-003', 2, 'Dr-A', 'weekly skilled nursing', 1,    '2026-08-01'),
+ ('P-006', 2, 'Dr-C', 'weekly skilled nursing', 1,    '2026-08-01'),
+ ('P-005', 3, 'Dr-B', 'post-discharge follow-up', 1,  '2026-08-01'),
+ ('P-007', 4, 'Dr-A', 'anticoagulation check', 1,     '2026-08-01'),
+ ('P-002', 5, 'Dr-B', 'diabetes management', 1,       '2026-08-01'),
+ ('P-010', 5, 'Dr-A', 'palliative symptom review', 1, '2026-08-22'),
+ ('P-004', 1, 'Dr-C', 'weekly skilled nursing', 1,    '2026-08-01'),
+ ('P-009', 1, 'Dr-A', 'caregiver support visit', 1,   '2026-08-01');
 
 -- Past instances only. FUTURE VISITS ARE NOT SEEDED: Troupe's pulse plans them
 -- from the patterns (plan_visits) - expansion of an agreed pattern is bookkeeping.
@@ -201,7 +227,8 @@ SELECT p.id, d::date, p.patient, p.clinician, p.purpose, 'done'
 FROM visit_patterns p,
      generate_series(DATE '2026-08-03', DATE '2026-08-23', INTERVAL '1 day') d
 WHERE EXTRACT(dow FROM d) = p.weekday
-  AND d::date >= p.active_from;
+  AND d::date >= p.active_from
+  AND (((d::date - p.active_from) / 7) % p.interval_weeks) = 0;
 
 -- one ad-hoc visit: P-010's palliative intake after admission (no pattern behind it)
 INSERT INTO visits(pattern_id, visit_date, patient, clinician, purpose, status)
@@ -293,5 +320,18 @@ INSERT INTO condition_events VALUES
 -- link each signed note to the visit it documents (same patient, same day, done)
 UPDATE clinical_notes n
 SET visit_id = v.id
-FROM visits v
-WHERE v.patient = n.patient AND v.visit_date = n.note_date AND v.status = 'done';
+FROM (
+  SELECT DISTINCT ON (patient, visit_date) id, patient, visit_date
+  FROM visits WHERE status = 'done'
+  ORDER BY patient, visit_date, pattern_id NULLS LAST
+) v
+WHERE v.patient = n.patient AND v.visit_date = n.note_date;
+
+-- 紐付け（移行）が済んでから、不変の錠を掛ける
+-- 署名済みは不変——憲法を DB 自身に執行させる（書き換え・削除はどの接続にもできない）
+CREATE FUNCTION clinical_notes_immutable() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'clinical_notes is append-only: signed records are immutable';
+END $$ LANGUAGE plpgsql;
+CREATE TRIGGER clinical_notes_no_update BEFORE UPDATE OR DELETE ON clinical_notes
+  FOR EACH ROW EXECUTE FUNCTION clinical_notes_immutable();

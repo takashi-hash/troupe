@@ -10,7 +10,7 @@ from app.dto.route_stop import RouteStop
 
 def _行(**over: object) -> RouteStop:
     data: dict[str, object] = {
-        "seq": 1, "patient": "P-001", "place": "Setagaya City Hall (public landmark stand-in)",
+        "seq": 1, "visit_id": "7", "prep": "draft", "status": "scheduled", "patient": "P-001", "place": "Setagaya City Hall (public landmark stand-in)",
         "purpose": "weekly visit", "leg_km": "1.4", "lat": 35.64, "lng": 139.65,
     }
     return RouteStop.model_validate(data | over)

@@ -8,10 +8,13 @@ from app.services.screen.gather_patterns import gather_patterns
 
 class 取り決めの偽物:
     def read_all(self) -> tuple[PatternRow, ...]:
-        return (PatternRow(id="1", patient="P-001", weekday="Mon", clinician="Dr-A",
+        return (PatternRow(id="1", patient="P-001", weekday="Mon", every_weeks="1", clinician="Dr-A",
                            purpose="weekly", active_from="2026-08-01", active_to=None),)
 
-    def add(self, patient: str, weekday: str, clinician: str, purpose: str, start: str) -> str | None:
+    def add(
+        self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
+        every_weeks: str = "1",
+    ) -> str | None:
         return None
 
     def end(self, pattern_id: str, on: str) -> str | None:

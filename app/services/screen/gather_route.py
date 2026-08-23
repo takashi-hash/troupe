@@ -31,8 +31,12 @@ def gather_route(
     """（拠点の座標, 担当ごとの道順）。拠点から近い順に貪欲に辿る。"""
     base, visits = route.read_day(day)
     担当ごと: dict[str, list[RouteVisit]] = {}
+    済みと休み: dict[str, list[RouteVisit]] = {}
     for v in visits:
-        担当ごと.setdefault(v.clinician, []).append(v)
+        if v.status == "scheduled":
+            担当ごと.setdefault(v.clinician, []).append(v)
+        else:
+            済みと休み.setdefault(v.clinician, []).append(v)
     out: dict[str, tuple[RouteStop, ...]] = {}
     拠点 = (base.lat, base.lng) if base else None
     for 担当, 残り in sorted(担当ごと.items()):
@@ -45,10 +49,20 @@ def gather_route(
             leg = _km(いま_lat, いま_lng, 次.lat, 次.lng)
             stops.append(
                 RouteStop(
-                    seq=len(stops) + 1, patient=次.patient, place=次.place,
+                    seq=len(stops) + 1, visit_id=次.visit_id, prep=次.prep,
+                    status=次.status, patient=次.patient, place=次.place,
                     purpose=次.purpose, leg_km=f"{leg:.1f}", lat=次.lat, lng=次.lng,
                 )
             )
             いま_lat, いま_lng = 次.lat, 次.lng
         out[担当] = tuple(stops)
+    # 済んだ・休んだ訪問は距離を組まず、その担当の列の末尾に残す——進捗が見える道順
+    for 担当, 残 in sorted(済みと休み.items()):
+        末尾 = tuple(
+            RouteStop(seq=0, visit_id=v.visit_id, prep=v.prep, status=v.status,
+                      patient=v.patient, place=v.place, purpose=v.purpose,
+                      leg_km="0.0", lat=v.lat, lng=v.lng)
+            for v in 残
+        )
+        out[担当] = out.get(担当, ()) + 末尾
     return 拠点, out

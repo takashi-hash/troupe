@@ -13,10 +13,13 @@ class 取り決めの偽物:
     def read_all(self):  # type: ignore[no-untyped-def]
         return ()
 
-    def add(self, patient: str, weekday: str, clinician: str, purpose: str, start: str) -> str | None:
+    def add(
+        self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
+        every_weeks: str = "1",
+    ) -> str | None:
         if self._なぜ:
             return self._なぜ
-        self.載せた.append((patient, weekday, clinician, purpose, start))
+        self.載せた.append((patient, weekday, clinician, purpose, start, every_weeks))
         return None
 
     def end(self, pattern_id: str, on: str) -> str | None:
@@ -26,7 +29,7 @@ class 取り決めの偽物:
 def test_通れば載る() -> None:
     口 = 取り決めの偽物()
     assert add_pattern(口, "P-001", "Mon", "Dr-A", "weekly", "2026-08-25", by="Director") is None
-    assert 口.載せた == [("P-001", "Mon", "Dr-A", "weekly", "2026-08-25")]
+    assert 口.載せた == [("P-001", "Mon", "Dr-A", "weekly", "2026-08-25", "1")]
 
 
 def test_誰の判断か空なら断り() -> None:

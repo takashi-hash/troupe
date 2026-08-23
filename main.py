@@ -30,10 +30,12 @@ from adapters.acl.source import EmrSource, FileSource, Sources
 from adapters.clock import SystemClock
 from adapters.emr import (
     EmrDrafts,
+    EmrVisits,
     PostgresPatients,
     PostgresPatterns,
     PostgresRoute,
     PostgresSchedule,
+    PostgresVisit,
 )
 from adapters.ids import UuidIds
 from adapters.ledger.db import open_cloud_ledger, open_ledger
@@ -64,6 +66,7 @@ from app.dto.history_row import HistoryRow
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
 from app.dto.route_stop import RouteStop
+from app.dto.visit_view import VisitView
 from app.dto.patient_view import PatientView
 from app.dto.row_filter import RowFilter
 from app.dto.schedule_row import ScheduleRow
@@ -89,7 +92,9 @@ from app.services.human.activate import activate
 from app.services.human.add_version import add_version, add_version_from_fields
 from app.services.human.add_pattern import add_pattern
 from app.services.human.answer import answer
+from app.services.human.cancel_visit import cancel_visit
 from app.services.human.end_pattern import end_pattern
+from app.services.human.sign_note import sign_note
 from app.services.human.deactivate import deactivate
 from app.services.human.approve import approve
 from app.services.human.request import request_from_fields
@@ -102,6 +107,7 @@ from app.services.screen.gather_patient import gather_patient
 from app.services.screen.gather_patients import gather_patients
 from app.services.screen.gather_schedule import gather_schedule, gather_upcoming
 from app.services.screen.gather_search import gather_search
+from app.services.screen.gather_visit import gather_visit
 from app.services.screen.gather_today import gather_today
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.people.agent import Agent
@@ -150,6 +156,8 @@ class Ichiza:
         self.patterns_port = PostgresPatterns(emr_dsn)
         self.schedule_port = PostgresSchedule(emr_dsn)
         self.route = PostgresRoute(emr_dsn)
+        self.visits_port = EmrVisits(emr_dsn)
+        self.visit_view = PostgresVisit(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
 
@@ -251,6 +259,24 @@ def _手(za: Ichiza, viewer: str) -> 手:
 
         return za.clock.now().astimezone(timezone(timedelta(hours=9))).date().isoformat()
 
+    def 訪問を読む(id: str) -> VisitView | None:
+        return gather_visit(za.visit_view, id)
+
+    def 訪問を押す(what: str, fields: dict[str, str]) -> str | None:
+        if what == "sign_note":
+            断り = sign_note(
+                za.visits_port,
+                fields.get("id", ""), fields.get("signer", ""),
+                fields.get("s", ""), fields.get("o", ""),
+                fields.get("a", ""), fields.get("p", ""),
+                fields.get("draft_id", ""), by=viewer,
+            )
+        elif what == "cancel_visit":
+            断り = cancel_visit(za.visits_port, fields.get("id", ""), fields.get("reason", ""), by=viewer)
+        else:
+            return f"知らない操作です: {what}"
+        return None if 断り is None else 断り.reason
+
     def 道順を読む(
         day: str,
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]:
@@ -270,6 +296,8 @@ def _手(za: Ichiza, viewer: str) -> 手:
         patient=患者を読む,
         patterns=取り決めを読む,
         pattern_act=取り決めを押す,
+        visit=訪問を読む,
+        visit_act=訪問を押す,
         route=道順を読む,
         today=今日,
         close=za.conn.close,

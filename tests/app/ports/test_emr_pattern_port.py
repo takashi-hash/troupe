@@ -10,7 +10,10 @@ class 取り決めの偽物:
     def read_all(self) -> tuple[PatternRow, ...]:
         return ()
 
-    def add(self, patient: str, weekday: str, clinician: str, purpose: str, start: str) -> str | None:
+    def add(
+        self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
+        every_weeks: str = "1",
+    ) -> str | None:
         return None
 
     def end(self, pattern_id: str, on: str) -> str | None:

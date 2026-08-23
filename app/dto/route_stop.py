@@ -17,6 +17,9 @@ class RouteStop(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     seq: int
+    visit_id: str
+    prep: str
+    status: str
     patient: str
     place: str
     purpose: str

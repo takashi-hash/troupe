@@ -17,6 +17,8 @@ from app.services.refusal import Refusal
 def add_pattern(
     patterns: EmrPatternPort,
     patient: str, weekday: str, clinician: str, purpose: str, start: str,
+    every_weeks: str = "1",
+    *,
     by: str,
 ) -> Refusal | None:
     """通れば None。断られたら理由。人の名が空なら判断の主が居ない——断り。"""
@@ -25,5 +27,8 @@ def add_pattern(
     for 欄, 値 in (("患者", patient), ("曜日", weekday), ("担当", clinician), ("目的", purpose), ("始まり", start)):
         if not 値.strip():
             return Refusal(reason=f"{欄}が空です")
-    なぜ = patterns.add(patient.strip(), weekday.strip(), clinician.strip(), purpose.strip(), start.strip())
+    なぜ = patterns.add(
+        patient.strip(), weekday.strip(), clinician.strip(), purpose.strip(),
+        start.strip(), every_weeks.strip() or "1",
+    )
     return None if なぜ is None else Refusal(reason=なぜ)

@@ -31,6 +31,7 @@ from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
+from app.dto.visit_view import VisitView
 from app.dto.route_stop import RouteStop
 from app.dto.patient_view import PatientView
 from app.dto.today_row import TodayRow
@@ -97,6 +98,14 @@ class 今日の手(Protocol):
     def __call__(self) -> str: ...
 
 
+class 訪問の手(Protocol):
+    def __call__(self, id: str) -> VisitView | None: ...
+
+
+class 訪問を押す手(Protocol):
+    def __call__(self, what: str, fields: dict[str, str]) -> str | None: ...
+
+
 class 道順の手(Protocol):
     def __call__(
         self, day: str
@@ -127,6 +136,8 @@ class 手(NamedTuple):
     patient: 患者の手
     patterns: 取り決めの手
     pattern_act: 取り決めを押す手
+    visit: 訪問の手
+    visit_act: 訪問を押す手
     route: 道順の手
     today: 今日の手
     close: Callable[[], None]
@@ -188,7 +199,8 @@ th { font-size: 13px; opacity: .6; font-weight: 500; }
 .wrap { overflow-x: auto; }
 """
 
-_画面 = ("today", "route", "schedule", "history", "search", "patients", "patterns")
+#: CARE（現場）が先、BACK OFFICE（監督）が後——2ペルソナのナビ。
+_画面 = ("day", "patients", "inbox", "agreements", "automations", "activity", "search")
 
 #: 書く欄の見出し。**用語集の語ではない**——押すときの手がかりなので、そのまま英語で置く。
 _書く欄 = {"answer": "Answer", "send_back": "Reason", "abandon": "Reason"}
@@ -456,10 +468,65 @@ def _患者(view: PatientView | None) -> str:
 
 _色 = ("#2563eb", "#16a34a", "#d97706", "#dc2626", "#7c3aed")
 
+import re as _re
+
+
+def _soap分解(body: str) -> dict[str, str] | None:
+    """下書きから S/O/A/P を最善努力で切り出す。切れなければ None——発明しない。"""
+    見出し = _re.compile(
+        r"^\s*(?:#+\s*)?\**\(?(S|O|A|P)\)?\**\s*(?:\(Subjective\)|\(Objective\)|\(Assessment\)|\(Plan\))?\**\s*[:：]?\s*$",
+        _re.M,
+    )
+    切れ目 = [(m.group(1), m.end()) for m in 見出し.finditer(body)]
+    if [k for k, _ in 切れ目] != ["S", "O", "A", "P"]:
+        return None
+    out: dict[str, str] = {}
+    for i, (k, start) in enumerate(切れ目):
+        end = 切れ目[i + 1][1] - len(body[切れ目[i + 1][1]:]) if False else (
+            見出し.finditer(body) and None)
+    # 位置で切る
+    位置 = [start for _, start in 切れ目] + [len(body)]
+    始まりの行 = [m.start() for m in 見出し.finditer(body)] + [len(body)]
+    for i, (k, _) in enumerate(切れ目):
+        out[k.lower()] = body[位置[i]:始まりの行[i + 1]].strip().strip("-* ").strip()
+    return out if all(out.values()) else None
+
+
+def _md(text: str) -> str:
+    """最小の Markdown 描画——見出し・箇条書き・太字だけ。外の道具は使わない。"""
+    out: list[str] = []
+    in_list = False
+    for line in text.splitlines():
+        t = line.strip()
+        h = _re.match(r"^(#{1,4})\s+(.*)$", t)
+        if h:
+            if in_list:
+                out.append("</ul>"); in_list = False
+            out.append(f"<p class='md-h'>{escape(h.group(2).strip('* '))}</p>")
+            continue
+        if _re.match(r"^[-*]\s+", t):
+            if not in_list:
+                out.append("<ul class='md-ul'>"); in_list = True
+            out.append(f"<li>{_md_inline(t[2:])}</li>")
+            continue
+        if in_list:
+            out.append("</ul>"); in_list = False
+        if t == "" or set(t) <= {"-", "—"}:
+            continue
+        out.append(f"<p>{_md_inline(t)}</p>")
+    if in_list:
+        out.append("</ul>")
+    return "".join(out)
+
+
+def _md_inline(t: str) -> str:
+    t = escape(t)
+    return _re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", t)
+
 
 def _地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, float] | None) -> str:
     """簡易の地図 — 座標をそのまま平面に引き伸ばして描く。**外の地図は呼ばない。**"""
-    点 = [(s.lat, s.lng) for stops in 道順ごと.values() for s in stops]
+    点 = [(s.lat, s.lng) for stops in 道順ごと.values() for s in stops if s.seq]
     if base:
         点.append(base)
     if not 点:
@@ -482,12 +549,16 @@ def _地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, f
         色 = _色[i % len(_色)]
         前 = xy(*base) if base else None
         for st in stops:
+            if not st.seq:
+                continue
             今 = xy(st.lat, st.lng)
             if 前:
                 parts.append(f"<line x1='{前[0]}' y1='{前[1]}' x2='{今[0]}' y2='{今[1]}'"
                              f" stroke='{色}' stroke-width='2' stroke-dasharray='5 3' opacity='.75'/>")
             前 = 今
         for st in stops:
+            if not st.seq:
+                continue
             x, y = xy(st.lat, st.lng)
             parts.append(f"<circle cx='{x}' cy='{y}' r='11' fill='{色}'/>"
                          f"<text x='{x}' y='{y + 4}' text-anchor='middle'"
@@ -508,7 +579,8 @@ def _本物の地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple
     経路 = [
         {
             "color": _色[i % len(_色)],
-            "stops": [{"lat": s.lat, "lng": s.lng, "n": s.seq, "p": s.patient} for s in stops],
+            "stops": [{"lat": s.lat, "lng": s.lng, "n": s.seq, "p": s.patient}
+                      for s in stops if s.seq],
         }
         for i, (_, stops) in enumerate(sorted(道順ごと.items()))
     ]
@@ -544,8 +616,8 @@ def _道順(
 
     d = date.fromisoformat(day)
     前日, 翌日 = (d - timedelta(days=1)).isoformat(), (d + timedelta(days=1)).isoformat()
-    nav = (f"<p><a href='/route?day={前日}'>← {前日}</a> · <strong>{escape(day)}</strong>"
-           f" · <a href='/route?day={翌日}'>{翌日} →</a></p>")
+    nav = (f"<p><a href='/day?day={前日}'>← {前日}</a> · <strong>{escape(day)}</strong>"
+           f" · <a href='/day?day={翌日}'>{翌日} →</a></p>")
     if not 道順ごと:
         return nav + "<p class='empty'>No visits scheduled this day.</p>"
     地図 = (
@@ -558,21 +630,26 @@ def _道順(
     for i, (担当, stops) in enumerate(sorted(道順ごと.items())):
         色 = _色[i % len(_色)]
         行 = "".join(
-            f"<tr><td>{s.seq}</td>"
+            f"<tr class='stop--{s.status}'><td>{s.seq if s.seq else '✓' if s.status == 'done' else '—'}</td>"
             f"<td><a class='id' href='/patient?code={quote(s.patient)}'>{escape(s.patient)}</a></td>"
-            f"<td>{escape(s.place)}</td><td>{escape(s.purpose)}</td><td>{escape(s.leg_km)} km</td></tr>"
+            f"<td>{escape(s.place)}</td><td>{escape(s.purpose)}</td><td>{escape(s.leg_km)} km</td>"
+            f"<td><span class='{_CHIP[s.prep][0]}'>{_CHIP[s.prep][1]}</span>"
+            f"{'<span class=chip>cancelled</span>' if s.status == 'cancelled' else ''}</td>"
+            f"<td><a class='btn-open' href='/visit?id={quote(s.visit_id)}'>Open visit</a></td></tr>"
             for s in stops
         )
-        地点 = ([f"{base[0]},{base[1]}"] if base else []) + [f"{s.lat},{s.lng}" for s in stops]
+        地点 = ([f"{base[0]},{base[1]}"] if base else []) + [
+            f"{s.lat},{s.lng}" for s in stops if s.seq
+        ]
         gmap = "https://www.google.com/maps/dir/" + "/".join(地点) if 地点 else ""
-        合計 = sum(float(s.leg_km) for s in stops)
+        合計 = sum(float(s.leg_km) for s in stops if s.seq)
         表たち.append(
             f"<h3 id='{escape(担当)}' style='color:{色}'>{escape(担当)}"
             f" <span class='sub'>{len(stops)} visits · {合計:.1f} km"
             + (f" · <a href='{escape(gmap)}'>open in Google Maps</a>" if gmap else "")
             + "</span></h3>"
             "<div class='wrap'><table><tr><th>#</th><th>Patient</th><th>Place (public stand-in)"
-            "</th><th>Purpose</th><th>Leg</th></tr>" + 行 + "</table></div>"
+            "</th><th>Purpose</th><th>Leg</th><th>Prep</th><th></th></tr>" + 行 + "</table></div>"
         )
     return (nav + 地図
             + "<p class='sub'>Stops are greedy nearest-neighbour from the clinic."
@@ -614,6 +691,77 @@ def _取り決めたち(rows: tuple[PatternRow, ...]) -> str:
     )
 
 
+_CHIP = {"signed": ("chip chip--signed", "Signed"),
+         "draft": ("chip chip--ready", "Draft ready"),
+         "none": ("chip chip--none", "No draft")}
+
+
+def _訪問(view: VisitView | None, 断り: str | None = None) -> str:
+    if view is None:
+        return "<p class='empty'>No such visit.</p>"
+    pt = view.patient
+    頭 = (
+        f"<div class='visit-head'><h2>{escape(pt.code)} · {escape(view.visit_date)}</h2>"
+        f"<p class='sub'>{escape(pt.diagnosis)} · age {escape(pt.age)} · {escape(pt.living)}"
+        + (f" · <strong class='warn'>order expires {escape(pt.order_expires)}</strong>"
+           if pt.order_expires else "")
+        + f"</p><p class='sub'>{escape(view.purpose)} · {escape(view.clinician)}"
+        f" · <a href='/patient?code={quote(pt.code)}'>Open chart →</a></p></div>"
+    )
+    if view.status != "scheduled":
+        済み = "".join(
+            f"<div class='row'><div class='head'><span class='state state-final'>SIGNED</span>"
+            f"<span class='title'>Note {escape(n.at)}</span>"
+            f"<span class='id'>{escape(n.clinician)} · signed {escape(n.signed_at[:16])}</span></div>"
+            + _欄([("S", n.s), ("O", n.o), ("A", n.a), ("P", n.p)]) + "</div>"
+            for n in view.notes[:1]
+        )
+        return 頭 + f"<p class='sub'>This visit is {escape(view.status)} — read-only.</p>" + 済み
+    draft = view.drafts[0] if view.drafts else None
+    分解 = _soap分解(draft.body) if draft else None
+    下書きパネル = ""
+    if draft:
+        下書きパネル = (
+            "<details class='draft-panel' open><summary>"
+            f"<span class='state state-draft'>DRAFT</span> AI draft · delivered {escape(draft.delivered_at)}"
+            "</summary>"
+            f"<div class='md'>{_md(draft.body)}</div>"
+            "<p class='sub'>The draft below is prefilled into the editor"
+            + ("" if 分解 else " — could not be split into S/O/A/P, copy what you need")
+            + ". The doctor rewrites and signs; the draft is never the record.</p></details>"
+        )
+    def 欄(名: str, key: str) -> str:
+        中身 = (分解 or {}).get(key, "")
+        return (f"<label class='note-field'><span>{名}</span>"
+                f"<textarea name='{key}' rows='5' required>{escape(中身)}</textarea></label>")
+    署名者 = "".join(
+        f"<option{' selected' if c == view.clinician else ''}>{escape(c)}</option>"
+        for c in view.clinicians
+    )
+    編集 = (
+        f"<form class='note-editor' method='post' action='/visit/act'>"
+        f"<input type='hidden' name='what' value='sign_note'>"
+        f"<input type='hidden' name='id' value='{escape(view.id)}'>"
+        + (f"<input type='hidden' name='draft_id' value='{escape(draft.id)}'>" if draft else "")
+        + 欄("S — Subjective", "s") + 欄("O — Objective", "o")
+        + 欄("A — Assessment", "a") + 欄("P — Plan", "p")
+        + "<div class='sign-bar'><label>Signing as <select name='signer'>"
+        + 署名者 + "</select></label>"
+        "<button class='btn-primary' onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
+        "Sign &amp; complete visit</button></div></form>"
+    )
+    休み = (
+        "<details class='cancel-box'><summary>Skip this visit (one time)</summary>"
+        f"<form class='act' method='post' action='/visit/act'>"
+        f"<input type='hidden' name='what' value='cancel_visit'>"
+        f"<input type='hidden' name='id' value='{escape(view.id)}'>"
+        "<label>Reason <input type='text' name='reason' required></label>"
+        "<button class='btn-destructive'>Cancel this visit</button></form>"
+        "<p class='sub'>The agreement stays — only this one visit is cancelled.</p></details>"
+    )
+    return 頭 + 下書きパネル + 編集 + 休み
+
+
 def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> Any:
     """web の器を組む。**手は1回ごとに開いて閉じる。**
 
@@ -633,7 +781,28 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
 
     @app.get("/", response_class=HTMLResponse)
     def _根() -> Any:
-        return RedirectResponse("/today")
+        return RedirectResponse("/day")
+
+    # 古い道は新しい道へ——貼られたリンクを死なせない
+    @app.get("/today")
+    def _旧today() -> Any:
+        return RedirectResponse("/inbox", status_code=303)
+
+    @app.get("/route")
+    def _旧route(day: str | None = None) -> Any:
+        return RedirectResponse(f"/day?day={day}" if day else "/day", status_code=303)
+
+    @app.get("/schedule")
+    def _旧schedule() -> Any:
+        return RedirectResponse("/automations", status_code=303)
+
+    @app.get("/history")
+    def _旧history() -> Any:
+        return RedirectResponse("/activity", status_code=303)
+
+    @app.get("/patterns")
+    def _旧patterns() -> Any:
+        return RedirectResponse("/agreements", status_code=303)
 
     @app.get("/alive")
     def _生きているか() -> dict[str, str]:
@@ -643,27 +812,27 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
         """
         return {"status": "ok"}
 
-    @app.get("/today", response_class=HTMLResponse)
+    @app.get("/inbox", response_class=HTMLResponse)
     def _今日の頁(refused: str | None = None) -> HTMLResponse:
         def 描く(h: 手) -> str:
             rows = h.fetch()
             return _帯(rows, len(h.upcoming())) + _今日(rows)
 
-        return 見せる("today", 描く, refused)
+        return 見せる("inbox", 描く, refused)
 
     @app.get("/detail", response_class=HTMLResponse)
     def _詳細の頁(id: str, refused: str | None = None) -> HTMLResponse:
-        return 見せる("today", lambda h: _詳細(h.detail(id)), refused)
+        return 見せる("inbox", lambda h: _詳細(h.detail(id)), refused)
 
-    @app.get("/schedule", response_class=HTMLResponse)
+    @app.get("/automations", response_class=HTMLResponse)
     def _予定の頁() -> HTMLResponse:
-        return 見せる("schedule", lambda h: _予定(h.schedule_fetch(), h.upcoming()))
+        return 見せる("automations", lambda h: _予定(h.schedule_fetch(), h.upcoming()))
 
-    @app.get("/history", response_class=HTMLResponse)
+    @app.get("/activity", response_class=HTMLResponse)
     def _履歴の頁() -> HTMLResponse:
-        return 見せる("history", lambda h: _履歴(h.history_fetch()))
+        return 見せる("activity", lambda h: _履歴(h.history_fetch()))
 
-    @app.get("/route", response_class=HTMLResponse)
+    @app.get("/day", response_class=HTMLResponse)
     def _道順の頁(day: str | None = None) -> HTMLResponse:
         from datetime import date
 
@@ -676,11 +845,11 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
             拠点, 道順ごと = h.route(対象)
             return _道順(対象, 道順ごと, 拠点, maps_key)
 
-        return 見せる("route", 描く)
+        return 見せる("day", 描く)
 
-    @app.get("/patterns", response_class=HTMLResponse)
+    @app.get("/agreements", response_class=HTMLResponse)
     def _取り決めの頁(refused: str | None = None) -> HTMLResponse:
-        return 見せる("patterns", lambda h: _取り決めたち(h.patterns()), refused)
+        return 見せる("agreements", lambda h: _取り決めたち(h.patterns()), refused)
 
     @app.post("/patterns/act")
     def _取り決めを押す(
@@ -701,7 +870,38 @@ def make_app(開く: 手を開く, viewer: str, maps_key: str | None = None) -> 
             )
         finally:
             手たち.close()
-        戻り = "/patterns" if 断り is None else f"/patterns?refused={quote(断り)}"
+        戻り = "/agreements" if 断り is None else f"/agreements?refused={quote(断り)}"
+        return RedirectResponse(戻り, status_code=303)
+
+    @app.get("/visit", response_class=HTMLResponse)
+    def _訪問の頁(id: str, refused: str | None = None) -> HTMLResponse:
+        return 見せる("day", lambda h: _訪問(h.visit(id), refused), refused)
+
+    @app.post("/visit/act")
+    def _訪問を押す(
+        what: str = Form(...),
+        id: str = Form(...),
+        signer: str = Form(""),
+        s: str = Form(""),
+        o: str = Form(""),
+        a: str = Form(""),
+        p: str = Form(""),
+        draft_id: str = Form(""),
+        reason: str = Form(""),
+    ) -> Any:
+        手たち = 開く()
+        try:
+            断り = 手たち.visit_act(
+                what,
+                {"id": id, "signer": signer, "s": s, "o": o, "a": a, "p": p,
+                 "draft_id": draft_id, "reason": reason},
+            )
+        finally:
+            手たち.close()
+        if 断り is None:
+            戻り = f"/visit?id={quote(id)}" if what == "sign_note" else "/day"
+        else:
+            戻り = f"/visit?id={quote(id)}&refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/patients", response_class=HTMLResponse)

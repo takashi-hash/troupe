@@ -139,3 +139,85 @@ def test_訪問予定の抽出も穴のSQLも実行できる() -> None:
     out = EmrSource(_dsn()).read(Source(location="db:visit-schedule"))
     assert out.kind == "quote"
     assert "clinician" in out.evidence.quote
+
+
+# --- 署名——環を閉じる1トランザクションを、本物の診療録で ---
+
+from adapters.emr import EmrVisits, PostgresVisit  # noqa: E402
+
+
+def _次の予定の訪問(dsn: str) -> str:
+    import psycopg
+
+    with psycopg.connect(dsn) as conn:
+        row = conn.execute(
+            "SELECT id FROM visits WHERE status='scheduled' ORDER BY visit_date LIMIT 1"
+        ).fetchone()
+    if row is None:
+        pytest.skip("予定の訪問が無い")
+    return str(row[0])
+
+
+def test_署名の一周_記録が積まれ訪問は実施済み_二度目は断り() -> None:
+    """R1 の核心。署名 → 記録・done・（あれば）下書き使用済み、が1トランザクション。"""
+    import psycopg
+
+    dsn = _dsn()
+    vid = _次の予定の訪問(dsn)
+    view = PostgresVisit(dsn).read_one(vid)
+    assert view is not None and view.status == "scheduled"
+    draft = view.drafts[0].id if view.drafts else None
+
+    assert EmrVisits(dsn).sign(vid, "Dr-A", "S text", "O text", "A text", "P text", draft) is None
+    with psycopg.connect(dsn) as conn:
+        try:
+            状態行 = conn.execute("SELECT status FROM visits WHERE id=%s::bigint", (vid,)).fetchone()
+            assert 状態行 is not None
+            状態 = 状態行[0]
+            記録 = conn.execute(
+                "SELECT clinician, s FROM clinical_notes WHERE visit_id=%s::bigint", (vid,)
+            ).fetchone()
+            assert 状態 == "done" and 記録 == ("Dr-A", "S text")
+            if draft:
+                使用 = conn.execute(
+                    "SELECT used_at IS NOT NULL, used_by_note IS NOT NULL"
+                    " FROM note_drafts WHERE id=%s::bigint", (draft,)
+                ).fetchone()
+                assert 使用 == (True, True)
+            # 二度目の署名は断り（実施済みには署名できない）
+            assert EmrVisits(dsn).sign(vid, "Dr-A", "s", "o", "a", "p", None) is not None
+            # 名簿に無い署名者も断り
+            vid2 = conn.execute(
+                "SELECT id FROM visits WHERE status='scheduled' ORDER BY visit_date LIMIT 1"
+            ).fetchone()
+            if vid2:
+                assert EmrVisits(dsn).sign(str(vid2[0]), "Dr-Z", "s", "o", "a", "p", None) is not None
+        finally:
+            # 後片づけ: 署名した記録と done を種の姿へ戻す（トリガがあるので素の DELETE は不可）
+            conn.execute("ALTER TABLE clinical_notes DISABLE TRIGGER clinical_notes_no_update")
+            conn.execute("UPDATE note_drafts SET used_at=NULL, used_by_note=NULL WHERE used_by_note IN (SELECT id FROM clinical_notes WHERE visit_id=%s::bigint)", (vid,))
+            conn.execute("DELETE FROM clinical_notes WHERE visit_id=%s::bigint", (vid,))
+            conn.execute("ALTER TABLE clinical_notes ENABLE TRIGGER clinical_notes_no_update")
+            conn.execute("UPDATE visits SET status='scheduled' WHERE id=%s::bigint", (vid,))
+            conn.commit()
+
+
+def test_単発の休みは理由つきで倒れ_取り決めは生きたまま() -> None:
+    import psycopg
+
+    dsn = _dsn()
+    vid = _次の予定の訪問(dsn)
+    assert EmrVisits(dsn).cancel(vid, "patient at a family event") is None
+    with psycopg.connect(dsn) as conn:
+        try:
+            row = conn.execute(
+                "SELECT status, cancelled_reason FROM visits WHERE id=%s::bigint", (vid,)
+            ).fetchone()
+            assert row == ("cancelled", "patient at a family event")
+            # 実施済み・中止済みは休めない
+            assert EmrVisits(dsn).cancel(vid, "again") is not None
+        finally:
+            conn.execute(
+                "UPDATE visits SET status='scheduled', cancelled_reason=NULL WHERE id=%s::bigint",
+                (vid,))
+            conn.commit()

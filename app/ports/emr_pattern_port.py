@@ -20,7 +20,10 @@ class EmrPatternPort(Protocol):
         """取り決めの一覧。繋がっていなければ空。"""
         ...
 
-    def add(self, patient: str, weekday: str, clinician: str, purpose: str, start: str) -> str | None:
+    def add(
+        self, patient: str, weekday: str, clinician: str, purpose: str, start: str,
+        every_weeks: str = "1",
+    ) -> str | None:
         """取り決めを載せる。通れば None、載せられなければ理由の文字。"""
         ...
 

@@ -20,6 +20,8 @@ class PatternRow(BaseModel):
     patient: str
     #: 曜日の名（Mon..Sun）。数字の橋は adapters が持つ。
     weekday: str
+    #: 週の間隔（1=毎週、2=隔週…）。文字で運ぶ。
+    every_weeks: str
     clinician: str
     purpose: str
     active_from: str
