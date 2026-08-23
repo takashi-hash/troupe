@@ -7,7 +7,7 @@
 -- rewrites and signs elsewhere. Troupe has no path that writes a signed note.
 
 DROP TABLE IF EXISTS note_drafts, clinical_notes, visit_notes, condition_events,
-  visits, physician_orders, medications, patient_conditions, patients CASCADE;
+  visits, visit_patterns, physician_orders, medications, patient_conditions, patients CASCADE;
 
 -- ========== master ==========
 
@@ -43,17 +43,39 @@ CREATE TABLE physician_orders(
   order_type TEXT NOT NULL
 );
 
+-- Three layers, kept apart:
+--   visit_patterns  = the recurring plan  (who visits whom, which weekday)   - master
+--   visits          = generated instances (one row per planned visit)        - schedule
+--   clinical_notes  = the signed record, linked to the visit it documents    - record
+-- Generating instances from patterns is the AGENCY's job, not Troupe's.
+-- Troupe only reads - and its Weekly Visit Prep flags patterns with no
+-- scheduled instance, so a hole in the schedule reaches a human.
+
+CREATE TABLE visit_patterns(
+  id BIGSERIAL PRIMARY KEY,
+  patient TEXT NOT NULL REFERENCES patients(code),
+  weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),  -- 0=Sun .. 6=Sat
+  nurse TEXT NOT NULL,
+  purpose TEXT NOT NULL,
+  active_from DATE NOT NULL,
+  active_to DATE                                              -- null = open-ended
+);
+
 CREATE TABLE visits(
+  id BIGSERIAL PRIMARY KEY,
+  pattern_id BIGINT REFERENCES visit_patterns(id),            -- null = ad-hoc visit
   visit_date DATE NOT NULL,
   patient TEXT NOT NULL REFERENCES patients(code),
   nurse TEXT NOT NULL,
   purpose TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','done'))
+  status TEXT NOT NULL DEFAULT 'scheduled'
+    CHECK (status IN ('scheduled','done','cancelled'))
 );
 
 CREATE TABLE clinical_notes(          -- SIGNED notes only. Append-only.
   id BIGSERIAL PRIMARY KEY,
   patient TEXT NOT NULL REFERENCES patients(code),
+  visit_id BIGINT REFERENCES visits(id),                      -- which visit it documents
   note_date DATE NOT NULL,
   nurse TEXT NOT NULL,
   s TEXT NOT NULL, o TEXT NOT NULL, a TEXT NOT NULL, p TEXT NOT NULL,
@@ -142,17 +164,35 @@ INSERT INTO physician_orders VALUES
  ('P-009','Harbor Internal Medicine (fictional)','2026-03-09','2026-09-08','Home health certification'),
  ('P-010','Cedar Ridge Hospital (fictional)',    '2026-08-05','2026-08-18','Short-term skilled nursing order');
 
-INSERT INTO visits(visit_date, patient, nurse, purpose) VALUES
- ('2026-08-24','P-001','RN-A','weekly skilled nursing'),
- ('2026-08-24','P-008','RN-B','rehab progress check'),
- ('2026-08-25','P-003','RN-A','weekly skilled nursing'),
- ('2026-08-25','P-006','RN-C','weekly skilled nursing'),
- ('2026-08-26','P-005','RN-B','post-discharge follow-up'),
- ('2026-08-27','P-007','RN-A','anticoagulation check'),
- ('2026-08-28','P-002','RN-B','diabetes management'),
- ('2026-08-28','P-010','RN-A','palliative symptom review'),
- ('2026-08-31','P-004','RN-C','weekly skilled nursing'),
- ('2026-08-31','P-009','RN-A','caregiver support visit');
+-- patterns (weekday: 1=Mon .. 5=Fri)
+INSERT INTO visit_patterns(patient, weekday, nurse, purpose, active_from) VALUES
+ ('P-001', 1, 'RN-A', 'weekly skilled nursing',    '2026-08-01'),
+ ('P-008', 1, 'RN-B', 'rehab progress check',      '2026-08-01'),
+ ('P-003', 2, 'RN-A', 'weekly skilled nursing',    '2026-08-01'),
+ ('P-006', 2, 'RN-C', 'weekly skilled nursing',    '2026-08-01'),
+ ('P-005', 3, 'RN-B', 'post-discharge follow-up',  '2026-08-01'),
+ ('P-007', 4, 'RN-A', 'anticoagulation check',     '2026-08-01'),
+ ('P-002', 5, 'RN-B', 'diabetes management',       '2026-08-01'),
+ ('P-010', 5, 'RN-A', 'palliative symptom review', '2026-08-22'),
+ ('P-004', 1, 'RN-C', 'weekly skilled nursing',    '2026-08-01'),
+ ('P-009', 1, 'RN-A', 'caregiver support visit',   '2026-08-01');
+
+-- instances: the agency generated the calendar 2026-08-03 .. 2026-09-27 from the patterns
+INSERT INTO visits(pattern_id, visit_date, patient, nurse, purpose)
+SELECT p.id, d::date, p.patient, p.nurse, p.purpose
+FROM visit_patterns p,
+     generate_series(DATE '2026-08-03', DATE '2026-09-27', INTERVAL '1 day') d
+WHERE EXTRACT(dow FROM d) = p.weekday
+  AND d::date >= p.active_from;
+
+-- the past is done; one future visit is cancelled (family away)
+UPDATE visits SET status = 'done' WHERE visit_date < DATE '2026-08-24';
+UPDATE visits SET status = 'cancelled'
+ WHERE patient = 'P-009' AND visit_date = DATE '2026-09-07';
+
+-- one ad-hoc visit: P-010's palliative intake after admission (no pattern behind it)
+INSERT INTO visits(pattern_id, visit_date, patient, nurse, purpose, status)
+VALUES (NULL, '2026-08-18', 'P-010', 'RN-A', 'palliative intake', 'done');
 
 -- ========== seed: signed notes (history, oldest first per patient) ==========
 
@@ -236,3 +276,9 @@ INSERT INTO condition_events VALUES
  ('P-007','2026-08-12','medication change - metoprolol increased from 25mg to 50mg bid'),
  ('P-010','2026-08-12','admitted to service - new palliative course'),
  ('P-005','2026-08-14','short-term skilled nursing order expired; successor order status unknown');
+
+-- link each signed note to the visit it documents (same patient, same day, done)
+UPDATE clinical_notes n
+SET visit_id = v.id
+FROM visits v
+WHERE v.patient = n.patient AND v.visit_date = n.note_date AND v.status = 'done';

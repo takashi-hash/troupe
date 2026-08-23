@@ -34,6 +34,7 @@ from adapters.ledger.db import open_cloud_ledger, open_ledger
 from adapters.ledger.jobs import SqliteJobs
 from adapters.ledger.reading import (
     SqliteActiveRules,
+    SqliteDeliveredMarks,
     SqliteDetail,
     SqliteHistory,
     SqliteJobStates,
@@ -124,6 +125,7 @@ class Ichiza:
         self.details = SqliteDetail(self.conn)
         self.rule_lines = SqliteRuleLines(self.conn)
         self.overdue_marks = SqliteOverdueMarks(self.conn)
+        self.delivered_marks = SqliteDeliveredMarks(self.conn)
         self.history = SqliteHistory(self.conn)
         self.search_hits = SqliteSearch(self.conn)
         self.clock = SystemClock()
@@ -235,7 +237,9 @@ def _tick(za: Ichiza) -> None:
     sorted_ = sort_failures(za.jobs, za.states, za.clock)
     confirmed = confirm(za.jobs, za.states, za.source, za.evidences, za.clock)
     overdue = mark_overdue(za.jobs, za.states, za.overdue_marks, za.clock)
-    delivered = deliver_drafts(za.jobs, za.states, za.results, za.drafts)
+    delivered = deliver_drafts(
+        za.jobs, za.states, za.results, za.delivered_marks, za.drafts, za.clock
+    )
     欠け = audit(za.active, za.origins, za.clock)
     for 名前, 版, 期間 in 欠け:
         print(f"! I8 active rule with no job — {名前.text} v{版} {期間.text}")

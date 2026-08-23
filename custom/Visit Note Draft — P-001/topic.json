@@ -2,7 +2,7 @@
   "required_terms": [
     "{対象期間}",
     "P-001",
-    "weight"
+    "kg"
   ],
   "cycle": "weekly",
   "days": 2,

@@ -142,6 +142,19 @@ class SqliteWork:
         )
 
 
+class SqliteDeliveredMarks:
+    """`DeliveredMarkReader` — 既に「下書きが配達された」印の仕事。二度目を運ばない。"""
+
+    def __init__(self, conn: Ledger) -> None:
+        self._conn = conn
+
+    def marked_ids(self) -> frozenset[JobId]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT job_id FROM job_events WHERE name = 'DraftDelivered'"
+        ).fetchall()
+        return frozenset(JobId(text=str(r[0])) for r in rows)
+
+
 class SqliteOverdueMarks:
     """`OverdueMarkReader` — 既に「期日を過ぎた」の印が刻まれた仕事。二度目を刻まない。"""
 

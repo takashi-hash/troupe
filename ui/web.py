@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from html import escape
+from urllib.parse import quote
 from typing import Any, NamedTuple, Protocol
 
 from app.dto.detail_view import DetailView
@@ -372,7 +373,7 @@ def _患者たち(rows: tuple[PatientRow, ...]) -> str:
             "or holds no patients.</p>"
         )
     行 = "".join(
-        f"<tr><td><a class='id' href='/patient?code={escape(r.code)}'>{escape(r.code)}</a></td>"
+        f"<tr><td><a class='id' href='/patient?code={quote(r.code)}'>{escape(r.code)}</a></td>"
         f"<td>{escape(r.age)}</td><td>{escape(r.diagnosis)}</td>"
         f"<td>{escape(r.living)}</td><td>{escape(r.next_visit or '—')}</td>"
         f"<td>{escape(r.order_expires or '—')}</td></tr>"
@@ -394,7 +395,7 @@ def _患者(view: PatientView | None) -> str:
         f"<span class='state state-draft'>DRAFT</span>"
         f"<span class='title'>delivered {escape(d.delivered_at[:16])}</span>"
         f"<a class='id' href='/detail?id={escape(d.job_id)}'>from job {escape(d.job_id[:8])}…</a></div>"
-        f"<dd style='white-space:pre-wrap'>{escape(d.body)}</dd>"
+        f"<div style='white-space:pre-wrap'>{escape(d.body)}</div>"
         "<p class='sub'>A proposal from Troupe. A nurse rewrites and signs it in the EMR — "
         "this never becomes the record by itself.</p></div>"
         for d in view.drafts
@@ -422,7 +423,7 @@ def _患者(view: PatientView | None) -> str:
                 ("Condition events", "\n".join(view.events) or None),
             ]
         )
-        + f"<p class='sub'><a href='/search?keyword={escape(view.code)}'>"
+        + f"<p class='sub'><a href='/search?keyword={quote(view.code)}'>"
         f"Jobs for this patient →</a></p></div>"
         + 下書き
         + 記録

@@ -54,6 +54,9 @@ class FileSource:
 #: 診療録の在りかの形。`db:` に続く道が、診療録のどの抽出かを名指す。
 EMR_PREFIX = "db:"
 
+#: 事業所の「今日」。器（Cloud SQL）の時刻帯は UTC なので、暦の比べは事業所の時刻帯で開く。
+TODAY = "(now() AT TIME ZONE 'Asia/Tokyo')::date"
+
 
 class EmrSource:
     """源の実装 — 事業所の診療録（EMR）から読む。**読むだけ。書く口は無い。**
@@ -91,12 +94,10 @@ class EmrSource:
         return Quote(evidence=Evidence(quote=text, source=source))
 
     def _開く(self) -> object:
-        assert self._dsn is not None  # read() が先に検めている
-        if self._connect is not None:
-            return self._connect(self._dsn)  # type: ignore[operator]
-        import psycopg
+        from adapters.emr import _connect
 
-        return psycopg.connect(self._dsn, autocommit=True)
+        assert self._dsn is not None  # read() が先に検めている
+        return _connect(self._dsn, self._connect)
 
     def _読む(self, 道: str) -> str | None:
         conn = self._開く()
@@ -162,7 +163,8 @@ def _chart(conn: object, code: str) -> str | None:
     for 日, nurse, purpose in _rows(
         conn,
         "SELECT visit_date, nurse, purpose FROM visits"
-        " WHERE patient = %s AND visit_date >= CURRENT_DATE ORDER BY visit_date LIMIT 1",
+        " WHERE patient = %s AND status = 'scheduled'"
+        f" AND visit_date >= {TODAY} ORDER BY visit_date LIMIT 1",
         (code,),
     ):
         lines.append(f"Next visit: {日} ({nurse}) - {purpose}")
@@ -205,12 +207,31 @@ def _visit_schedule(conn: object) -> str:
                                                  WHERE n.patient = v.patient), DATE '1900-01-01')
                  ORDER BY e.event_date DESC LIMIT 1)
         FROM visits v
-        WHERE v.visit_date >= CURRENT_DATE - 3
+        WHERE v.status = 'scheduled' AND v.visit_date >= {TODAY} - 3
         ORDER BY v.visit_date, v.patient
-        """,
+        """.replace("{TODAY}", TODAY),
     ):
         日, code, nurse, purpose, expires, change = 行
         lines.append(f"{日} / {code} / {nurse} / {purpose} / order expires {expires} / {change or 'none'}")
+    穴 = _rows(
+        conn,
+        f"""
+        SELECT p.patient, p.nurse, p.purpose
+        FROM visit_patterns p
+        WHERE p.active_from <= {TODAY}
+          AND (p.active_to IS NULL OR p.active_to >= {TODAY})
+          AND NOT EXISTS (
+            SELECT 1 FROM visits v
+            WHERE v.pattern_id = p.id AND v.status = 'scheduled'
+              AND v.visit_date BETWEEN {TODAY} AND {TODAY} + 7
+          )
+        ORDER BY p.patient
+        """,
+    )
+    if 穴:
+        lines += ["", "# PATTERNS WITH NO VISIT SCHEDULED in the next 7 days"
+                  " (the calendar has a hole - a human must fill it):"]
+        lines += [f"{code} / {nurse} / {purpose}" for code, nurse, purpose in 穴]
     return "\n".join(lines)
 
 

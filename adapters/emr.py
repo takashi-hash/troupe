@@ -17,6 +17,18 @@ from typing import Any
 from app.dto.patient_row import PatientRow
 from app.dto.patient_view import PatientDraft, PatientNote, PatientView
 
+#: 事業所の「今日」。器（Cloud SQL）の時刻帯は UTC なので、暦の比べは事業所の時刻帯で開く。
+TODAY = "(now() AT TIME ZONE 'Asia/Tokyo')::date"
+
+
+def _connect(dsn: str, injected: Any) -> Any:
+    """診療録への接続。**この1枚の3つの口が同じ開きかたを共有する。**"""
+    if injected is not None:
+        return injected(dsn)
+    import psycopg
+
+    return psycopg.connect(dsn, autocommit=True)
+
 
 class PostgresPatients:
     """診療録の読み手 — Postgres の診療録から、画面に要る形で引く。"""
@@ -27,16 +39,16 @@ class PostgresPatients:
 
     def _開く(self) -> Any:
         assert self._dsn is not None
-        if self._connect is not None:
-            return self._connect(self._dsn)
-        import psycopg
-
-        return psycopg.connect(self._dsn, autocommit=True)
+        return _connect(self._dsn, self._connect)
 
     def read_all(self) -> tuple[PatientRow, ...]:
+        """患者の行の一覧。**繋がらなければ空**——参照は判断の材料で、無くても仕事は回る。"""
         if self._dsn is None:
             return ()
-        conn = self._開く()
+        try:
+            conn = self._開く()
+        except Exception:
+            return ()  # 外の道具の例外は漏らさない——画面は空の状態を出す
         try:
             rows = conn.execute(
                 """
@@ -44,7 +56,8 @@ class PostgresPatients:
                        (SELECT c.dx FROM patient_conditions c
                          WHERE c.patient = p.code ORDER BY c.is_primary DESC, c.onset LIMIT 1),
                        (SELECT v.visit_date || ' (' || v.nurse || ')' FROM visits v
-                         WHERE v.patient = p.code AND v.visit_date >= CURRENT_DATE
+                         WHERE v.patient = p.code AND v.status = 'scheduled'
+                           AND v.visit_date >= " + TODAY + "
                          ORDER BY v.visit_date LIMIT 1),
                        (SELECT max(o.expires)::text FROM physician_orders o
                          WHERE o.patient = p.code)
@@ -56,7 +69,8 @@ class PostgresPatients:
         return tuple(
             PatientRow(
                 code=str(code), age=str(age), living=str(living),
-                diagnosis=str(dx), next_visit=visit, order_expires=expires,
+                diagnosis=str(dx) if dx is not None else "—",
+                next_visit=visit, order_expires=expires,
             )
             for code, age, living, dx, visit, expires in rows
         )
@@ -64,7 +78,10 @@ class PostgresPatients:
     def read_one(self, code: str) -> PatientView | None:
         if self._dsn is None:
             return None
-        conn = self._開く()
+        try:
+            conn = self._開く()
+        except Exception:
+            return None  # 繋がらないのは「居ない」と同じ扱い——画面は静かに空を出す
         try:
             patient = conn.execute(
                 "SELECT age, living_situation FROM patients WHERE code = %s",
@@ -81,7 +98,8 @@ class PostgresPatients:
             dx = " / ".join(f"{d}{' (primary)' if 主 else ''}" for d, 主 in 条件) or "—"
             visit = conn.execute(
                 "SELECT visit_date || ' (' || nurse || ') - ' || purpose FROM visits"
-                " WHERE patient = %s AND visit_date >= CURRENT_DATE"
+                " WHERE patient = %s AND status = 'scheduled'"
+                " AND visit_date >= " + TODAY +
                 " ORDER BY visit_date LIMIT 1",
                 (code,),
             ).fetchall()
@@ -147,22 +165,28 @@ class EmrDrafts:
 
     def _開く(self) -> Any:
         assert self._dsn is not None
-        if self._connect is not None:
-            return self._connect(self._dsn)
-        import psycopg
-
-        return psycopg.connect(self._dsn, autocommit=True)
+        return _connect(self._dsn, self._connect)
 
     def deposit(self, job_id: str, patient_code: str, body: str) -> bool:
+        """受けに在る状態にできたら True。**届かなければ False**——次の脈がまた来る。
+
+        既に在った（一意の鍵に弾かれた）も True——望んだ姿には既に成っている。
+        例外は漏らさない: 診療録が落ちていても、時計の脈は死なない。
+        """
         if self._dsn is None:
-            return False  # 診療録が居ないなら、配達は静かに見送る（次の脈がまた来る）
-        conn = self._開く()
+            return False  # 診療録が居ないなら、配達は静かに見送る
         try:
-            cur = conn.execute(
+            conn = self._開く()
+        except Exception:
+            return False
+        try:
+            conn.execute(
                 "INSERT INTO note_drafts(patient, body, based_on_job)"
                 " VALUES (%s, %s, %s) ON CONFLICT (based_on_job) DO NOTHING",
                 (patient_code, body, job_id),
             )
-            return bool(cur.rowcount)
+            return True
+        except Exception:
+            return False  # FK 違反（居ない患者）や一時故障——刻ませない
         finally:
             conn.close()

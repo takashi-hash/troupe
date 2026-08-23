@@ -43,6 +43,7 @@ EVENT_WORDS: dict[str, str] = {
     "確かめ期日が先へ送られた": "RecheckDatePushed",
     "打ち切られた": "JobAbandoned",
     "期日を過ぎた": "DueDatePassed",
+    "下書きが配達された": "DraftDelivered",
     "失敗した": "JobFailed",
     "もう一度やった": "Retried",
     "使った量が増えた": "SpentIncreased",

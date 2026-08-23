@@ -34,8 +34,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: 人を運ぶ型。署名にこれが居たら、その操作は人が起こす。
 人を運ぶ = (Human, SendBack, Answer, Request)
 
-#: 遷移表の外で状態を変えずに刻む操作（設計 §6「例外は3つだけ」の隣人）。
-例外の操作 = {"assess", "spend", "mark_overdue"}
+#: 遷移表の外で状態を変えずに刻む操作（設計 §6 の例外の列の隣人）。
+例外の操作 = {"assess", "spend", "mark_overdue", "deliver_drafts"}
 
 
 # ---------- 設計側 ----------
@@ -150,10 +150,10 @@ def test_遷移表と操作の署名が1行ずつ一致する() -> None:
     )
 
 
-def test_遷移表の外で刻める操作は3つの例外だけ() -> None:
-    """設計 §6 — 例外は3つだけ。操作は状態を変えず、その出来事しか刻まない。"""
+def test_遷移表の外で刻める操作は例外の列だけ() -> None:
+    """設計 §6 — 例外の列が正本。操作は状態を変えず、その出来事しか刻まない。"""
     doc = (設計 / "仕事とは何か.md").read_text(encoding="utf-8")
-    例外行 = next(ln for ln in doc.splitlines() if "例外は3つだけ" in ln)
+    例外行 = next(ln for ln in doc.splitlines() if "遷移表の外で刻めるのは" in ln and ln.startswith("|"))
     許された出来事 = set(re.findall(r"`([A-Z][A-Za-z]+)`", 例外行))
     表の外 = set(_操作の名()) - {op for (_, _, op, _, _) in 設計の行()}
     assert 表の外 == 例外の操作, f"遷移表にも例外にも無い操作: {表の外 ^ 例外の操作}"
