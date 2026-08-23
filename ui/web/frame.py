@@ -56,9 +56,10 @@ def _頁(
         "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
         "<link href='https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap' rel='stylesheet'>"
         f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
-        # ---- 原稿の骨格: 上の黒いバー(銘・拍・席) + その下の横一列ナビ ----
+        # ---- 原稿の骨格: 浮いた白い窓(角丸12・影)の中に、黒い帯・ナビ・本文が全部入る ----
+        "<div class='window'>"
         "<header class='topbar'><div class='bar-inner'>"
-        "<a class='brand' href='/day'><span class='pulse-dot'></span>Troupe</a>"
+        "<a class='brand' href='/day'>Troupe</a>"
         "<span class='topbar__clinic'>Riverbend Home Medical Clinic · synthetic data throughout</span>"
         "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
         "<span class='topbar__beat'>two pulses · every 60s</span>"
@@ -67,7 +68,7 @@ def _頁(
         "<div class='navbar'><div class='bar-inner'>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
         f"<div class='nav-help'>{ask}</div></div></div>"
-        f"{開示}<main>{警告}<div class='paper'>{中身}</div></main>"
+        f"{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
         f"{襟}</body></html>"
     )
 
@@ -114,7 +115,7 @@ def _案内の襟() -> str:
     """右下の襟と札。往復は sessionStorage——帳簿に書かない。JS が無ければ /guide が受ける。"""
     return (
         "<section id='ask-panel' class='ask-panel' aria-label='Guide'>"
-        "<div class='ask-panel__head'><span class='pulse-dot'></span>Guide"
+        "<div class='ask-panel__head'>Guide"
         "<small>&nbsp;— can point, never press</small>"
         "<button class='ask-panel__close' type='button' aria-label='Close'>&times;</button></div>"
         "<div class='ask-panel__log'><div class='ask-suggest'>"

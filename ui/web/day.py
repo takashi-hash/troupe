@@ -45,8 +45,8 @@ def _地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple[float, f
         return round(x, 1), round(y, 1)
 
     parts = [f"<svg viewBox='0 0 {W} {H}' style='width:100%;max-width:680px;"
-             f"border:1px solid color-mix(in srgb, CanvasText 15%, transparent);"
-             f"border-radius:10px;background:color-mix(in srgb, CanvasText 3%, transparent)'>"]
+             f"border:1px solid var(--line);"
+             f"border-radius:var(--r-md);background:var(--faint)'>"]
     for i, (担当, stops) in enumerate(sorted(道順ごと.items())):
         色 = _色[i % len(_色)]
         前 = xy(*base) if base else None
@@ -88,8 +88,8 @@ def _本物の地図(道順ごと: dict[str, tuple[RouteStop, ...]], base: tuple
     ]
     data = _json.dumps({"base": {"lat": base[0], "lng": base[1]} if base else None, "routes": 経路})
     return (
-        "<div id='gmap' style='width:100%;max-width:680px;height:440px;border-radius:10px;"
-        "border:1px solid color-mix(in srgb, CanvasText 15%, transparent)'></div>"
+        "<div id='gmap' style='width:100%;max-width:680px;height:440px;border-radius:var(--r-md);"
+        "border:1px solid var(--line)'></div>"
         f"<script>const R={data};"
         "window.__troupeMap=function(){const m=new google.maps.Map("
         "document.getElementById('gmap'),{mapTypeControl:false,streetViewControl:false});"
