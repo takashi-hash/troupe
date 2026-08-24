@@ -101,7 +101,7 @@ def form_from_fields(fields: dict[str, str]) -> VersionForm:
         instruction=fields.get("instruction"),
         source=fields.get("source"),
         required_terms=(
-            tuple(t.strip() for t in fields["required_terms"].split("、") if t.strip())
+            tuple(t.strip() for t in fields["required_terms"].replace(",", "、").split("、") if t.strip())
             if "required_terms" in fields
             else None
         ),

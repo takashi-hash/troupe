@@ -53,7 +53,7 @@ _様式 = """<style>
   font-size: 13.5px; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.inbox-brief strong { color: CanvasText; }
+.inbox-brief strong { color: var(--ink); }
 /* 判断の札 — 外枠1本だけ。中は髪線で4段に切る（種別/題/本文/操作） */
 .inbox-card { padding: 0; margin-bottom: 12px; }
 .inbox-card > * { margin: 0; padding: 8px 16px; }

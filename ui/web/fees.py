@@ -63,13 +63,15 @@ def _一行(r: FeeRow) -> str:
     )
 
 
-def _点数表(rows: tuple[FeeRow, ...]) -> str:
+def _点数表(rows: tuple[FeeRow, ...], 頭あり: bool = True) -> str:
     頭 = (
         "<div class='page-head'><h1 class='page-title'>Fee schedule</h1>"
         f"<span class='count-pill'><strong>{len(rows)}</strong> items</span>"
         "<span class='page-head__aside'>Nagisa Schedule — every value invented</span>"
         "</div>"
     )
+    if not 頭あり:
+        頭 = ""
     if not rows:
         return 頭 + "<p class='empty'>The fee master is empty — nothing to price against.</p>"
 

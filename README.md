@@ -87,11 +87,11 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
    start → consult Gemini → submit / ask / fail → patrol and assess
 
  Cloud Run Service  troupe-window ────────┐     Vertex AI · Gemini 3.5 Flash
-   CARE: my day (map+routes) · patients   │      (no API key — workload identity)
-   BACK OFFICE: inbox · agreements ·      │
-     billing · fees · automations ·       │
-     activity · search                    │
-   HELP: guide (ask in any language) · how│
+   flat nav, "now" → "record":            │      (no API key — workload identity)
+   my day · inbox · patients (incl.       │
+   agreements) · billing (claims + fee    │
+   schedule) · automations (rules, one-   │
+   off requests) · ledger · guide · how   │
                                           ▼
         Cloud SQL for PostgreSQL — two databases, one boundary
           troupe: jobs · job_events · rules · rule_events ·

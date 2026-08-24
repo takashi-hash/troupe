@@ -364,6 +364,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         staff=lambda: gather_staff(za.staff_view),
         fees=lambda: gather_fees(za.fees_view),
         billing=会計を読む,
+        billing_flags=lambda: za.billing_view.count_flagged(),
         billing_act=会計を押す,
         guide=案内,
         close=za.conn.close,

@@ -14,6 +14,9 @@ class 会計読みの偽物:
         self.asked = month
         return self._views
 
+    def count_flagged(self) -> int:
+        return 0
+
 
 def test_月を渡して写しがそのまま返る() -> None:
     読み = 会計読みの偽物(())

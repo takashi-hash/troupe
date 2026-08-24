@@ -18,30 +18,37 @@ def _頁(
     断り: str | None = None,
     notice: str | None = None,
     席たち: tuple[StaffRow, ...] = (),
+    旗数: int = 0,
 ) -> str:
     """窓の枠。**押しつけは今日だけ**——残りは引き出し（人に見えるもの §1）。
 
     `notice` は開示のバナー——**合成の座長が動いているあいだは、動いていると言う**。
     """
-    def _tab(識別子: str, 行き先: str | None = None, 名: str | None = None) -> str:
-        # Ledger は出来事と仕事の2面を束ねる1枚——どちらの頁でも灯る
-        灯る = 見出し == 識別子 or (識別子 == "ledger" and 見出し in ("activity", "search"))
+    def _tab(識別子: str, 行き先: str | None = None, 名: str | None = None,
+             札: str = "") -> str:
+        # Ledger は2面(出来事と仕事)、Billing も2面(請求と点数表)——どの面でも灯る
+        灯る = 見出し == 識別子 or (識別子 == "ledger" and 見出し in ("activity", "search")) \
+            or (識別子 == "billing" and 見出し == "fees")
         現在 = " aria-current='page'" if 灯る else ""
         return (f"<a href='{行き先 or '/' + 識別子}'{現在}>"
-                f"{escape(名 or 読める(識別子))}</a>")
+                f"{escape(名 or 読める(識別子))}{札}</a>")
 
+    # 平らな1列——左ほど「今すぐ」、右ほど「記録」。括りの札は置かない
+    旗札 = f"<span class='nav-badge'>{旗数}</span>" if 旗数 else ""
     tabs = (
-        "<span class='nav__label'>Care</span>"
-        + "".join(_tab(t) for t in ("day", "patients"))
-        + "<span class='nav__sep' role='separator'></span>"
-        + "<span class='nav__label'>Back office</span>"
-        + "".join(_tab(t) for t in ("inbox", "agreements", "billing", "automations"))
+        "".join(_tab(t) for t in ("day", "inbox", "patients"))
+        + _tab("billing", None, None, 旗札)
+        + _tab("automations")
         + _tab("ledger", "/activity")
+        + _tab("how", None, "How Troupe works")
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     開示 = f"<div class='notice-bar'>{escape(notice)}</div>" if notice else ""
     # 案内の襟 — /guide の頁そのものには重ねない(あちらが正面玄関)
     襟 = _案内の襟() if 見出し != "guide" else ""
+    ask = ("<a id='ask-launcher' class='nav-ask' href='/guide'>Ask the guide</a>"
+           if 見出し != "guide" else
+           "<a class='nav-ask' href='/guide' aria-current='page'>Ask the guide</a>")
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -49,16 +56,20 @@ def _頁(
         "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
         "<link href='https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap' rel='stylesheet'>"
         f"<title>Troupe — {escape(読める(見出し))}</title><style>{_STYLE}</style></head><body>"
-        "<div class='app-shell'>"
-        "<header class='app-header'>"
-        "<a class='brand' href='/day'><span class='pulse-dot'></span>Troupe</a>"
-        "<span class='brand-sub'>two pulses · every 60s</span>"
+        # ---- 原稿の骨格: 浮いた白い窓(角丸12・影)の中に、黒い帯・ナビ・本文が全部入る ----
+        "<div class='window'>"
+        "<header class='topbar'><div class='bar-inner'>"
+        "<a class='brand' href='/day'>Troupe</a>"
+        "<span class='topbar__clinic'>Riverbend Home Medical Clinic · synthetic data throughout</span>"
         "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
+        "<span class='topbar__beat'>two pulses · every 60s</span>"
+        f"{_席の札(viewer, 席たち)}"
+        "</div></header>"
+        "<div class='navbar'><div class='bar-inner'>"
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
-        "<a class='nav-quiet' href='/how'>How Troupe works</a>"
-        f"{_席の札(viewer, 席たち)}</header>"
-        f"<div class='app-content'>{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
-        f"</div>{襟}</body></html>"
+        f"<div class='nav-help'>{ask}</div></div></div>"
+        f"{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
+        f"{襟}</body></html>"
     )
 
 
@@ -74,23 +85,37 @@ def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
         for s in 席たち
     )
     return (
-        "<span class='whoami'>Sitting as: "
-        f"<strong>{escape(席)}</strong> <small>{escape(役の名)}</small>"
+        "<span class='whoami' title='A seat is a name, not a login — powers come"
+        " from the register (see /how)'>"
         "<form class='seat-form' method='post' action='/seat'>"
-        f"<select name='seat'>{選び}</select>"
+        f"<select name='seat' onchange='this.form.submit()' aria-label='Seat'>{選び}</select>"
         "<button class='btn btn--small'>Switch</button></form>"
-        "<small class='seat-note'>A seat is a name, not a login — powers come"
-        " from the register.</small></span>"
+        f"<small>{escape(役の名)}</small></span>"
+    )
+
+
+def _面切替(面たち: list[tuple[str, str, bool]]) -> str:
+    """頁の面の切り替え——**必ず頁の頭の直下**に、同じ形で出す(位置が動くと気持ち悪い)。
+
+    面たち = [(label, href, active)]。器のどの頁もこれを使う——手書きのチップ列を作らない。
+    """
+    return (
+        "<div class='filter-chips faces'>"
+        + "".join(
+            (f"<span class='filter-chip is-on' aria-current='true'>{escape(label)}</span>"
+             if active else
+             f"<a class='filter-chip' href='{escape(href)}'>{escape(label)}</a>")
+            for label, href, active in 面たち
+        )
+        + "</div>"
     )
 
 
 def _案内の襟() -> str:
     """右下の襟と札。往復は sessionStorage——帳簿に書かない。JS が無ければ /guide が受ける。"""
     return (
-        "<a id='ask-launcher' class='ask-launcher' href='/guide'>"
-        "<span class='pulse-dot'></span>Ask</a>"
         "<section id='ask-panel' class='ask-panel' aria-label='Guide'>"
-        "<div class='ask-panel__head'><span class='pulse-dot'></span>Guide"
+        "<div class='ask-panel__head'>Guide"
         "<small>&nbsp;— can point, never press</small>"
         "<button class='ask-panel__close' type='button' aria-label='Close'>&times;</button></div>"
         "<div class='ask-panel__log'><div class='ask-suggest'>"

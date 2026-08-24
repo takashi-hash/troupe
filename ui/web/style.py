@@ -2,17 +2,17 @@
 
 主題は「静かな自動化」。臨床の静けさの上に、脈が打っていることだけを感じさせる。
 
-1. **モチーフは「帳簿・紙・脈」——製品の中身から導く。** 舞台＝インクの棚と
-   **帳簿の罫線**の地（追記専用の帳簿がこの製品の魂）。内容＝白い紙（.paper）
-   ——**紙は影で浮き、紙の上の部品は線で描く**（枠と拡散影を併用しない）。
-   紙の上のカードは1段まで。脈＝動きの語彙（下の4）。
+1. **モチーフは「帳簿・脈」——器は原稿どおり平らな白い窓。** 上のインクの帯と
+   その下の横一列ナビが骨格。内容は白地に**温かい灰の罫**で切る（#edebe7/#dedcd7）。
+   箱は1段まで・枠と拡散影を併用しない。節の札は .sec-label（大文字+インクの下線）。
+   脈＝動きの語彙（下の4）。
 1b. **書体は2系統で決める。** 見出し・銘は Source Serif 4（紙の記録＝文書の書体。
    Georgia が控え）。本文は system、**数字と ID は等幅数字**。角丸は 8/10/14 の3段だけ。
 2. **頁の頭は「見出し・数・次の一手」**（.page-head）。数えられるものは数を先に言う
    （"3 decisions waiting"）。最初の一画面で「何件・次に何を」が読める。
    スクロールは詳細のためだけ。
 3. **塗るのは判断だけ。** 塗りボタンは Sign / Approve / Reply / Confirm の4つ。
-4. **動きの語彙は「脈」だけ。** ブランドの鼓動・60秒の拍の帯・機械が支度した/人を待つ
+4. **動きの語彙は「脈」だけ。** 60秒の拍の帯・機械が支度した/人を待つ
    チップの淡い鼓動・帳簿の最新行の引いていく色——**同期は装わない**（リズムを見せるだけで、
    瞬間を主張しない）。それ以外は動かさない。prefers-reduced-motion では全部止まる。
 5. **色は語彙**: 緑=署名済み/通った・琥珀=人が要る・赤=破壊/期限切れ・青=情報・灰=不活性。
@@ -27,7 +27,7 @@ _STYLE = """
    Troupe — style.css  ·  design “clinical calm”
    ui/web.py の _STYLE を丸ごと置き換える1枚。
    外部アセットなし・システムフォントのみ・JSはGoogle Maps スロットだけ。
-   ライト/ダーク: color-scheme + Canvas/CanvasText + color-mix（現行方式踏襲）。
+   ライト/ダーク: color-scheme + #fff/var(--ink) + color-mix（現行方式踏襲）。
 
    原則:
      · 色は状態にだけ使う。
@@ -53,7 +53,8 @@ _STYLE = """
 
 /* ---------- 0. tokens & reset ---------- */
 :root {
-  color-scheme: light dark;
+  /* 原稿(Troupe UI.dc.html)はライト1本に決め打ち——こちらも明示的に寄せる */
+  color-scheme: light;
 
   /* 状態の色相 — UI に存在する有彩色はこの5つだけ */
   /* 状態の色は自前の値——既定パレットの色相から少し外す(照明と印刷で見た) */
@@ -62,14 +63,17 @@ _STYLE = """
   --danger:  #b3271e;
   --info:    #2158c9;
   --primary: #1f5f9e;   /* 塗りつぶし: Sign / Approve / Reply / Confirm */
-  --r-sm: 8px; --r-md: 10px; --r-lg: 14px;
+  --r-sm: 6px; --r-md: 6px; --r-lg: 12px;  /* 原稿は6px基調・大枠だけ12px */
   --serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
 
-  /* 無彩色はすべて Canvas/CanvasText から導出（両テーマ自動対応） */
-  --line:        color-mix(in srgb, CanvasText 14%, transparent);
-  --line-strong: color-mix(in srgb, CanvasText 30%, transparent);
-  --muted:       color-mix(in srgb, CanvasText 75%, Canvas); /* 二次テキストは75%が下限 */
-  --faint:       color-mix(in srgb, CanvasText 4%, Canvas);  /* うっすらした地 */
+  /* 無彩色は原稿の温かい灰(生成り寄り)——冷たい灰と混ぜない */
+  --line:        #edebe7;
+  --line-strong: #dedcd7;
+  --line-hard:   #cbc8c2;   /* 枠線(ボタン・入力) */
+  --muted:       #6b7076;
+  --muted-strong:#55595f;
+  --faint:       #f4f3f0;
+  --tint:        #fbfaf8;   /* 淡い生成りのパネル */
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* 舞台の色 — インクの棚（両テーマで不変）と、脈の鼓動 */
@@ -86,102 +90,58 @@ body {
   margin: 0;
   font: 14.5px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
-  color: CanvasText;
-  /* 舞台 — 帳簿の罫線の地(追記専用の帳簿の紙)。body に敷く(短い頁でも下まで続く) */
-  background-color: color-mix(in srgb, CanvasText 3%, Canvas);
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0, transparent 27px,
-    color-mix(in srgb, CanvasText 6%, transparent) 27px,
-    color-mix(in srgb, CanvasText 6%, transparent) 28px);
+  color: #10161d;
+  background: #fff;   /* モックの窓=画面そのもの。台紙(#e9e8e4)は文書の飾りで製品には無い */
   -webkit-text-size-adjust: 100%;
 }
 
-/* ---------- 1. shell — sidebar / nav / page ----------
-   骨組み:  .app-shell > .app-header（左の縦ナビ・幅216px固定）
-                       + .app-content（.notice-bar → main）
-   900px 未満は §15 で上のバーに畳む。 */
-.app-shell { display: flex; align-items: stretch; min-height: 100vh; }
-.app-header {
-  flex: none; width: 216px;
-  display: flex; flex-direction: column;
-  position: sticky; top: 0; height: 100vh; overflow-y: auto;
-  padding: 16px 12px 14px;
-  border-right: 1px solid var(--ink-line);
-  background: var(--ink); color: var(--ink-text);
+/* ---------- 1. shell — モックの1440×900の窓は「画面そのもの」の見立て ----------
+   帯は画面の端から端まで。中身(bar-inner・main)だけ max 1440 で中央・側余白28px固定。
+   .topbar = 銘・クリニック名・拍の帯・席(右端) — インクの帯(高さ44)
+   .navbar = 平らな1列(今すぐ→記録) + 右端に How/Ask — 白い帯(高さ52・インクの下線) */
+.window { min-height: 100vh; display: flex; flex-direction: column; }
+.window > main { flex: 1 1 auto; }
+.topbar { background: var(--ink); color: var(--ink-text); }
+.topbar .bar-inner { height: 44px; gap: 14px; }
+/* 幅の正本は1つ——帯の中身と本文が同じ内寸(max 1440・側余白28px)で端がそろう */
+.bar-inner, main, .page {
+  width: 100%; max-width: 1440px; margin: 0 auto;
+  padding-left: 28px; padding-right: 28px;
 }
+.bar-inner { display: flex; align-items: center; gap: 16px; }
 .brand {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex: none;
   font-family: var(--serif);
-  font-size: 16.5px; font-weight: 600; letter-spacing: .01em;
+  font-size: 17px; font-weight: 600; letter-spacing: .01em;
   color: var(--ink-text); text-decoration: none;
-  padding: 2px 10px 10px; margin: 0;
 }
-/* 鼓動 — 60秒の脈の、画面でのただ1つの動き */
-.pulse-dot {
-  flex: none; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--beat);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--beat) 45%, transparent);
-  animation: beat 2.4s ease-out infinite;
+.topbar__clinic {
+  flex: none; font-size: 12px; color: var(--ink-muted); white-space: nowrap;
 }
-@keyframes beat {
-  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--beat) 45%, transparent); }
-  70%  { box-shadow: 0 0 0 7px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
+.topbar .cadence { flex: 1 1 auto; margin: 0 8px; }
+.topbar__beat {
+  flex: none; font-family: var(--mono); font-size: 11px;
+  letter-spacing: .05em; color: var(--ink-muted); white-space: nowrap;
 }
-@media (prefers-reduced-motion: reduce) {
-  .pulse-dot, .cadence__fill, .chip--draft-ready, .chip--needs-approval,
-  .chip--needs-answer { animation: none; }
-  .ledger-events tr:nth-child(2) td { animation: none; }
-}
-/* 60秒の拍の帯 — 脈のリズムを見せる(瞬間の同期は装わない) */
 .cadence {
-  display: block; height: 2px; margin: 8px 10px 2px; border-radius: 1px;
-  background: var(--ink-line); overflow: hidden;
+  display: block; height: 3px;
+  background: rgba(255,255,255,.09); overflow: hidden;
 }
 .cadence__fill {
   display: block; height: 100%; width: 100%;
-  background: var(--beat); opacity: .75; transform-origin: left;
+  background: linear-gradient(90deg, rgba(76,195,255,0), rgba(76,195,255,.35) 65%, #4cc3ff);
+  transform-origin: left;
   animation: cadence 60s linear infinite;
 }
 @keyframes cadence { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.brand-sub {
-  font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--ink-muted); padding: 0 10px 2px;
+.whoami { flex: none; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.whoami small {
+  color: var(--ink-muted); font-size: 10px;
+  letter-spacing: .06em; text-transform: uppercase;
 }
-.nav { display: flex; flex-direction: column; gap: 1px; }
-.nav__label {
-  display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--ink-muted);
-  margin: 18px 10px 4px; user-select: none;
-}
-.nav > .nav__label:first-child { margin-top: 8px; }
-/* 縦組では見出し前の余白が区切り。横組（§15）で線として復活 */
-.nav__sep { display: none; width: 1px; height: 16px; background: var(--ink-line); }
-.nav a {
-  display: block; text-decoration: none; color: var(--ink-muted);
-  font-size: 13.5px; padding: 5.5px 10px; border-radius: var(--r-sm);
-}
-.nav a:hover { color: var(--ink-text); background: rgba(255,255,255,.05); }
-.nav a[aria-current="page"], .nav a.is-active {
-  color: var(--ink-text); font-weight: 600;
-  background: rgba(255,255,255,.08);
-  box-shadow: inset 2px 0 0 0 var(--beat);
-}
-.nav-quiet {
-  margin-top: auto; display: block; padding: 8px 10px 0;
-  font-size: 11.5px; color: var(--ink-muted); text-decoration: none;
-}
-.nav-quiet:hover { color: var(--ink-text); text-decoration: underline; }
-.whoami {
-  padding: 12px 10px 2px; border-top: 1px solid var(--ink-line); margin-top: 8px;
-  font-size: 12px; color: var(--ink-muted); line-height: 1.5;
-}
-.whoami strong { color: var(--ink-text); font-weight: 600; font-size: 12.5px; }
-.whoami small { color: var(--ink-muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
-.seat-form { display: flex; gap: 6px; margin: 8px 0 4px; }
+.seat-form { display: flex; gap: 6px; margin: 0; }
 .seat-form select {
-  flex: 1 1 auto; min-width: 0; font-size: 12px; padding: 3px 6px;
+  font-size: 12px; padding: 3px 6px; max-width: 200px;
   background: rgba(255,255,255,.06); color: var(--ink-text);
   border: 1px solid var(--ink-line); border-radius: var(--r-sm);
 }
@@ -191,24 +151,54 @@ body {
   border-color: var(--ink-line);
 }
 .seat-form .btn:hover { background: rgba(255,255,255,.12); }
-.seat-note { display: block; margin-top: 4px; line-height: 1.5; text-transform: none !important; letter-spacing: 0 !important; }
 
-.app-content { flex: 1 1 auto; min-width: 0; }
+.navbar {
+  background: #fff; border-bottom: 1px solid var(--ink);
+  position: sticky; top: 0; z-index: 30;
+}
+.navbar .bar-inner { height: 52px; gap: 20px; }
+.nav {
+  display: flex; align-items: stretch; gap: 20px; height: 100%;
+  flex: 1 1 auto; min-width: 0;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.nav a {
+  display: flex; align-items: center; text-decoration: none;
+  color: var(--muted-strong); font-size: 14px; white-space: nowrap;
+}
+.nav a:hover { color: var(--ink); }
+.nav a[aria-current="page"], .nav a.is-active {
+  color: var(--ink); font-weight: 650;
+  box-shadow: inset 0 -2px 0 0 var(--ink);
+}
+.nav-badge {
+  margin-left: 5px; font-family: var(--mono);
+  font-size: 12px; font-weight: 700; color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+.nav-help { flex: none; display: flex; align-items: center; gap: 20px; }
+.nav-ask {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  color: #fff; padding: 7px 16px; border-radius: var(--r-sm);
+  background: var(--ink); border: 1px solid var(--ink); cursor: pointer;
+}
+.nav-ask:hover { background: #1a232d; }
+.nav-quiet {
+  font-size: 12.5px; color: var(--muted); text-decoration: none; white-space: nowrap;
+}
+.nav-quiet:hover { color: var(--ink); text-decoration: underline; }
+
 /* 開示バー — 合成の座長が動いているあいだの、細い琥珀の帯 */
 .notice-bar {
-  font-size: 12.5px; line-height: 1.5; padding: 6px 36px;
-  color: color-mix(in srgb, var(--warn) 72%, CanvasText);
-  background: color-mix(in srgb, var(--warn) 8%, Canvas);
+  font-size: 12.5px; line-height: 1.5; padding: 6px 28px;
+  color: color-mix(in srgb, var(--warn) 72%, var(--ink));
+  background: color-mix(in srgb, var(--warn) 8%, #fff);
   border-bottom: 1px solid color-mix(in srgb, var(--warn) 26%, transparent);
 }
 
-main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 24px 32px 56px; }
-.paper {
-  background: Canvas; border-radius: var(--r-lg);
-  padding: 26px 30px 34px; min-height: calc(100vh - 128px);
-  /* 紙は影で浮く。紙の上の部品は線で描く——併用しない */
-  box-shadow: 0 1px 2px rgba(16,22,29,.06), 0 12px 34px rgba(16,22,29,.06);
-}
+main, .page { padding-top: 22px; padding-bottom: 48px; }
+.paper { background: transparent; }  /* 原稿は平らな窓——包みは残すが箱にしない */
 /* 頁の頭 — 見出し・数・次の一手(§5)。数えられるものは数を先に言う */
 .page-head {
   display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
@@ -222,9 +212,9 @@ main, .page { width: 100%; max-width: 1480px; margin: 0; padding: 24px 32px 56px
   padding: 2px 11px; border-radius: 999px;
   color: var(--muted); background: var(--faint); border: 1px solid var(--line);
 }
-.count-pill strong { color: CanvasText; }
+.count-pill strong { color: var(--ink); }
 .page-title {
-  font-family: var(--serif); font-size: 22px; font-weight: 600;
+  font-family: var(--serif); font-size: 24px; font-weight: 600;
   letter-spacing: 0; margin: 0 0 4px;
 }
 .page-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 22px; max-width: 68ch; }
@@ -250,7 +240,7 @@ main a:hover { text-decoration-color: currentColor; }
 /* ---------- 3. cards & folds ---------- */
 .card, .row {
   border: 1px solid var(--line); border-radius: var(--r-md);
-  padding: 16px 18px; margin-bottom: 14px; background: Canvas;
+  padding: 16px 18px; margin-bottom: 14px; background: #fff;
 }
 .card__head, .head {
   display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
@@ -265,7 +255,7 @@ dd { margin: 0; white-space: pre-wrap; }
   cursor: pointer; user-select: none; font-size: 13px; color: var(--muted);
   padding: 3px 0; width: max-content;
 }
-.fold > summary:hover { color: CanvasText; }
+.fold > summary:hover { color: var(--ink); }
 .fold[open] > summary { margin-bottom: 6px; }
 
 /* ---------- 4. chips · badges · seals ----------
@@ -273,12 +263,12 @@ dd { margin: 0; white-space: pre-wrap; }
    badge = 種類（Visit note / Weekly report / Request / Task）。常に無彩色の枠。
    seal  = 記録の印（DRAFT / SIGNED / USED）。カルテと下書きパネルの見出しに捺す。 */
 .chip {
-  --c: CanvasText;
+  --c: var(--ink);
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 12px; font-weight: 600; line-height: 1.5;
   padding: 1.5px 9px; border-radius: 999px; white-space: nowrap;
-  color: color-mix(in srgb, var(--c) 70%, CanvasText);
-  background: color-mix(in srgb, var(--c) 9%, Canvas);
+  color: color-mix(in srgb, var(--c) 70%, var(--ink));
+  background: color-mix(in srgb, var(--c) 9%, #fff);
   border: 1px solid color-mix(in srgb, var(--c) 32%, transparent);
 }
 a.chip { text-decoration: none; }
@@ -314,18 +304,18 @@ a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
   letter-spacing: .09em; padding: 1.5px 8px; border-radius: 4px;
 }
 .seal--draft, .state-draft {
-  color: color-mix(in srgb, var(--warn) 70%, CanvasText);
-  background: color-mix(in srgb, var(--warn) 13%, Canvas);
+  color: color-mix(in srgb, var(--warn) 70%, var(--ink));
+  background: color-mix(in srgb, var(--warn) 13%, #fff);
 }
 .seal--signed, .state-final {
-  color: color-mix(in srgb, var(--ok) 70%, CanvasText);
-  background: color-mix(in srgb, var(--ok) 12%, Canvas);
+  color: color-mix(in srgb, var(--ok) 70%, var(--ink));
+  background: color-mix(in srgb, var(--ok) 12%, #fff);
 }
 .seal--used { color: var(--muted); background: var(--faint); }
 /* 旧 .state 互換 — 無彩チップとして残す */
 .state {
   font-size: 12px; padding: 1.5px 9px; border-radius: 999px;
-  background: color-mix(in srgb, CanvasText 9%, Canvas);
+  background: var(--faint);
 }
 /* who = 履歴の「誰が」。状態でなく人格の見分け——点にだけ色を置く。
    紫は地図の担当色と同系（状態の5色とは別の、人格の色）。 */
@@ -339,11 +329,11 @@ a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
 }
 .who-dot {
   flex: none; width: 8px; height: 8px; border-radius: 50%;
-  background: color-mix(in srgb, CanvasText 35%, Canvas);
+  background: var(--line-hard);   /* 原稿の点の無彩 #cbc8c2 */
 }
 .who--human .who-dot { background: var(--ok); }
 .who--agent .who-dot { background: #7c3aed; }
-.who--clock .who-dot { background: color-mix(in srgb, CanvasText 40%, Canvas); }
+.who--clock .who-dot { background: var(--line-hard); }
 
 /* ---------- 5. buttons & forms ----------
    3階層:  primary(塗り) = Sign / Approve / Reply だけ
@@ -352,7 +342,7 @@ a.chip:hover { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
 button, .btn {
   font: inherit; font-size: 14px; font-weight: 500;
   padding: 6px 16px; border-radius: var(--r-sm); cursor: pointer;
-  border: 1px solid var(--line-strong); background: Canvas; color: inherit;
+  border: 1px solid var(--line-hard); background: #fff; color: inherit;
 }
 button:hover, .btn:hover { background: var(--faint); }
 .btn--small { padding: 3.5px 11px; font-size: 13px; }
@@ -371,21 +361,21 @@ button:hover, .btn:hover { background: var(--faint); }
 }
 .btn--destructive {
   border-color: transparent; background: none; padding: 6px 6px;
-  color: color-mix(in srgb, var(--danger) 72%, CanvasText);
+  color: color-mix(in srgb, var(--danger) 72%, var(--ink));
 }
 .btn--destructive:hover { background: none; text-decoration: underline; }
 .btn--destructive.is-confirm {
   border-color: color-mix(in srgb, var(--danger) 55%, transparent);
-  background: color-mix(in srgb, var(--danger) 9%, Canvas);
+  background: color-mix(in srgb, var(--danger) 9%, #fff);
   padding: 6px 14px; text-decoration: none; font-weight: 600;
 }
 .btn--destructive.is-confirm:hover {
-  background: color-mix(in srgb, var(--danger) 14%, Canvas);
+  background: color-mix(in srgb, var(--danger) 14%, #fff);
 }
-.confirm-note { font-size: 12.5px; color: color-mix(in srgb, var(--danger) 70%, CanvasText); }
+.confirm-note { font-size: 12.5px; color: color-mix(in srgb, var(--danger) 70%, var(--ink)); }
 input[type=text], input[type=date], input[type=number], select, textarea {
   font: inherit; padding: 6px 10px; border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong); background: Canvas; color: inherit;
+  border: 1px solid var(--line-hard); background: #fff; color: inherit;
 }
 textarea { width: 100%; min-height: 112px; line-height: 1.6; padding: 10px 12px; resize: vertical; }
 input[type=checkbox] { accent-color: var(--primary); width: 15px; height: 15px; }
@@ -413,14 +403,14 @@ th {
   padding: 8px 12px; border-bottom: 1px solid var(--line-strong);
 }
 @media (min-width: 900.1px) {
-  th { position: sticky; top: 0; z-index: 2; background: Canvas; }
+  th { position: sticky; top: 0; z-index: 2; background: #fff; }
 }
 td {
   padding: 9px 12px; border-bottom: 1px solid var(--line);
   vertical-align: top; font-variant-numeric: tabular-nums;
 }
 tbody tr:hover { background: var(--faint); }
-.cell-danger { color: color-mix(in srgb, var(--danger) 75%, CanvasText); font-weight: 600; }
+.cell-danger { color: color-mix(in srgb, var(--danger) 75%, var(--ink)); font-weight: 600; }
 .cell-when {
   font-family: var(--mono); font-size: 11.5px; color: var(--muted);
   white-space: nowrap;
@@ -430,6 +420,13 @@ tbody tr:hover { background: var(--faint); }
 @keyframes freshrow {
   from { background: color-mix(in srgb, var(--beat) 14%, transparent); }
   to   { background: transparent; }
+}
+
+/* 節の札 — 原稿の署名要素: 小さな大文字+インクの下線(PREFILLED FROM A DRAFT の型) */
+.sec-label {
+  font-size: 11px; font-weight: 650; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted-strong);
+  border-bottom: 1px solid #10161d; padding-bottom: 6px; margin: 0 0 10px;
 }
 
 /* 頁送り — 表の下の一列 */
@@ -446,13 +443,24 @@ tbody tr:hover { background: var(--faint); }
 .day-nav { font-size: 14px; }
 .day-nav strong { font-weight: 650; }
 .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.filter-chips.faces {
+  display: inline-flex; gap: 0; margin: 2px 0 20px;
+  border: 1px solid var(--line-hard); border-radius: 999px; overflow: hidden;
+}
+.filter-chips.faces .filter-chip {
+  border: 0; border-radius: 0; padding: 3px 13px; font-size: 12px;
+}
+.filter-chips.faces .filter-chip.is-on,
+.filter-chips.faces .filter-chip[aria-current="true"] {
+  background: var(--ink); color: #fff; font-weight: 600;
+}
 .filter-chip {
   font-size: 13.5px; padding: 3.5px 14px; border-radius: 999px;
   border: 1px solid var(--line-strong); color: var(--muted); text-decoration: none;
 }
-.filter-chip:hover { color: CanvasText; background: var(--faint); }
+.filter-chip:hover { color: var(--ink); background: var(--faint); }
 .filter-chip.is-on, .filter-chip[aria-current="true"] {
-  background: color-mix(in srgb, CanvasText 88%, Canvas); color: Canvas;
+  background: var(--ink); color: #fff;
   border-color: transparent; font-weight: 600;
 }
 .progress-band, .brief {
@@ -481,7 +489,7 @@ tbody tr:hover { background: var(--faint); }
 .stop-card__seq {
   flex: none; width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center;
-  background: color-mix(in srgb, CanvasText 85%, Canvas); color: Canvas;
+  background: var(--ink); color: #fff;
   font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums;
 }
 .stop-card__main { flex: 1 1 230px; min-width: 0; }
@@ -497,7 +505,7 @@ tbody tr:hover { background: var(--faint); }
 .stop-card__open { flex: none; font-size: 13.5px; }
 .stop-card--next {
   border-color: color-mix(in srgb, var(--primary) 50%, transparent);
-  background: color-mix(in srgb, var(--primary) 4%, Canvas);
+  background: color-mix(in srgb, var(--primary) 4%, #fff);
 }
 .stop-card--cancelled { opacity: .62; }
 .stop-card--cancelled .stop-card__patient { text-decoration: line-through; }
@@ -550,12 +558,12 @@ tbody tr:hover { background: var(--faint); }
 .draft-panel {
   border: 1.5px dashed color-mix(in srgb, var(--warn) 55%, transparent);
   border-radius: var(--r-md); padding: 16px 18px; margin: 0 0 22px;
-  background: color-mix(in srgb, var(--warn) 3%, Canvas);
+  background: color-mix(in srgb, var(--warn) 3%, #fff);
 }
 .draft-panel__head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 .draft-panel__kicker {
   font-size: 13px; font-weight: 600;
-  color: color-mix(in srgb, var(--warn) 70%, CanvasText);
+  color: color-mix(in srgb, var(--warn) 70%, var(--ink));
 }
 .draft-panel__from { font-size: 13px; color: var(--muted); }
 .draft-panel__body { user-select: text; }
@@ -574,7 +582,7 @@ tbody tr:hover { background: var(--faint); }
 .sign-bar {
   position: sticky; bottom: 0; z-index: 10;
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  background: Canvas; border-top: 1px solid var(--line-strong);
+  background: #fff; border-top: 1px solid var(--line-strong);
   padding: 12px 0; margin-top: 10px;
 }
 .sign-bar__meta { font-size: 13.5px; color: var(--muted); }
@@ -606,7 +614,7 @@ tbody tr:hover { background: var(--faint); }
 .note-card--draft {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--warn) 50%, transparent);
-  background: color-mix(in srgb, var(--warn) 3%, Canvas);
+  background: color-mix(in srgb, var(--warn) 3%, #fff);
 }
 .note-card--signed { border-color: var(--line); } /* 無地=正記録。印(.seal--signed)が語る */
 .note-card__meta { font-size: 12.5px; color: var(--muted); }
@@ -657,7 +665,7 @@ tbody tr:hover { background: var(--faint); }
 .guide-form {
   position: sticky; bottom: 0; z-index: 10;
   display: flex; gap: 8px; align-items: center;
-  background: Canvas; border-top: 1px solid var(--line);
+  background: #fff; border-top: 1px solid var(--line);
   padding: 12px 0; margin-top: 24px;
 }
 .guide-input { flex: 1 1 auto; min-width: 0; padding: 8px 12px; }
@@ -675,12 +683,11 @@ tbody tr:hover { background: var(--faint); }
   box-shadow: 0 4px 16px rgba(16,22,29,.25);
 }
 .ask-launcher:hover { background: #1a232d; }
-.ask-launcher .pulse-dot { width: 6px; height: 6px; }
 .ask-panel {
   position: fixed; right: 22px; bottom: 74px; z-index: 41;
   width: 390px; max-width: calc(100vw - 32px); max-height: 72vh;
   display: none; flex-direction: column;
-  background: Canvas; border: 1px solid var(--line-strong);
+  background: #fff; border: 1px solid var(--line-strong);
   border-radius: var(--r-lg); overflow: hidden;
   box-shadow: 0 8px 40px rgba(16,22,29,.28);
 }
@@ -706,7 +713,7 @@ tbody tr:hover { background: var(--faint); }
   border: 1px dashed var(--line-strong); border-radius: var(--r-md); background: none;
   color: var(--muted); cursor: pointer;
 }
-.ask-suggest button:hover { color: CanvasText; background: var(--faint); }
+.ask-suggest button:hover { color: var(--ink); background: var(--faint); }
 .ask-thinking { font-size: 12.5px; color: var(--muted); padding: 0 2px 10px; }
 .ask-panel__form {
   display: flex; gap: 8px; padding: 10px 14px;
@@ -736,13 +743,13 @@ tbody tr:hover { background: var(--faint); }
 }
 .banner--success {
   border-color: color-mix(in srgb, var(--ok) 35%, transparent);
-  background: color-mix(in srgb, var(--ok) 7%, Canvas);
-  color: color-mix(in srgb, var(--ok) 65%, CanvasText);
+  background: color-mix(in srgb, var(--ok) 7%, #fff);
+  color: color-mix(in srgb, var(--ok) 65%, var(--ink));
 }
 .refusal {
   border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
-  background: color-mix(in srgb, var(--danger) 7%, Canvas);
-  color: color-mix(in srgb, var(--danger) 60%, CanvasText);
+  background: color-mix(in srgb, var(--danger) 7%, #fff);
+  color: color-mix(in srgb, var(--danger) 60%, var(--ink));
   border-radius: var(--r-md);
   padding: 10px 16px; margin: 0 0 18px;
 }
@@ -750,47 +757,30 @@ tbody tr:hover { background: var(--faint); }
 
 /* ---------- 14. focus & a11y ---------- */
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--primary) 75%, CanvasText);
+  outline: 2px solid color-mix(in srgb, var(--primary) 75%, var(--ink));
   outline-offset: 2px;
 }
-::selection { background: color-mix(in srgb, var(--primary) 22%, Canvas); }
+::selection { background: color-mix(in srgb, var(--primary) 22%, #fff); }
 
-/* ---------- 15. narrow — 900px 未満は上の小さなバー ---------- */
+/* ---------- 15. narrow — 上部バーは折り返し、ナビは横に送る(何も消えない) ---------- */
 @media (max-width: 900px) {
-  .app-shell { display: block; }
-  .app-header {
-    width: auto; height: auto; overflow: visible; z-index: 30;
-    flex-direction: row; align-items: center; gap: 12px;
-    padding: 8px 14px; border-right: 0; border-bottom: 1px solid var(--ink-line);
-  }
-  .brand { padding: 0; margin: 0; border-bottom: 0; font-size: 15px; }
-  .brand-sub, .cadence, .nav-quiet { display: none; }
-  .nav {
-    flex-direction: row; align-items: center; gap: 2px;
-    flex: 1 1 auto; min-width: 0;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-  }
-  .nav__label { margin: 0 4px 0 8px; }
-  .nav > .nav__label:first-child { margin: 0 4px 0 0; }
-  .nav__sep { display: block; flex: none; margin: 0 6px; align-self: center; }
-  .nav a { white-space: nowrap; font-size: 13px; padding: 5px 9px; }
-  .nav a[aria-current="page"], .nav a.is-active {
-    background: none; box-shadow: inset 0 -2px 0 0 CanvasText; border-radius: 0;
-  }
-  .whoami { display: none; }
-  .notice-bar { padding: 6px 16px; }
-  main, .page { padding: 12px 10px 48px; }
-  .paper { padding: 18px 14px 28px; border-radius: var(--r-md); min-height: 0; }
-  .ask-launcher { right: 14px; bottom: 14px; }
-  .ask-panel {
-    right: 8px; left: 8px; bottom: 64px; width: auto; max-height: 76vh;
-  }
+  .topbar .bar-inner { height: auto; flex-wrap: wrap; gap: 8px 12px; padding: 8px 14px; }
+  .topbar__clinic { order: 5; flex: 1 1 100%; }
+  .cadence, .topbar__beat { display: none; }   /* 飾りだけ畳む——機能は全部残る */
+  .navbar .bar-inner { height: 44px; gap: 14px; padding: 0 14px; }
+  .nav { gap: 14px; }
+  .nav a { font-size: 13px; }
+  .nav-ask { padding: 5px 12px; font-size: 12px; }
+  .nav-quiet { display: none; }                 /* How はナビ末尾の項目として残す(下) */
+  .notice-bar { padding: 6px 14px; }
+  main, .page { padding: 14px 14px 48px; }
+  .ask-panel { right: 8px; left: 8px; bottom: 64px; width: auto; max-height: 76vh; }
 }
 
 /* ---------- 16. print — day sheet ---------- */
 @media print {
-  .app-header, .notice-bar, .filter-chips, .map-slot, #gmap, .sign-bar,
-  .cancel-zone, .pager, .guide-form, .ask-launcher, .ask-panel,
+  .topbar, .navbar, .notice-bar, .filter-chips, .map-slot, #gmap, .sign-bar,
+  .cancel-zone, .pager, .guide-form, .nav-ask, .ask-panel,
   button, .btn, form, .banner, .fold { display: none !important; }
   html, body { background: none; height: auto; min-height: 0; }
   .paper { border: 0; box-shadow: none; padding: 0; min-height: 0; }

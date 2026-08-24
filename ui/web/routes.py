@@ -3,9 +3,8 @@ from app.dto.row_filter import RowFilter
 from collections.abc import Callable
 from typing import Any
 from ui.web.activity import _履歴
-from ui.web.agreements import _取り決めたち
 from ui.web.automations import _予定
-from ui.web.billing import _会計, _提出ファイル, _請求書
+from ui.web.billing import _会計, _会計面, _提出ファイル, _請求書
 from ui.web.day import _道順
 from ui.web.fees import _点数表
 from ui.web.detail import _詳細
@@ -51,7 +50,8 @@ def make_app(
         手たち = 開く(座)
         try:
             return HTMLResponse(
-                _頁(見出し, 描く(手たち), 座, 断り, notice, 手たち.staff())
+                _頁(見出し, 描く(手たち), 座, 断り, notice,
+                    手たち.staff(), 手たち.billing_flags())
             )
         finally:
             手たち.close()
@@ -68,7 +68,7 @@ def make_app(
 
     @app.get("/", response_class=HTMLResponse)
     def _根() -> Any:
-        return RedirectResponse("/day")
+        return RedirectResponse("/day", status_code=303)
 
     # 古い道は新しい道へ——貼られたリンクを死なせない
     @app.get("/today")
@@ -89,7 +89,7 @@ def make_app(
 
     @app.get("/patterns")
     def _旧patterns() -> Any:
-        return RedirectResponse("/agreements", status_code=303)
+        return RedirectResponse("/patients", status_code=303)
 
     @app.get("/alive")
     def _生きているか() -> dict[str, str]:
@@ -112,10 +112,65 @@ def make_app(
         return 見せる("inbox", lambda h: _詳細(h.detail(id)), refused, troupe_seat)
 
     @app.get("/automations", response_class=HTMLResponse)
-    def _予定の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+    def _予定の頁(
+        refused: str | None = None, done: str | None = None,
+        troupe_seat: str | None = Cookie(default=None),
+    ) -> HTMLResponse:
         副題 = ("<p class='page-sub'>Troupe's own work schedule — AI routines and their runs."
                 " Patient visits live in <a href='/day'>My Day</a>.</p>")
-        return 見せる("automations", lambda h: 副題 + _予定(h.schedule_fetch(), h.upcoming()), 席=troupe_seat)
+        return 見せる(
+            "automations",
+            lambda h: 副題 + _予定(h.schedule_fetch(), h.upcoming(), done),
+            refused, troupe_seat,
+        )
+
+    @app.post("/automations/act")
+    def _決まりを押す(
+        what: str = Form(...),
+        name: str = Form(""),
+        version: str = Form("0"),
+        body: str = Form(""),
+        instruction: str = Form(""),
+        source: str = Form(""),
+        required_terms: str = Form(""),
+        description: str = Form(""),
+        cycle: str = Form(""),
+        days: str = Form(""),
+        budget_calls: str = Form(""),
+        budget_seconds: str = Form(""),
+        owner: str = Form(""),
+        max_retries: str = Form(""),
+        troupe_seat: str | None = Cookie(default=None),
+    ) -> Any:
+        # 空欄は渡さない——版の欄は題材のデータが初期値、人が上書き(筋道 §1)
+        欄 = {k: v for k, v in {
+            "instruction": instruction, "source": source,
+            "required_terms": required_terms, "description": description,
+            "cycle": cycle, "days": days, "budget_calls": budget_calls,
+            "budget_seconds": budget_seconds, "owner": owner,
+            "max_retries": max_retries,
+        }.items() if v.strip()}
+        手たち = 開く(_席名(troupe_seat))
+        try:
+            if what == "request":
+                断り = 手たち.request(body, 欄)
+                伝え = "Requested — the job appears in the ledger now"
+            else:
+                try:
+                    版 = int(version or "0")
+                except ValueError:
+                    版 = 0
+                断り = 手たち.schedule_act(what, name, 版, 欄)
+                伝え = {"add_version": "Version added — activate it to start creating jobs",
+                        "activate": "Activated — jobs will derive from this version",
+                        "deactivate": "Stopped — no new jobs from this rule"}.get(what, "Done")
+        finally:
+            手たち.close()
+        if 断り is None:
+            戻り = f"/automations?done={quote(伝え)}"
+        else:
+            戻り = f"/automations?refused={quote(断り)}"
+        return RedirectResponse(戻り, status_code=303)
 
     @app.get("/activity", response_class=HTMLResponse)
     def _履歴の頁(page: int = 0, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
@@ -144,9 +199,9 @@ def make_app(
 
         return 見せる("day", 描く, 席=troupe_seat)
 
-    @app.get("/agreements", response_class=HTMLResponse)
-    def _取り決めの頁(refused: str | None = None, added: str | None = None, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
-        return 見せる("agreements", lambda h: _取り決めたち(h.patterns(), added), refused, troupe_seat)
+    @app.get("/agreements")
+    def _旧agreements() -> Any:
+        return RedirectResponse("/patients", status_code=303)
 
     @app.post("/patterns/act")
     def _取り決めを押す(
@@ -158,6 +213,7 @@ def make_app(
         clinician: str = Form(""),
         purpose: str = Form(""),
         start: str = Form(""),
+        back: str = Form("/patients"),
         troupe_seat: str | None = Cookie(default=None),
     ) -> Any:
         手たち = 開く(_席名(troupe_seat))
@@ -170,11 +226,13 @@ def make_app(
             )
         finally:
             手たち.close()
+        先 = back if back.startswith("/patient") else "/patients?view=agreements"
+        つなぎ = "&" if "?" in 先 else "?"
         if 断り is None:
-            戻り = ("/agreements?added=" + quote("Agreement added — visits will appear shortly")
-                    if what == "add_pattern" else "/agreements")
+            戻り = (f"{先}{つなぎ}added=" + quote("Agreement added — visits will appear shortly")
+                    if what == "add_pattern" else 先)
         else:
-            戻り = f"/agreements?refused={quote(断り)}"
+            戻り = f"{先}{つなぎ}refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
 
     @app.get("/visit", response_class=HTMLResponse)
@@ -216,9 +274,9 @@ def make_app(
             戻り = f"/visit?id={quote(id)}&refused={quote(断り)}"
         return RedirectResponse(戻り, status_code=303)
 
-    @app.get("/fees", response_class=HTMLResponse)
-    def _点数表の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
-        return 見せる("fees", lambda h: _点数表(h.fees()), 席=troupe_seat)
+    @app.get("/fees")
+    def _旧fees() -> Any:
+        return RedirectResponse("/billing?view=fees", status_code=303)
 
     @app.get("/billing", response_class=HTMLResponse)
     def _会計の頁(
@@ -241,6 +299,16 @@ def make_app(
                 except ValueError:
                     pass
             views = h.billing(対象)
+            if view == "fees":
+                fees = h.fees()
+                return (
+                    "<div class='page-head'><h1 class='page-title'>Billing</h1>"
+                    f"<span class='count-pill'><strong>{len(fees)}</strong> items</span>"
+                    "<span class='page-head__aside'>Nagisa Schedule — every value"
+                    " invented</span></div>"
+                    + _会計面(対象, "fees")
+                    + _点数表(fees, 頭あり=False)
+                )
             if view == "file":
                 return _提出ファイル(views, 対象)
             if invoice:
@@ -331,12 +399,32 @@ def make_app(
         return 見せる("how", lambda h: _説明(), 席=troupe_seat)
 
     @app.get("/patients", response_class=HTMLResponse)
-    def _患者たちの頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
-        return 見せる("patients", lambda h: _患者たち(h.patients(), h.today()), 席=troupe_seat)
+    def _患者たちの頁(
+        refused: str | None = None, added: str | None = None,
+        view: str | None = None,
+        troupe_seat: str | None = Cookie(default=None),
+    ) -> HTMLResponse:
+        面 = "agreements" if view == "agreements" else "patients"
+        return 見せる(
+            "patients",
+            lambda h: _患者たち(h.patients(), h.today(), h.patterns(), added, 面),
+            refused, troupe_seat,
+        )
 
     @app.get("/patient", response_class=HTMLResponse)
-    def _患者の頁(code: str, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
-        return 見せる("patients", lambda h: _患者(h.patient(code)), 席=troupe_seat)
+    def _患者の頁(
+        code: str, refused: str | None = None, added: str | None = None,
+        troupe_seat: str | None = Cookie(default=None),
+    ) -> HTMLResponse:
+        return 見せる(
+            "patients",
+            lambda h: _患者(
+                h.patient(code),
+                tuple(r for r in h.patterns() if r.patient == code),
+                added,
+            ),
+            refused, troupe_seat,
+        )
 
     @app.get("/search", response_class=HTMLResponse)
     def _検索の頁(
