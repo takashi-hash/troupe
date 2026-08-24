@@ -187,3 +187,17 @@ def test_束はどれか欠けたら作れない() -> None:
             source=Source(location="data/請求.csv"),
             max_retries=3,
         )
+
+
+def test_穴あきの源は患者で開かれて写る() -> None:
+    """筋道 §1 create——写すときに穴を患者記号で開く。"""
+    欄 = {**版の欄(), "source": Source(location="db:chart/{患者}")}
+    束 = Version(**欄).copy_for(Period(text="2026-08"), "P-004")
+    assert 束.source == Source(location="db:chart/P-004")
+
+
+def test_穴あきの源に患者が無ければ写せない() -> None:
+    """穴の開いていない源を持つ仕事が作れたら赤（仕事とは何か §3 Source）。"""
+    欄 = {**版の欄(), "source": Source(location="db:chart/{患者}")}
+    with pytest.raises(ValueError):
+        Version(**欄).copy_for(Period(text="2026-08"))

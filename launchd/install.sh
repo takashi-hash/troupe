@@ -19,10 +19,10 @@ echo "配線した: 時計の脈・AI の脈（心拍60秒＋帳簿が変わっ�
 # LLM の道具——起こすだけ。モデルは人に入れてもらう（13GB は黙って引かない）
 if command -v ollama >/dev/null 2>&1; then
   brew services start ollama >/dev/null 2>&1 || true
-  if ollama list 2>/dev/null | grep -q "gpt-oss:20b"; then
-    echo "ollama: 動いている（gpt-oss:20b あり）"
+  if ollama list 2>/dev/null | grep -q "gemma3:12b"; then
+    echo "ollama: 動いている（gemma3:12b あり）"
   else
-    echo "⚠ モデルがありません。入れてください（13GB）: ollama pull gpt-oss:20b"
+    echo "⚠ モデルがありません。入れてください（8GB）: ollama pull gemma3:12b"
     echo "  それまで AI の脈は LLM に届かず、源の失敗以外は進みません"
   fi
 else

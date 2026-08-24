@@ -40,6 +40,7 @@ from adapters.emr import (
     PostgresPatterns,
     PostgresRoute,
     PostgresSchedule,
+    PostgresScheduledVisits,
     PostgresStaff,
     PostgresVisit,
 )
@@ -180,6 +181,7 @@ class Ichiza:
         self.claims_port = EmrClaims(emr_dsn)
         self.billing_view = PostgresBilling(emr_dsn)
         self.staff_view = PostgresStaff(emr_dsn)
+        self.scheduled_visits = PostgresScheduledVisits(emr_dsn)
         self.topics = FolderTopic(root / "custom")
         self.llm = _llm(llm, model)
         # 案内は仕事の外の一呼び——書く道具を持たない(設計 §4 GuidePort)
@@ -187,7 +189,7 @@ class Ichiza:
 
 
 #: LLM の道具の既定のモデル。**どちらも同じ口**——選ぶのはここだけ。
-_MODELS = {"ollama": "gpt-oss:20b", "gemini": "gemini-3.5-flash"}
+_MODELS = {"ollama": "gemma3:12b", "gemini": "gemini-3.5-flash"}
 
 
 def _llm(kind: str, model: str | None) -> LlmPort:
@@ -224,7 +226,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         return gather_detail(za.today, za.details, za.clock, viewer, id)
 
     def 予定を読む() -> tuple[ScheduleRow, ...]:
-        return gather_schedule(za.rule_lines, za.active, za.origins, za.clock)
+        return gather_schedule(za.rule_lines, za.active, za.origins, za.scheduled_visits, za.clock)
 
     def 決まりを押す(
         what: str, name: str, version: int, fields: dict[str, str]
@@ -379,7 +381,7 @@ def _tick(za: Ichiza) -> None:
     if charged:
         print(f"derive_charges: {len(charged)} lines ({', '.join(charged[:3])}…)"
               if len(charged) > 3 else f"derive_charges: {', '.join(charged)}")
-    made = create(za.jobs, za.rules, za.active, za.origins, za.ids, za.clock)
+    made = create(za.jobs, za.rules, za.active, za.origins, za.scheduled_visits, za.ids, za.clock)
     handed = hand_out(za.jobs, za.states, za.clock)
     returned = return_timed_out(za.jobs, za.states, za.clock)
     checked = run_check(za.jobs, za.states, za.results, za.clock)
@@ -389,9 +391,10 @@ def _tick(za: Ichiza) -> None:
     delivered = deliver_drafts(
         za.jobs, za.states, za.results, za.delivered_marks, za.drafts, za.clock
     )
-    欠け = audit(za.active, za.origins, za.clock)
-    for 名前, 版, 期間 in 欠け:
-        print(f"! I8 active rule with no job — {名前.text} v{版} {期間.text}")
+    欠け = audit(za.active, za.origins, za.scheduled_visits, za.clock)
+    for 名前, 版, 期間, 患者 in 欠け:
+        誰の = f" {患者}" if 患者 else ""
+        print(f"! I8 active rule with no job — {名前.text} v{版} {期間.text}{誰の}")
     # 出すのは §1 の操作の識別子そのまま——ログもまた読む人のもの
     for 名, 列 in (
         ("create", made),

@@ -1,0 +1,15 @@
+{
+  "instruction": "Read the patient chart in the source. The signed notes are given oldest first - COMPARE them and write the direction of change into Assessment; never repeat the last note's Assessment unchanged. Draft the visit note for the visit scheduled in the reporting period, in SOAP form. Anything in 'recent events' must be reflected. Anything the doctor must verify on arrival goes first in Plan as a checklist. Leave Objective as labelled blanks - never invent a measurement. Begin with the patient code, the visit date, and the reporting period copied exactly from the required terms. The doctor rewrites and signs - the draft is never the record. Track the measurements the chart itself makes relevant - weights, scores, saturations, girths, whatever the conditions and signed notes carry - and state their direction of change in numbers where the notes allow it. If a physician order has expired, say so and flag that the visit's billing basis must be confirmed before care is given. If the chart has few or no signed notes (a newly admitted patient), build the draft from the chart material and state plainly what a first full visit must establish. If the chart lists no next visit, say so plainly in the draft and do not invent a date.",
+  "source": "db:chart/{患者}",
+  "required_terms": [
+    "{対象期間}",
+    "{患者}"
+  ],
+  "description": "SOAP form for the visit in the reporting period; trends across the given notes are stated with numbers where possible; Objective has no invented measurements.",
+  "cycle": "weekly",
+  "days": 2,
+  "budget_calls": 12,
+  "budget_seconds": 300,
+  "owner": "Director",
+  "max_retries": 6
+}

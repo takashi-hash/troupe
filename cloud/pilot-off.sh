@@ -26,22 +26,14 @@ else
   PW=$(cat /tmp/troupe-dbpw)
   export ICHIZA_LEDGER_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/troupe"
   export ICHIZA_EMR_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/emr"
-  # 下書きルールは帳簿から列挙(pilot-on.sh と同じ理由——足し忘れの事故を断つ)
-  export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-  RULES=$(mktemp)
-  printf '%s\n' "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
-                 "Weekly Visit Prep" > "$RULES"
-  PGPASSWORD=$PW psql -t -A -h 127.0.0.1 -p 9471 -U postgres -d troupe \
-    -c "SELECT DISTINCT name FROM rules WHERE name LIKE 'Visit Note Draft — %' ORDER BY name" >> "$RULES"
-  while IFS= read -r name; do
-    [ -z "$name" ] && continue
+  for name in "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
+              "Visit Note Draft" "Weekly Visit Prep"; do
     out=$(uv run python main.py rule-add --name "$name" --by Director --owner Director)
     ver=$(printf '%s' "$out" | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p')
-    if [ -z "$ver" ]; then echo "  $name: $out" >&2; rm -f "$RULES"; exit 1; fi
+    if [ -z "$ver" ]; then echo "  $name: $out" >&2; exit 1; fi
     uv run python main.py rule-activate --name "$name" --version "$ver" --by Director >/dev/null
     echo "  $name → v$ver (owner Director)"
-  done < "$RULES"
-  rm -f "$RULES"
+  done
 fi
 
 say "代役を登記簿から外す（署名済みの記録は残る——歴史は消さない）"

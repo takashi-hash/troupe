@@ -23,6 +23,7 @@ from domain.value_objects.job.assessment import Assessment
 from domain.value_objects.job.job_id import JobId
 from domain.value_objects.job.today_material import TodayMaterial
 from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.source import Source
 
 
 def _assignee_name(state: object) -> str | None:
@@ -66,13 +67,13 @@ class SqliteOrigins:
 
 
 class SqliteActiveRules:
-    """`ActiveRuleReader` — 有効な版の（識別子・番号・周期）。"""
+    """`ActiveRuleReader` — 有効な版の（識別子・番号・周期・源）。"""
 
     def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
-    def read_all(self) -> tuple[tuple[RuleName, int, Cycle], ...]:
-        out: list[tuple[RuleName, int, Cycle]] = []
+    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source], ...]:
+        out: list[tuple[RuleName, int, Cycle, Source]] = []
         for (body,) in self._conn.execute("SELECT body FROM rules").fetchall():
             rule = json.loads(body)
             active = rule.get("active")
@@ -80,7 +81,12 @@ class SqliteActiveRules:
                 continue
             version = next(v for v in rule["versions"] if v["number"] == active)
             out.append(
-                (RuleName(text=rule["name"]["text"]), int(active), Cycle(version["cycle"]))
+                (
+                    RuleName(text=rule["name"]["text"]),
+                    int(active),
+                    Cycle(version["cycle"]),
+                    Source(location=version["source"]["location"]),
+                )
             )
         return tuple(out)
 
@@ -233,6 +239,7 @@ class SqliteToday:
             period=job.period,
             request_head=request_head,
             instruction=job.instruction,
+            source=job.source,
             state_name=type(state).__name__,
             due=job.due,
             assignee_name=_assignee_name(state),

@@ -85,9 +85,13 @@ _様式 = """<style>
 
 
 def _参照名(r: TodayRow) -> tuple[str, str, str | None]:
-    """（種類バッジ, 人間参照名, 患者記号）——UUIDの代わりに人が呼べる名。"""
-    if r.rule and r.rule.startswith("Visit Note Draft"):
-        code = r.rule.rsplit("— ", 1)[-1].strip()
+    """（種類バッジ, 人間参照名, 患者記号）——UUIDの代わりに人が呼べる名。
+
+    どの患者かは源の在りかが知っている（`db:chart/<患者記号>`）——
+    配達（deliver_drafts）と同じ読みかた。ルール名から切り出さない。
+    """
+    if r.rule and r.source.startswith("db:chart/"):
+        code = r.source.removeprefix("db:chart/").strip()
         return "Visit note", f"{code} · Visit note · {r.period or ''}".strip(), code
     if r.rule:
         return "Report", f"{r.rule} · {r.period or ''}".strip(), None

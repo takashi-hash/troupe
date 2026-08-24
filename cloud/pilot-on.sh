@@ -35,24 +35,14 @@ export ICHIZA_LEDGER_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/troupe"
 export ICHIZA_EMR_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/emr"
 
 say "受け持ち＝Sim-Director の版を積んで有効化"
-# 下書きルールは帳簿から列挙する——患者が増えても、ここに名前を足し忘れて
-# 審査の輪から黙って落ちる事故を断つ(Billing Integrity Check と Monthly Claim Draft
-# は座長預かりのまま——列挙に入れない)
-export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-RULES=$(mktemp)
-printf '%s\n' "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
-               "Weekly Visit Prep" > "$RULES"
-PGPASSWORD=$PW psql -t -A -h 127.0.0.1 -p 9471 -U postgres -d troupe \
-  -c "SELECT DISTINCT name FROM rules WHERE name LIKE 'Visit Note Draft — %' ORDER BY name" >> "$RULES"
-while IFS= read -r name; do
-  [ -z "$name" ] && continue
+for name in "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
+            "Visit Note Draft" "Weekly Visit Prep"; do
   out=$(uv run python main.py rule-add --name "$name" --by Director --owner Sim-Director)
   ver=$(printf '%s' "$out" | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p')
-  if [ -z "$ver" ]; then echo "  $name: $out" >&2; rm -f "$RULES"; exit 1; fi
+  if [ -z "$ver" ]; then echo "  $name: $out" >&2; exit 1; fi
   uv run python main.py rule-activate --name "$name" --version "$ver" --by Director >/dev/null
   echo "  $name → v$ver (owner Sim-Director)"
-done < "$RULES"
-rm -f "$RULES"
+done
 
 say "代役を登記簿へ（座長の役＋医師の名簿——署名は 'signed by Sim-Director' と正直に残る）"
 PGPASSWORD=$PW "$SDK_BIN/../bin/psql" -q -h 127.0.0.1 -p 9471 -U postgres -d emr 2>/dev/null || true

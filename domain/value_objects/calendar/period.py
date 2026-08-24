@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Final, Self
 
 from pydantic import model_validator
@@ -45,6 +45,14 @@ class Period(Value):
             iso = now.isocalendar()
             return cls(text=f"{iso.year}-W{iso.week:02d}")
         return cls(text=f"{now.year}-{now.month:02d}")
+
+    def covers(self, day: str) -> bool:
+        """その日（ISO の日付の文字）がこの期間に入るか。読めない日付は入らない。"""
+        try:
+            d = date.fromisoformat(day.strip())
+        except ValueError:
+            return False
+        return Period.of(datetime(d.year, d.month, d.day), self.cycle).text == self.text
 
     @model_validator(mode="after")
     def _obligations(self) -> Self:

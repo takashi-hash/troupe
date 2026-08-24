@@ -29,8 +29,11 @@ from pydantic import model_validator
 from domain.value_objects.calendar.period import Period
 from domain.obligations import Value
 
-#: 版に書ける穴 — 写すときに `Period` で開く。**穴はこれ1つだけ。**
+#: 版に書ける穴 — 写すときに `Period` で開く。
 PERIOD_PLACEHOLDER: Final = "{対象期間}"
+
+#: 患者ごとに展開する版だけが書ける穴 — 写すときに患者記号で開く（筋道 §1 `create`）。
+PATIENT_PLACEHOLDER: Final = "{患者}"
 
 
 class AcceptanceCriteria(Value):
@@ -50,12 +53,15 @@ class AcceptanceCriteria(Value):
         """
         return not any("{" in term for term in self.required_terms)
 
-    def expand(self, period: Period) -> AcceptanceCriteria:
-        """`{対象期間}` を対象期間で開く。**版から写すときに1度だけ通る。**"""
+    def expand(self, period: Period, patient: str | None = None) -> AcceptanceCriteria:
+        """`{対象期間}`（と、あれば `{患者}`）を開く。**版から写すときに1度だけ通る。**"""
+
+        def 開く(term: str) -> str:
+            term = term.replace(PERIOD_PLACEHOLDER, period.text)
+            return term.replace(PATIENT_PLACEHOLDER, patient) if patient is not None else term
+
         return AcceptanceCriteria(
-            required_terms=tuple(
-                term.replace(PERIOD_PLACEHOLDER, period.text) for term in self.required_terms
-            ),
+            required_terms=tuple(開く(term) for term in self.required_terms),
             description=self.description,
         )
 

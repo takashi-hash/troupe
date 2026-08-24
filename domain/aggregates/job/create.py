@@ -33,11 +33,15 @@ def create(
     period: Period,
     copied: Copied,
     now: datetime,
+    patient: str | None = None,
 ) -> tuple[Job[Created], JobCreated]:
-    """仕事を生む。返るのは（作られた仕事, 仕事が作られた）の対——I1 が型になる。"""
+    """仕事を生む。返るのは（作られた仕事, 仕事が作られた）の対——I1 が型になる。
+
+    患者ごとに展開する版（源に穴を持つ）は患者記号が鍵に入る——束の源は開かれて届く。
+    """
     job = Job[Created](
         id=id,
-        origin=Origin.from_rule(rule, version, period),
+        origin=Origin.from_rule(rule, version, period, patient),
         born_of=rule,
         born_version=version,
         period=period,

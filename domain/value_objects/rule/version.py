@@ -65,18 +65,23 @@ class Version(Value):
     #: やり直しの上限 — 0以上。0なら一度もやり直さない。
     max_retries: int
 
-    def copy_for(self, period: Period | None) -> Copied:
-        """写すものの束を返す。**そのとき受け入れ基準の `{対象期間}` を開く。**
+    def copy_for(self, period: Period | None, patient: str | None = None) -> Copied:
+        """写すものの束を返す。**そのとき穴を開く**——受け入れ基準の `{対象期間}`・`{患者}` と、源の `{患者}`。
 
         対象期間が無い（依頼発）なら開かない——開く相手が居ない。
+        源に穴が残るのに患者が無ければ止まる——穴の開いていない源は読みに行けない。
         """
+        if self.source.has_hole and patient is None:
+            raise ValueError(
+                "源に患者の穴が残っています。穴を持つ版は患者ごとに展開されます（筋道 §1 create）"
+            )
         return Copied(
             instruction=self.instruction,
-            criteria=self.criteria.expand(period) if period is not None else self.criteria,
+            criteria=self.criteria.expand(period, patient) if period is not None else self.criteria,
             cycle=self.cycle,
             owner=self.owner,
             budget=self.budget,
-            source=self.source,
+            source=self.source.open_for(patient) if patient is not None else self.source,
             max_retries=self.max_retries,
             days=self.days,
         )

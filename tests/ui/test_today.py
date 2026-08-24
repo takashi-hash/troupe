@@ -24,6 +24,7 @@ def _row(**over: object) -> TodayRow:
         period="2026-W34",
         request_head=None,
         instruction="依存の一覧を突き合わせる",
+        source="file:pyproject.toml",
         state_name="答え待ち",
         due="2026-08-25 08:06",
         assignee_name="一号",

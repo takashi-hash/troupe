@@ -76,3 +76,17 @@ def test_依頼の識別子が違えば鍵も違う() -> None:
 def test_依頼発と業務ルール発は同じ鍵にならない() -> None:
     ルール発 = Origin.from_rule(月次, 1, 八月)
     assert Origin.from_request(ルール発.key) != ルール発
+
+
+def test_患者ごとに展開する版は患者記号も鍵に入る() -> None:
+    """患者が違えば鍵も違う——同じ週に患者が増えれば追って作られる。"""
+    assert Origin.from_rule(月次, 1, 八月, "P-001").key != Origin.from_rule(月次, 1, 八月).key
+    assert Origin.from_rule(月次, 1, 八月, "P-001").key != Origin.from_rule(月次, 1, 八月, "P-004").key
+    assert Origin.from_rule(月次, 1, 八月, "P-001") == Origin.from_rule(月次, 1, 八月, "P-001")
+
+
+def test_空の患者記号では鍵が作れない() -> None:
+    """`…/` で終わる鍵は患者を名指せない——I3 の鍵が曖昧になる。"""
+    for 患者 in ("", "   "):
+        with pytest.raises(ValueError):
+            Origin.from_rule(月次, 1, 八月, 患者)

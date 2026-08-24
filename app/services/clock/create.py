@@ -1,12 +1,14 @@
 """作る — 時計が始めるもの。
 
 設計: 設計/仕事が回る筋道.md §1「時計が始めるもの」・§2・§3。
-| 作る | `create` | 有効な版といまから、まだ無い仕事を作る | 作成元が一意（I3） |
+| 作る | `create` | 有効な版といまから、まだ無い仕事を作る。**源に `{患者}` の穴を持つ版は、
+対象期間に予定の訪問がある患者ごとに1つ**——写すときに穴を患者記号で開き、
+作成元の鍵に患者が入る | 作成元が一意（I3） |
 
 **誰も呼ばなくても回る。何度回しても同じ結果**——作成元が一意（I3）だから、
 既にある鍵のものは `reconcile` が二度出さない。
 **`reconcile` が対象期間も決める**——業務の判断なので domain に置いてある。
-版は `RuleRepository` から引き、`copy_for(period)` の束を写す——版そのものは渡さない。
+版は `RuleRepository` から引き、`copy_for(period, patient)` の束を写す——版そのものは渡さない。
 識別子は `IdPort` が振る——**立てた者が振る**（採番はファクトリの外）。
 """
 
@@ -16,6 +18,7 @@ from app.ports.active_rule_reader import ActiveRuleReader
 from app.ports.clock_port import ClockPort
 from app.ports.id_port import IdPort
 from app.ports.origin_reader import OriginReader
+from app.ports.scheduled_visit_reader import ScheduledVisitReader
 from domain.aggregates.job import create as 生成
 from domain.repositories.job_repository import JobRepository
 from domain.repositories.rule_repository import RuleRepository
@@ -28,14 +31,15 @@ def create(
     rules: RuleRepository,
     active_rules: ActiveRuleReader,
     origins: OriginReader,
+    visits: ScheduledVisitReader,
     ids: IdPort,
     clock: ClockPort,
 ) -> tuple[JobId, ...]:
     """作るべきをぜんぶ作り、作った識別子を返す。二度目は空になる——何度回しても同じ。"""
     now = clock.now()
     created: list[JobId] = []
-    for rule_name, version_number, period in reconcile(
-        active_rules.read_all(), origins.keys(), now
+    for rule_name, version_number, period, patient in reconcile(
+        active_rules.read_all(), origins.keys(), visits.read_scheduled(), now
     ):
         rule = rules.load(rule_name)
         if rule is None:
@@ -45,7 +49,8 @@ def create(
             continue  # 同上
         id = JobId(text=ids.new_id())
         job, event = 生成.create(
-            id, rule_name, version_number, period, version.copy_for(period), now
+            id, rule_name, version_number, period,
+            version.copy_for(period, patient), now, patient,
         )
         jobs.save(job, (event,))
         created.append(id)
