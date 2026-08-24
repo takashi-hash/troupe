@@ -14,6 +14,7 @@ from domain.value_objects.people.owner import Owner
 from domain.value_objects.rule.budget import Budget
 from domain.value_objects.rule.instruction import Instruction
 from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.source import Source
 
 いま = datetime(2026, 8, 18, 9, 2, tzinfo=UTC)
 座長 = Human(name="座長")
@@ -31,6 +32,7 @@ def make_material(**over: object) -> TodayMaterial:
         "period": Period(text="2026-W34"),
         "request_head": None,
         "instruction": Instruction(text="依存の一覧を突き合わせる"),
+        "source": Source(location="file:pyproject.toml"),
         "state_name": "AwaitingApproval",
         "due": DueDate.from_start(datetime(2026, 8, 17, 9, 0, tzinfo=UTC), 3),
         "assignee_name": "座長",

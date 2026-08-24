@@ -34,3 +34,14 @@ def test_読んだ中身を持たせられない() -> None:
 def test_写したあと書き換えられない() -> None:
     with pytest.raises(ValidationError):
         Source(location="records/2026-08").location = "records/2026-07"  # type: ignore[misc]
+
+
+def test_患者の穴は開ける_穴の無い源は開いても変わらない() -> None:
+    """筋道 §1 create——穴は写すときに患者記号で開く。"""
+    穴あき = Source(location="db:chart/{患者}")
+    assert 穴あき.has_hole
+    assert 穴あき.open_for("P-004") == Source(location="db:chart/P-004")
+    assert not 穴あき.open_for("P-004").has_hole
+    穴なし = Source(location="db:billing")
+    assert not 穴なし.has_hole
+    assert 穴なし.open_for("P-004") == 穴なし

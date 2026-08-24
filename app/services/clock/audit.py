@@ -12,13 +12,17 @@ from __future__ import annotations
 from app.ports.active_rule_reader import ActiveRuleReader
 from app.ports.clock_port import ClockPort
 from app.ports.origin_reader import OriginReader
+from app.ports.scheduled_visit_reader import ScheduledVisitReader
 from domain.services.reconcile import reconcile
 from domain.value_objects.calendar.period import Period
 from domain.value_objects.rule.rule_name import RuleName
 
 
 def audit(
-    active_rules: ActiveRuleReader, origins: OriginReader, clock: ClockPort
-) -> tuple[tuple[RuleName, int, Period], ...]:
-    """有効なのに仕事の無い（識別子・版・対象期間）の列。空なら I8 は守られている。"""
-    return reconcile(active_rules.read_all(), origins.keys(), clock.now())
+    active_rules: ActiveRuleReader,
+    origins: OriginReader,
+    visits: ScheduledVisitReader,
+    clock: ClockPort,
+) -> tuple[tuple[RuleName, int, Period, str | None], ...]:
+    """有効なのに仕事の無い（識別子・版・対象期間・患者）の列。空なら I8 は守られている。"""
+    return reconcile(active_rules.read_all(), origins.keys(), visits.read_scheduled(), clock.now())

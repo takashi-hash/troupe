@@ -16,6 +16,7 @@ def make_row(**over: object) -> TodayRow:
         "period": "2026-W34",
         "request_head": None,
         "instruction": "依存の一覧を突き合わせる",
+        "source": "file:pyproject.toml",
         "state_name": "AwaitingApproval",
         "due": "2026-08-20T09:00:00+00:00",
         "assignee_name": "座長",

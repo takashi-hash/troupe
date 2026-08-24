@@ -16,6 +16,7 @@ from app.ports.active_rule_reader import ActiveRuleReader
 from app.ports.clock_port import ClockPort
 from app.ports.origin_reader import OriginReader
 from app.ports.rule_reader import RuleReader
+from app.ports.scheduled_visit_reader import ScheduledVisitReader
 from app.ports.today_reader import TodayReader
 from app.services.screen.gather_history import heading
 from domain.aggregates.job.life import STATE_WORDS
@@ -30,16 +31,18 @@ def gather_schedule(
     rules: RuleReader,
     active: ActiveRuleReader,
     origins: OriginReader,
+    visits: ScheduledVisitReader,
     clock: ClockPort,
 ) -> tuple[ScheduleRow, ...]:
     """業務ルールの一覧を予定の行にして返す。読むだけ。"""
     now = clock.now()
-    未作成 = {
-        (name.text, number): period.text
-        for name, number, period in reconcile(active.read_all(), origins.keys(), now)
-    }
+    未作成: dict[tuple[str, int], int] = {}
+    for name, number, _period, _patient in reconcile(
+        active.read_all(), origins.keys(), visits.read_scheduled(), now
+    ):
+        未作成[(name.text, number)] = 未作成.get((name.text, number), 0) + 1
     次の期間: dict[str, str] = {}
-    for name, _number, cycle in active.read_all():
+    for name, _number, cycle, _source in active.read_all():
         次の期間[name.text] = Period.of(now, cycle).text
 
     rows: list[ScheduleRow] = []
@@ -48,8 +51,12 @@ def gather_schedule(
         if line.active_version is not None:
             base = 次の期間.get(line.name)
             if base is not None:
-                済み = (line.name, line.active_version) not in 未作成
-                next_period = base + ("（作られた）" if 済み else "（未作成）")
+                残り = 未作成.get((line.name, line.active_version), 0)
+                next_period = base + (
+                    "（作られた）" if 残り == 0
+                    else "（未作成）" if 残り == 1
+                    else f"（未作成 {残り}件）"
+                )
         actions = rule_allowed(line.active_version)
         rows.append(
             ScheduleRow(

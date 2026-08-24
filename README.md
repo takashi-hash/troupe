@@ -70,7 +70,7 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
 - **Humans agree, the pulse bookkeeps.** A recurring-visit agreement (patient, weekday, cadence, clinician) is a human judgment entered on **Agreements**. Expanding it into dated visits is bookkeeping — the clock plans four weeks ahead, idempotently, under a uniqueness key.
 - **My Day** turns those visits into a route per clinician — a real map, distances, and a printable day sheet. Patient homes are stood in by **public landmarks** (a shrine, a station, a park); no real residence appears anywhere.
 - **The AI reads only signed notes.** Its own unsigned drafts are never its source. Automation can write exactly three things into the EMR: approved drafts into a drafts inbox, agreement-derived visits, and charges derived from signed visits. There is no code path by which automation touches a signed record, rules on a flagged charge, confirms a claim — or creates a patient.
-- **Signing is one transaction.** On the visit screen the doctor edits the AI's draft (S/O/A/P prefilled), picks their name from the roster, and signs. One EMR transaction stores the signed note, marks the visit done, and stamps the used draft — so every record traces back through its draft to the AI job that wrote it. From that moment a **database trigger refuses any edit or delete** of the note.
+- **Signing is one transaction.** On the visit screen the doctor edits the AI's draft (S/O/A/P prefilled) and signs — **the signer is the seat itself** (a clinician's seat on the register; there is no picking another name). One EMR transaction stores the signed note, marks the visit done, and stamps the used draft — so every record traces back through its draft to the AI job that wrote it. From that moment a **database trigger refuses any edit or delete** of the note.
 - **And the loop closes:** next week's draft is written from this week's signed record.
 - **Billing follows the same grammar** (all of it fictional — the "Nagisa Schedule" mirrors the real Japanese fee structure, none of its numbers). What was done at the bedside is entered before signing and frozen by it. The pulse then derives the day's charges from **signed visits only** — visit fees, drug prices converted to points by the real rounding rules, monthly tiers picked from visit counts and shared buildings. Where a count crosses a cap (a 4th visit in a week, an urgent call colliding with a planned one), the machine writes a **0-point flag** — applying the exception, with the reason that goes on the claim, is a human ruling on **Billing**. At month end a human confirms each claim; a database trigger locks it forever, and the (fictional) payer file and patient invoices are views over that confirmed fact.
 
@@ -157,10 +157,10 @@ The five design documents in [`設計/`](設計/) are the source of truth, and t
 
 Edit one row of a table in a design document and the suite goes red. Edit the code without the document and it goes red too. There is no way to let them drift quietly.
 
-On top of that, `tests/break_check.py` removes each of the **66 obligations** in the domain one at a time and asserts the suite goes red for every single one — a check that the safety net is actually attached, not just present.
+On top of that, `tests/break_check.py` removes each of the **68 obligations** in the domain one at a time and asserts the suite goes red for every single one — a check that the safety net is actually attached, not just present.
 
 ```bash
-uv run pytest -q            # 815 tests (12 more run only against a live Postgres)
+uv run pytest -q            # 887 tests (21 more run only against a live Postgres)
 uv run pyright              # domain and app are strict
 uv run lint-imports         # 6 dependency contracts
 uv run python tests/break_check.py

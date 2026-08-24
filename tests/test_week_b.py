@@ -69,6 +69,13 @@ class 進む時計:
         return self.at
 
 
+class 予定なし:
+    """予定の訪問が無い ScheduledVisitReader——この週の筋書きに展開の版は出ない。"""
+
+    def read_scheduled(self) -> tuple[tuple[str, str], ...]:
+        return ()
+
+
 class 連番:
     def __init__(self) -> None:
         self.n = 0
@@ -149,7 +156,7 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:00 作られる → 配られる → AI が取る
     時計.set(時(17, 9, 0))
-    made = create(jobs, rules, active, origins, 連番(), 時計)
+    made = create(jobs, rules, active, origins, 予定なし(), 連番(), 時計)
     assert len(made) == 1
     id = made[0]
     assert hand_out(jobs, states, 時計) == (id,)

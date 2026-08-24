@@ -36,8 +36,7 @@ export ICHIZA_EMR_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/emr"
 
 say "受け持ち＝Sim-Director の版を積んで有効化"
 for name in "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
-            "Visit Note Draft — P-001" "Visit Note Draft — P-003" "Visit Note Draft — P-005" \
-            "Weekly Visit Prep"; do
+            "Visit Note Draft" "Weekly Visit Prep"; do
   out=$(uv run python main.py rule-add --name "$name" --by Director --owner Sim-Director)
   ver=$(printf '%s' "$out" | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p')
   if [ -z "$ver" ]; then echo "  $name: $out" >&2; exit 1; fi

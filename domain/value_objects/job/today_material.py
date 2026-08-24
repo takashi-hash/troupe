@@ -21,6 +21,7 @@ from domain.value_objects.people.owner import Owner
 from domain.value_objects.rule.budget import Budget
 from domain.value_objects.rule.instruction import Instruction
 from domain.value_objects.rule.rule_name import RuleName
+from domain.value_objects.rule.source import Source
 
 
 class TodayMaterial(Value):
@@ -41,6 +42,9 @@ class TodayMaterial(Value):
 
     #: やること — 生まれたとき写したもの（依頼発は依頼の中身）。
     instruction: Instruction
+
+    #: 源 — カルテの仕事はここから患者が読める。
+    source: Source
 
     #: 状態の名。
     state_name: str

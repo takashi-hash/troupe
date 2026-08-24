@@ -71,3 +71,20 @@ def test_開かれていない束からは作れない() -> None:
     束 = make_copied(criteria=AcceptanceCriteria(required_terms=("{対象期間}",)))
     with pytest.raises(ValidationError, match="開かれていない"):
         create(JobId(text="J-0001"), 規則, 1, 期間, 束, いま)
+
+
+def test_患者が変われば作成元も変わる() -> None:
+    """患者ごとに展開する版——同じ週に患者が増えれば、その患者の分だけ追って作られる。"""
+    甲, _ = create(JobId(text="J-0001"), 規則, 1, 期間, make_copied(), いま, "P-001")
+    乙, _ = create(JobId(text="J-0002"), 規則, 1, 期間, make_copied(), いま, "P-004")
+    丙, _ = create(JobId(text="J-0003"), 規則, 1, 期間, make_copied(), いま)
+    assert len({甲.origin, 乙.origin, 丙.origin}) == 3
+
+
+def test_穴の開いていない源を持つ仕事は作れない() -> None:
+    """仕事とは何か §3 Source の壊しかた——穴は写すときに開かれてから届く。"""
+    from domain.value_objects.rule.source import Source
+
+    束 = make_copied(source=Source(location="db:chart/{患者}"))
+    with pytest.raises(ValidationError):
+        create(JobId(text="J-0001"), 規則, 1, 期間, 束, いま, "P-001")

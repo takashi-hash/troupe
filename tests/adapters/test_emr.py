@@ -392,3 +392,19 @@ def test_裁きは旗の行にだけ() -> None:
 
     なぜ = EmrClaims(_dsn()).resolve("999999", "drop", "", "Director")
     assert なぜ is not None and "not waiting" in なぜ
+
+
+def test_予定の訪問が文字のまま読める() -> None:
+    """`ScheduledVisitReader` の実装——穴あきの版の展開の材料。読むだけ。"""
+    from adapters.emr import PostgresScheduledVisits
+
+    rows = PostgresScheduledVisits(_dsn()).read_scheduled()
+    assert rows, "種の入った診療録に予定の訪問が1件も無い"
+    患者, 日 = rows[0]
+    assert 患者.startswith("P-") and len(日) == 10  # ISO の日付の文字
+
+
+def test_予定の訪問はEMRが無ければ空() -> None:
+    from adapters.emr import PostgresScheduledVisits
+
+    assert PostgresScheduledVisits(None).read_scheduled() == ()

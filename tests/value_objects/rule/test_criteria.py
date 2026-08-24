@@ -73,3 +73,16 @@ def test_開いても元の受け入れ基準は変わらない() -> None:
     基準.expand(Period(text="2026-08"))
     assert 基準.required_terms == ("{対象期間} の請求書",)
     assert not 基準.opened
+
+
+def test_患者の穴も開く() -> None:
+    """筋道 §1 create——患者ごとに展開する版の基準は `{患者}` を書ける。"""
+    基準 = AcceptanceCriteria(required_terms=("{対象期間}", "{患者}"))
+    開いた = 基準.expand(Period(text="2026-W35"), "P-004")
+    assert 開いた.required_terms == ("2026-W35", "P-004")
+    assert 開いた.opened
+
+
+def test_患者を渡さなければ患者の穴は開かない() -> None:
+    基準 = AcceptanceCriteria(required_terms=("{患者}",))
+    assert not 基準.expand(Period(text="2026-W35")).opened

@@ -18,6 +18,7 @@ def test_欄は今日の行から押せることを除いたもの() -> None:
         "period",
         "request_head",
         "instruction",
+        "source",
         "state_name",
         "due",
         "assignee_name",

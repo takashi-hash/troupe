@@ -1159,3 +1159,34 @@ class PostgresStaff:
             return ()
         finally:
             conn.close()
+
+
+class PostgresScheduledVisits:
+    """予定の訪問の読み — `ScheduledVisitReader` の実装。読むだけ。
+
+    穴あきの源を持つ版の展開の材料（筋道 §1 `create`）。期間内かは `reconcile` が判じる
+    ので、ここは**予定のままの訪問を文字のまま**写すだけ。読めなければ空——
+    予定が見えない朝に、展開だけが走ることはない。
+    """
+
+    def __init__(self, dsn: str | None, connect: Any = None) -> None:
+        self._dsn = dsn
+        self._connect = connect
+
+    def read_scheduled(self) -> tuple[tuple[str, str], ...]:
+        if self._dsn is None:
+            return ()
+        try:
+            conn = _connect(self._dsn, self._connect)
+        except Exception:
+            return ()
+        try:
+            rows = conn.execute(
+                "SELECT patient, visit_date FROM visits WHERE status = 'scheduled'"
+                " ORDER BY visit_date, patient"
+            ).fetchall()
+            return tuple((str(p), str(d)) for p, d in rows)
+        except Exception:
+            return ()
+        finally:
+            conn.close()

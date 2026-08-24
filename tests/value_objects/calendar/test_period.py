@@ -78,3 +78,26 @@ def test_一桁の週と月は0で埋まる() -> None:
 def test_年始の週はISOの年に従う() -> None:
     """2027-01-01 は暦の年が変わっても、ISO では 2026 年の第53週。"""
     assert Period.of(datetime(2027, 1, 1, tzinfo=UTC), Cycle.WEEKLY) == Period(text="2026-W53")
+
+
+def test_週の期間はその週の日だけを含む() -> None:
+    週 = Period(text="2026-W34")  # 2026-08-17(月)〜2026-08-23(日)
+    assert 週.covers("2026-08-17") and 週.covers("2026-08-23")
+    assert not 週.covers("2026-08-16") and not 週.covers("2026-08-24")
+
+
+def test_月の期間はその月の日だけを含む() -> None:
+    月 = Period(text="2026-08")
+    assert 月.covers("2026-08-01") and 月.covers("2026-08-31")
+    assert not 月.covers("2026-07-31") and not 月.covers("2026-09-01")
+
+
+def test_年始の日は前年のISO週に含まれる() -> None:
+    """2027-01-01(金) は 2026-W53 に属する——年の数字で切ると週の頭が落ちる。"""
+    assert Period(text="2026-W53").covers("2027-01-01")
+    assert not Period(text="2027-W01").covers("2027-01-01")
+
+
+def test_読めない日付はどの期間にも含まれない() -> None:
+    assert not Period(text="2026-08").covers("いつか")
+    assert not Period(text="2026-W34").covers("")

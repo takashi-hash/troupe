@@ -32,9 +32,20 @@ class Origin(Value):
         return cls(key=f"request:{request_id}")
 
     @classmethod
-    def from_rule(cls, rule_name: RuleName, version_number: int, period: Period) -> Self:
-        """業務ルール発 — 業務ルールの識別子＋版の番号＋対象期間から。"""
-        return cls(key=f"rule:{rule_name.text}/v{version_number}/{period.text}")
+    def from_rule(
+        cls, rule_name: RuleName, version_number: int, period: Period,
+        patient: str | None = None,
+    ) -> Self:
+        """業務ルール発 — 業務ルールの識別子＋版の番号＋対象期間から。
+
+        患者ごとに展開する版（源に穴を持つ）は患者記号も鍵に入る——
+        同じ週に患者が増えれば、その患者の分だけ追って作られる。
+        """
+        key = f"rule:{rule_name.text}/v{version_number}/{period.text}"
+        if patient is None:
+            return cls(key=key)
+        not_blank(patient, "患者記号")
+        return cls(key=f"{key}/{patient}")
 
     @model_validator(mode="after")
     def _obligations(self) -> Self:

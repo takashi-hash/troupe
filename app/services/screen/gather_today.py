@@ -60,6 +60,7 @@ def _to_row(material: TodayMaterial, actions: tuple[str, ...]) -> TodayRow:
         period=material.period.text if material.period is not None else None,
         request_head=material.request_head,
         instruction=material.instruction.text,
+        source=material.source.location,
         state_name=_状態の語[material.state_name],
         due=_日時(material.due.at.isoformat()),
         assignee_name=material.assignee_name,
