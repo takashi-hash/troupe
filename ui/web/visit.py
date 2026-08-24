@@ -11,13 +11,17 @@ import re as _re
 
 def _soap分解(body: str) -> dict[str, str] | None:
     """下書きから S/O/A/P を最善努力で切り出す。切れなければ None——発明しない。"""
-    # 尻は「空白・米印・コロン」の混在を許す——LLM は `**S (Subjective):**` のように
-    # コロンを太字の内側に置くことがある(Gemini の実物で確認)
+    # LLM の見出しは揺れる(Gemini の実物で確認): `**S (Subjective):**`(コロンが太字の
+    # 内側)も `**Subjective**`(頭文字なしの全語)も来る。頭文字か全語のどちらかを取り、
+    # 尻は「空白・米印・コロン」の混在を許す
     見出し = _re.compile(
-        r"^\s*(?:#+\s*)?\**\(?(S|O|A|P)\)?\**\s*(?:\(Subjective\)|\(Objective\)|\(Assessment\)|\(Plan\))?[*:：\s]*$",
+        r"^\s*(?:#+\s*)?\**"
+        r"(?:\(?(S|O|A|P)\)?\**\s*(?:\(Subjective\)|\(Objective\)|\(Assessment\)|\(Plan\))?"
+        r"|(Subjective|Objective|Assessment|Plan)(?:\s*\((?:S|O|A|P)\))?)"
+        r"[*:：\s]*$",
         _re.M,
     )
-    切れ目 = [(m.group(1), m.end()) for m in 見出し.finditer(body)]
+    切れ目 = [((m.group(1) or m.group(2)[0]), m.end()) for m in 見出し.finditer(body)]
     if [k for k, _ in 切れ目] != ["S", "O", "A", "P"]:
         return None
     out: dict[str, str] = {}

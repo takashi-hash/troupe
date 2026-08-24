@@ -30,3 +30,30 @@ def test_素朴な見出しでも割れる() -> None:
 
 def test_切れなければ発明しない() -> None:
     assert _soap分解("just a paragraph with no headings") is None
+
+
+def test_全語だけの太字見出しでも割れる() -> None:
+    """Gemini の実物その2: `**Subjective**` — 頭文字なしの全語。"""
+    body = (
+        "Patient Code: P-011\n\n"
+        "**Subjective**\nCalm week, log kept.\n\n"
+        "**Objective**\n- SpO2 at rest: [ ] %\n"
+        "- **Oxygen Saturation (SpO2):** decoy line that must not split\n\n"
+        "**Assessment**\nBack to baseline 93%.\n\n"
+        "**Plan**\n- Verify the log.\n"
+    )
+    out = _soap分解(body)
+    assert out is not None
+    assert "Calm week" in out["s"]
+    assert "decoy line" in out["o"]      # 本文中の太字は切れ目にならない
+    assert "93%" in out["a"]
+    assert "Verify the log" in out["p"]
+
+
+def test_全語と括弧の頭文字でも割れる() -> None:
+    """Gemini の実物その3: `**Subjective (S):**` — 全語が先・頭文字が括弧。"""
+    out = _soap分解(
+        "**Subjective (S):**\nfeels well\n**Objective (O):**\nSpO2 93%\n"
+        "**Assessment (A):**\nstable\n**Plan (P):**\ncontinue"
+    )
+    assert out is not None and out["o"] == "SpO2 93%"
