@@ -20,7 +20,7 @@ AI が仕事を回し、**判断は人間**が持つ仕事場——舞台は在�
 
 | 柱 | 前 | 今 |
 |---|---|---|
-| 頭脳 | Ollama `gpt-oss:20b`（手元の Mac） | **Gemini 3.5 Flash**（Vertex AI） |
+| 頭脳 | Ollama **Gemma 3 12B**（手元の Mac） | **Gemini 3.5 Flash**（Vertex AI） |
 | 帳簿 | SQLite のファイル | **Cloud SQL for PostgreSQL** |
 | 常駐 | macOS launchd | **Cloud Run Jobs + Cloud Scheduler** |
 | 窓 | PySide6 のデスクトップ | **Cloud Run サービス**（上の URL） |

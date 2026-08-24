@@ -14,7 +14,7 @@
     <string>python</string>
     <string>__ROOT__/main.py</string>
     <string>--model</string>
-    <string>gpt-oss:20b</string>
+    <string>gemma3:12b</string>
     <string>agent</string>
     <string>--name</string>
     <string>一号</string>

@@ -189,7 +189,7 @@ class Ichiza:
 
 
 #: LLM の道具の既定のモデル。**どちらも同じ口**——選ぶのはここだけ。
-_MODELS = {"ollama": "gpt-oss:20b", "gemini": "gemini-3.5-flash"}
+_MODELS = {"ollama": "gemma3:12b", "gemini": "gemini-3.5-flash"}
 
 
 def _llm(kind: str, model: str | None) -> LlmPort:

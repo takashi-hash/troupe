@@ -45,7 +45,7 @@ Every one of those steps is an event appended to a ledger. Nothing is overwritte
 
 | pillar | was | is now |
 |---|---|---|
-| the model | Ollama `gpt-oss:20b`, on a laptop | **Gemini 3.5 Flash** via Vertex AI |
+| the model | Ollama **Gemma 3 12B**, on a laptop | **Gemini 3.5 Flash** via Vertex AI |
 | the ledger | SQLite file | **Cloud SQL for PostgreSQL** |
 | the residency | macOS `launchd` | **Cloud Run Jobs + Cloud Scheduler** |
 | the window | a PySide6 desktop app | **Cloud Run service** (the hosted URL) |
