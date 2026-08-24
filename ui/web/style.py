@@ -463,6 +463,41 @@ tbody tr:hover { background: var(--faint); }
 }
 .loop-stage--you { border-color: color-mix(in srgb, var(--warn) 55%, #fff); }
 .loop-stage--you .loop-stage__n { color: var(--warn); }
+/* 中身のある段は生きて見える——AI段は青の忙し色、You段は琥珀の鼓動(数が0なら静か) */
+.loop-stage__pip { display: none; width: 7px; height: 7px; border-radius: 50%;
+  flex: none; margin-right: 6px; vertical-align: 1px; }
+.loop-stage__sub { display: flex; align-items: center; }
+.loop-stage.is-busy .loop-stage__pip { display: inline-block;
+  animation: working-blink 1.4s ease-in-out infinite; }
+.loop-stage--ai.is-busy { border-color: var(--info);
+  background: color-mix(in srgb, var(--info) 5%, #fff); }
+.loop-stage--ai.is-busy .loop-stage__sub { color: var(--info); }
+.loop-stage--ai .loop-stage__pip { background: var(--info); }
+.loop-stage[data-stage='clock'] .loop-stage__pip { background: var(--line-hard); }
+.loop-stage[data-stage='check'] .loop-stage__pip { background: var(--line-hard); }
+.loop-stage--you .loop-stage__pip { background: var(--warn); }
+.loop-stage--you.is-busy { animation: you-beat 3.2s ease-out infinite; }
+@keyframes you-beat {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warn) 38%, transparent); }
+  55% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+/* 数の脈 — 値が変わった瞬間だけ、その数字が一拍うつ(描画と連動しない鳴動は置かない) */
+.tick { animation: num-tick .7s ease-out 1; }
+@keyframes num-tick {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.22); color: var(--info); }
+  100% { transform: none; }
+}
+[data-now] { display: inline-block; }
+
+/* つなぎ線を流れる点——前の段に中身があるあいだだけ */
+.loop-link { position: relative; }
+.loop-link.has-flow::after {
+  content: ''; position: absolute; top: -4.5px; left: 3px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--info);
+  animation: working-blink 1.2s ease-in-out infinite;
+}
 .loop-stage.is-lit { animation: stage-lit 1.6s ease-out 1; }
 @keyframes stage-lit {
   0% { border-color: var(--beat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--beat) 35%, transparent); }
@@ -473,7 +508,9 @@ tbody tr:hover { background: var(--faint); }
   margin: 10px 0 0; padding: 10px 14px; font-size: 13.5px; max-width: 76ch;
   background: var(--tint); border: 1px solid var(--line); border-radius: var(--r-sm);
 }
-.now-cols { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 26px; margin-top: 24px; }
+.now-cols { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 26px; margin-top: 18px; }
+#now-feed { max-height: 340px; overflow-y: auto; overscroll-behavior: contain; }
+#now-working { max-height: 340px; overflow-y: auto; }
 .now-col__head {
   font-size: 11px; font-weight: 650; letter-spacing: .14em; text-transform: uppercase;
   color: var(--muted-strong); border-bottom: 1px solid var(--ink);
@@ -518,6 +555,16 @@ tbody tr:hover { background: var(--faint); }
   .now-cols { display: block; }
   .now-col { margin-bottom: 22px; }
 }
+
+/* 裾の細字(/now) — 旧 /how の残りが静かに住む。読み物であって叫ばない */
+.now-fine {
+  margin-top: 22px; padding-top: 6px; border-top: 1px solid var(--line);
+}
+.now-fine summary { font-size: 12.5px; color: var(--muted); cursor: pointer; padding: 6px 0; }
+.now-fine summary:hover { color: var(--ink); }
+.now-fine p { font-size: 12.5px; line-height: 1.65; color: var(--muted);
+  max-width: 88ch; margin: 0 0 8px; }
+.now-fine strong { color: var(--muted-strong); }
 
 /* 節の札 — 原稿の署名要素: 小さな大文字+インクの下線(PREFILLED FROM A DRAFT の型) */
 .sec-label {

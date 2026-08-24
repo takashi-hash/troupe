@@ -40,7 +40,6 @@ def _頁(
         + _tab("billing", None, None, 旗札)
         + _tab("automations")
         + _tab("ledger", "/activity")
-        + _tab("how", None, "How Troupe works")
     )
     警告 = f'<div class="refusal">{escape(断り)}</div>' if 断り else ""
     開示 = f"<div class='notice-bar'>{escape(notice)}</div>" if notice else ""
@@ -84,7 +83,7 @@ def _頁(
 
 
 def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
-    """棚の最下段——いまの席と、座り替え。**席は名乗りであって認証ではない**(/how に明示)。"""
+    """棚の最下段——いまの席と、座り替え。**席は名乗りであって認証ではない**(席札の title に明示)。"""
     役 = next((s.role for s in 席たち if s.name == 席), None)
     役の名 = {"director": "director", "clinician": "clinician"}.get(役 or "", "unregistered")
     if not 席たち:
@@ -96,7 +95,7 @@ def _席の札(席: str, 席たち: tuple[StaffRow, ...]) -> str:
     )
     return (
         "<span class='whoami' title='A seat is a name, not a login — powers come"
-        " from the register (see /how)'>"
+        " from the register'>"
         "<form class='seat-form' method='post' action='/seat'>"
         f"<select name='seat' onchange='this.form.submit()' aria-label='Seat'>{選び}</select>"
         "<button class='btn btn--small'>Switch</button></form>"
@@ -220,7 +219,11 @@ def _押せること(押せる: tuple[str, ...], job_id: str, 戻り: str) -> st
             f"<input type='hidden' name='what' value='{escape(what)}'>"
             f"<input type='hidden' name='id' value='{escape(job_id)}'>"
             f"<input type='hidden' name='back' value='{escape(戻り)}'>"
-            f"{書く}<button class='{階層.get(what, 'btn')}'{確認}>{escape(名)}</button></form>"
+            f"{書く}<button class='{階層.get(what, 'btn')}'"
+            + (" title='One of only four solid buttons in the product — "
+               "the heaviest human judgments.'"
+               if 階層.get(what, "").endswith("--primary") else "")
+            + f"{確認}>{escape(名)}</button></form>"
         )
     return "".join(out)
 

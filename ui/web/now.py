@@ -43,10 +43,13 @@ def _帯の行(r: HistoryRow) -> str:
 
 
 def _段(鍵: str, 名: str, 副: str, 数: int, 数の印: str, 帯色: str = "") -> str:
+    # 中身のある段は生きて見える(busy)——数が0なら静か。嘘の点滅はしない
+    busy = " is-busy" if 数 else ""
     return (
-        f"<button type='button' class='loop-stage{帯色}' data-stage='{鍵}'>"
+        f"<button type='button' class='loop-stage{帯色}{busy}' data-stage='{鍵}'>"
         f"<span class='loop-stage__name'>{escape(名)}</span>"
-        f"<span class='loop-stage__sub'>{escape(副)}</span>"
+        f"<span class='loop-stage__sub'><span class='loop-stage__pip'></span>"
+        f"{escape(副)}</span>"
         f"<span class='loop-stage__n num' data-now='{数の印}'>{数}</span></button>"
     )
 
@@ -73,11 +76,13 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
         # ---- 環(ヒーロー) — /how §01 の図が生きた数で動く ----
         "<section class='loop' aria-label='The loop, live'>"
         + _段("clock", "The clock", "creates & hands out", v.queued, "queued")
-        + "<span class='loop-link' aria-hidden='true'></span>"
-        + _段("ai", "The AI — Nomi", "reads the source · asks Gemini", len(v.working), "working")
-        + "<span class='loop-link' aria-hidden='true'></span>"
+        + f"<span class='loop-link{' has-flow' if v.queued else ''}' data-link='queued' aria-hidden='true'></span>"
+        + _段("ai", "The AI — Nomi",
+              "consulting Gemini…" if v.working else "reads the source · asks Gemini",
+              len(v.working), "working", " loop-stage--ai")
+        + f"<span class='loop-link{' has-flow' if v.working else ''}' data-link='working' aria-hidden='true'></span>"
         + _段("check", "The machine check", "evidence quoted? terms present?", v.checking, "checking")
-        + "<span class='loop-link' aria-hidden='true'></span>"
+        + f"<span class='loop-link{' has-flow' if v.checking else ''}' data-link='checking' aria-hidden='true'></span>"
         + _段("you", "You", "approve · answer · sign", v.waiting, "waiting", " loop-stage--you")
         + "</section>"
         "<p class='loop-note' id='stage-note' hidden></p>"
@@ -88,7 +93,9 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
         f"<div id='now-working'>{作業中}</div></section>"
         "<section class='now-col now-col--feed'><h3 class='now-col__head'>Live ledger</h3>"
         f"<div id='now-feed'>{''.join(_帯の行(r) for r in 帯)}</div>"
-        "<p class='sub'><a href='/activity'>Full ledger →</a></p></section>"
+        "<p class='sub'>Nothing is overwritten — the ledger can always answer "
+        "\"what happened, and who decided it.\" <a href='/activity'>Full ledger →</a></p>"
+        "</section>"
         "<section class='now-col'><h3 class='now-col__head'>Waiting for you</h3>"
         f"<div class='now-waiting{' now-waiting--some' if v.waiting else ''}'>"
         f"<span class='now-waiting__n num' data-now='waiting2'>{v.waiting}</span>"
@@ -96,6 +103,29 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
         "<p class='sub'><a href='/inbox'>Open the inbox →</a> — approving, answering and "
         "signing never leave a human's hands.</p></section>"
         "</div>"
+
+        # ---- 裾の細字 — 旧 /how の残り。畳んで置く(開けば全文・頁は一枚に収まる) ----
+        "<footer class='now-fine'><details class='fold'>"
+        "<summary>The fine print — what the AI cannot do · the color grammar · "
+        "where this runs</summary>"
+        "<p>By construction, not by policy: the AI cannot approve its own work — no code "
+        "path exists from the agent to approval. It cannot sign a medical record, or touch "
+        "one that is signed. It reads only <em>signed</em> notes — its own unsigned drafts "
+        "are never its source. Its word is never evidence — a result must quote the source, "
+        "or the clock sends it back. It stops at its budget. The "
+        "<a href='/guide'>guide</a> holds no writing tools at all — it can point at a page, "
+        "and nothing else.</p>"
+        "<p>Only four buttons in the whole product are ever filled solid — "
+        "<strong>Sign</strong>, <strong>Approve</strong>, <strong>Reply</strong>, "
+        "<strong>Confirm</strong> — the heaviest human judgments. Green means signed or "
+        "passed, amber means a human is needed, red is destructive or expired, blue is "
+        "information, gray is inert.</p>"
+        "<p>Cloud Scheduler fires two Cloud Run Jobs every 60 seconds; this window is a "
+        "Cloud Run service; the ledger and the synthetic EMR are Cloud SQL for PostgreSQL; "
+        "the model is Gemini via Vertex AI, reached with the workload's own identity — "
+        "no API key exists anywhere. Every patient, address and clinician is invented; "
+        "patient homes are stood in by public landmarks.</p>"
+        "</details></footer>"
 
         # ---- 器のJS: 段の説明・SSEの反映(語は全部サーバーから届く) ----
         f"<script>(function () {{"
@@ -105,26 +135,43 @@ var note = document.getElementById('stage-note');
 document.querySelectorAll('.loop-stage').forEach(function (b) {
   b.addEventListener('click', function () {
     var t = TEXTS[b.dataset.stage];
-    note.innerHTML = '<strong>' + t.name + '.</strong> ' + t.text +
-      " <a href='/how'>How Troupe works →</a>";
+    note.innerHTML = '<strong>' + t.name + '.</strong> ' + t.text;
     note.hidden = false;
   });
 });
+function setNum(el, v) {
+  if (!el) return;
+  var s = String(v);
+  if (el.textContent === s) return;
+  el.textContent = s;
+  el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick');
+}
 document.addEventListener('troupe:live', function (ev) {
   var d = ev.detail;
-  ['queued', 'checking', 'waiting'].forEach(function (k) {
-    var el = document.querySelector("[data-now='" + k + "']");
-    if (el) el.textContent = d[k];
+  var counts = {queued: d.queued, working: d.working.length,
+                checking: d.checking, waiting: d.waiting};
+  document.querySelectorAll('.loop-stage').forEach(function (s) {
+    var key = {clock: 'queued', ai: 'working', check: 'checking', you: 'waiting'}[s.dataset.stage];
+    var busy = (counts[key] || 0) > 0;
+    s.classList.toggle('is-busy', busy);
+    if (s.dataset.stage === 'ai') {
+      var sub = s.querySelector('.loop-stage__sub');
+      var text = busy ? 'consulting Gemini…' : 'reads the source · asks Gemini';
+      if (sub && sub.lastChild) sub.lastChild.textContent = text;
+    }
   });
-  var w2 = document.querySelector("[data-now='waiting2']");
-  if (w2) w2.textContent = d.waiting;
-  var tot = document.querySelector("[data-now='total']");
-  if (tot) tot.textContent = d.queued + d.working.length + d.checking + d.waiting;
-  var wk = document.querySelector("[data-now='working']");
-  if (wk) wk.textContent = d.working.length;
+  document.querySelectorAll('.loop-link').forEach(function (l) {
+    l.classList.toggle('has-flow', (counts[l.dataset.link] || 0) > 0);
+  });
+  ['queued', 'checking', 'waiting'].forEach(function (k) {
+    setNum(document.querySelector("[data-now='" + k + "']"), d[k]);
+  });
+  setNum(document.querySelector("[data-now='waiting2']"), d.waiting);
+  setNum(document.querySelector("[data-now='total']"),
+         d.queued + d.working.length + d.checking + d.waiting);
+  setNum(document.querySelector("[data-now='working']"), d.working.length);
   if (d.beat_at) {
-    var b = document.querySelector("[data-now='beat']");
-    if (b) b.textContent = d.beat_at.slice(-5);
+    setNum(document.querySelector("[data-now='beat']"), d.beat_at.slice(-5));
   }
   var box = document.getElementById('now-working');
   if (box && d.working) {

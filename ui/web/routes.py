@@ -17,7 +17,6 @@ import json as _json
 import time as _time
 from html import escape as _esc
 from fastapi.responses import StreamingResponse
-from ui.web.how import _説明
 from ui.web.now import _いま
 from ui.web.activity import _誰 as _who
 from ui.words import 出来事 as _event_word
@@ -451,9 +450,10 @@ def make_app(
             手たち.close()
         return JSONResponse({"answer_html": _リンク(answer), "answer_text": answer})
 
-    @app.get("/how", response_class=HTMLResponse)
-    def _説明の頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
-        return 見せる("how", lambda h: _説明(), 席=troupe_seat)
+    @app.get("/how")
+    def _旧how() -> Any:
+        # 説明は「いま」に溶けた——貼られたリンクを死なせない
+        return RedirectResponse("/now", status_code=303)
 
     @app.get("/patients", response_class=HTMLResponse)
     def _患者たちの頁(

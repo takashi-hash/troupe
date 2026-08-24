@@ -18,7 +18,7 @@ from ui.words import 状態
 
 #: 貼ってよい行き先。**ここに無い道は文字のまま**——LLM の吐いた URL を貼らない。
 _PATHS = _re.compile(
-    r"(?<![\w/])(/(?:now|day|patients|inbox|agreements|billing|fees|automations|activity|search|how"
+    r"(?<![\w/])(/(?:now|day|patients|inbox|agreements|billing|fees|automations|activity|search"
     r"|patient\?code=[\w-]+|visit\?id=[\w-]+|detail\?id=[\w-]+))(?![\w?=&-])"
 )
 
@@ -26,7 +26,7 @@ _PATHS = _re.compile(
 #: 写しに書いてよい「いま見ている頁」。白名単の外は書かない。
 _見てよい道 = ("/now", "/day", "/patients", "/patient", "/inbox", "/detail", "/agreements",
               "/billing", "/fees", "/automations", "/activity", "/search", "/visit",
-              "/guide", "/how")
+              "/guide")
 
 
 def _写し(h: 手, viewing: str | None = None) -> str:
@@ -67,7 +67,7 @@ def _写し(h: 手, viewing: str | None = None) -> str:
     lines.append(
         "\nPages: /now (the loop, live) /day (routes+visits) /inbox (decisions) "
         "/patients (incl. agreements) /billing (claims+fee schedule) "
-        "/automations (rules+one-off requests) /activity /search /how"
+        "/automations (rules+one-off requests) /activity /search"
     )
     return "\n".join(lines)
 

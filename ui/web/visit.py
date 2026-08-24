@@ -190,7 +190,9 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
             "<span class='sign-bar__actions'>"
             f"<label>Signing as <strong>{escape(seat)}</strong></label>"
             f"<input type='hidden' name='signer' value='{escape(seat)}'>"
-            "<button class='btn btn--primary' onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
+            "<button class='btn btn--primary'"
+            "title='One of only four solid buttons in the product — the heaviest human judgments.'"
+            " onclick=\"return confirm('Sign this note and complete the visit? A signed record cannot be changed.')\">"
             "Sign and complete visit</button></span>"
         )
     else:

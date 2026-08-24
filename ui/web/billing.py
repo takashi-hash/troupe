@@ -124,6 +124,7 @@ def _請求札(v: ClaimView, month: str, today_month: str, 座長の席: bool = 
             f"<input type='hidden' name='patient' value='{escape(v.patient)}'>"
             f"<input type='hidden' name='month' value='{escape(month)}'>"
             "<button class='btn btn--primary'"
+            "title='One of only four solid buttons in the product — the heaviest human judgments.'"
             " onclick=\"return confirm('Confirm this claim? It becomes immutable.')\">"
             "Confirm and close the month</button></form></div>"
         )

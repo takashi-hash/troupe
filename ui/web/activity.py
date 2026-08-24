@@ -33,14 +33,35 @@ _様式 = """<style>
 </style>"""
 
 
+#: 登場人物の自己紹介(旧 /how §02 の文そのまま)——チップの title で、どの画面でも浮く。
+_自己紹介 = {
+    "Director": "The human in charge — that is you. Every judgment in the system is theirs.",
+    "Nomi": "The AI worker. It drafts, asks, and assesses — it cannot approve or sign anything.",
+    "Clock": "The pulse. It creates and checks work on schedule. It never judges either.",
+    "Sim-Director": "A scripted stand-in that presses human buttons while judging is under "
+                    "way. It approves finished work, signs delivered drafts and confirms "
+                    "month-end claims — it never answers questions and never rules on a "
+                    "flagged charge; those wait for a person. Every press is labeled with "
+                    "this name.",
+}
+_役の紹介 = {
+    "human": "A human seat. Judgment lives here.",
+    "agent": "The AI worker. It drafts, asks, and assesses — it cannot approve or sign anything.",
+    "clock": "The pulse. It creates and checks work on schedule. It never judges either.",
+}
+
+
 def _誰(by: str, kind: str) -> str:
     cls, label = _WHO.get(kind, ("", kind))
     # 名が無いとき by には起こす者の語(和語)が入る——橋で識別子に写す(訳を発明しない)
     名 = 読める(ACTOR_GLOSS[by]) if by in ACTOR_GLOSS else by
     小 = "" if 名.lower() == label.lower() else f"<small>{escape(label)}</small>"
+    紹介 = _自己紹介.get(名) or (
+        "Clinicians in the (fully synthetic) EMR who carry out and sign visits."
+        if 名.startswith("Dr-") else _役の紹介.get(kind, ""))
     return (
-        f"<span class='who {cls}'><span class='who-dot'></span>"
-        f"{escape(名)}{小}</span>"
+        f"<span class='who {cls}' title='{escape(紹介, quote=True)}'>"
+        f"<span class='who-dot'></span>{escape(名)}{小}</span>"
     )
 
 
