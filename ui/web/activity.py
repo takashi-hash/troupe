@@ -94,8 +94,25 @@ def _履歴(
         + 副題
         + _様式
         + "<div class='wrap ledger-events activity-ledger'>"
-        "<table><tr><th>When</th><th>Who</th><th>What happened</th>"
+        "<table id='activity-table'><tr><th>When</th><th>Who</th><th>What happened</th>"
         "<th>Job</th></tr>" + 行 + "</table></div>"
         + empty
         + _頁送り(page, per, len(rows))
+        # 生の帯 — 開いたままでも新しい出来事が上に差さる(1頁目だけ。語は運ばれてくる)
+        + ("" if page != 0 else
+           "<script>(function () {"
+           "var tbl = document.getElementById('activity-table');"
+           "if (!tbl) return;"
+           "document.addEventListener('troupe:live', function (ev) {"
+           "  (ev.detail.events || []).slice().reverse().forEach(function (e) {"
+           "    var tr = document.createElement('tr');"
+           "    tr.className = 'row-in';"
+           "    tr.innerHTML = \"<td class='cell-when'>\" + e.at + '</td><td>' +"
+           "      e.who_html + '</td><td>' + e.what + '</td>' +"
+           "      \"<td class='activity-job'><a class='id' href='/detail?id=\" +"
+           "      e.job_id + \"'>\" + e.head + '</a></td>';"
+           "    tbl.insertBefore(tr, tbl.rows[1] || null);"
+           "  });"
+           "});"
+           "})();</script>")
     )

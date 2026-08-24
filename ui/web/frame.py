@@ -36,7 +36,7 @@ def _頁(
     # 平らな1列——左ほど「今すぐ」、右ほど「記録」。括りの札は置かない
     旗札 = f"<span class='nav-badge'>{旗数}</span>" if 旗数 else ""
     tabs = (
-        "".join(_tab(t) for t in ("day", "inbox", "patients"))
+        "".join(_tab(t) for t in ("now", "day", "inbox", "patients"))
         + _tab("billing", None, None, 旗札)
         + _tab("automations")
         + _tab("ledger", "/activity")
@@ -69,6 +69,16 @@ def _頁(
         f"<nav class='nav' aria-label='Primary'>{tabs}</nav>"
         f"<div class='nav-help'>{ask}</div></div></div>"
         f"{開示}<main>{警告}<div class='paper'>{中身}</div></main></div>"
+        "<script>(function () {"
+        "if (!window.EventSource) return;"
+        "var es = new EventSource('/events');"
+        "es.onmessage = function (m) {"
+        "  var d; try { d = JSON.parse(m.data); } catch (e) { return; }"
+        "  var b = document.querySelector('.nav-badge');"
+        "  if (b && d.flags !== undefined && d.flags > 0) b.textContent = d.flags;"
+        "  document.dispatchEvent(new CustomEvent('troupe:live', {detail: d}));"
+        "};"
+        "})();</script>" 
         f"{襟}</body></html>"
     )
 

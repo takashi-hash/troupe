@@ -70,6 +70,7 @@ from adapters.ledger.stores import (
 from adapters.topic import FolderTopic
 from app.dto.detail_view import DetailView
 from app.dto.history_row import HistoryRow
+from app.dto.now_view import NowView
 from app.dto.patient_row import PatientRow
 from app.dto.pattern_row import PatternRow
 from app.dto.route_stop import RouteStop
@@ -114,6 +115,7 @@ from app.services.human.request import request_from_fields
 from app.services.human.send_back import send_back
 from app.services.screen.gather_detail import gather_detail
 from app.services.screen.gather_history import gather_history
+from app.services.screen.gather_now import gather_now
 from app.services.screen.gather_patterns import gather_patterns
 from app.services.screen.gather_route import gather_route
 from app.services.screen.gather_patient import gather_patient
@@ -337,6 +339,9 @@ def _手(za: Ichiza, viewer: str) -> 手:
     ) -> tuple[tuple[float, float] | None, dict[str, tuple[RouteStop, ...]]]:
         return gather_route(za.route, day)
 
+    def いまを読む() -> NowView:
+        return gather_now(za.today, za.history)
+
     def 案内(
         question: str, digest: str, history: tuple[tuple[str, str], ...]
     ) -> str:
@@ -367,6 +372,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
         billing_flags=lambda: za.billing_view.count_flagged(),
         billing_act=会計を押す,
         guide=案内,
+        now=いまを読む,
         close=za.conn.close,
     )
 

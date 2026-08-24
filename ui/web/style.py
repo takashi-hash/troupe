@@ -12,11 +12,13 @@
    （"3 decisions waiting"）。最初の一画面で「何件・次に何を」が読める。
    スクロールは詳細のためだけ。
 3. **塗るのは判断だけ。** 塗りボタンは Sign / Approve / Reply / Confirm の4つ。
-4. **動きの語彙は「脈」だけ。** 60秒の拍の帯・機械が支度した/人を待つ
+4. **動きの語彙は「脈・到着・灯」の3つ。** 脈=60秒の拍の帯・機械が支度した/人を待つ
    チップの淡い鼓動・帳簿の最新行の引いていく色——**同期は装わない**（リズムを見せるだけで、
    瞬間を主張しない）。それ以外は動かさない。prefers-reduced-motion では全部止まる。
 5. **色は語彙**: 緑=署名済み/通った・琥珀=人が要る・赤=破壊/期限切れ・青=情報・灰=不活性。
    人格の色（who の点・地図の担当色）は状態の5色と混ぜない。
+   到着=新しい行のスライドイン+5秒の退色(row-in)・灯=環の段が出来事で一瞬点る(is-lit)。
+   トーストは出さない・予告のカウントダウンも出さない——**起きた事実だけが動く**。
 6. **表は貼り付く頭と件数を持つ。** 長い一覧は頁送り（100件）か絞りを持つ。
 7. **携帯（≤900px）は棚が上バーに畳まれ、2ペインは1列に落ちる。** 横スクロールは表の中だけ。
 8. **言葉は用語集の橋そのまま。** 和語を画面に出さない。
@@ -420,6 +422,101 @@ tbody tr:hover { background: var(--faint); }
 @keyframes freshrow {
   from { background: color-mix(in srgb, var(--beat) 14%, transparent); }
   to   { background: transparent; }
+}
+
+/* 済んだ一行 — 承認の軌跡: 緑がひと呼吸で退く(帳簿に積まれた事実の言い切り) */
+.banner--acted {
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, #fff);
+  background: color-mix(in srgb, var(--ok) 8%, #fff);
+  color: color-mix(in srgb, var(--ok) 75%, var(--ink));
+  padding: 8px 14px; border-radius: var(--r-sm); font-size: 13.5px;
+  margin: 0 0 14px; animation: acted-fade 4s ease-out 1;
+}
+@keyframes acted-fade {
+  0% { background: color-mix(in srgb, var(--ok) 22%, #fff); }
+  100% { background: color-mix(in srgb, var(--ok) 8%, #fff); }
+}
+.inbox-knock {
+  margin: 0 0 12px; padding: 7px 12px; font-size: 13px;
+  border: 1px solid color-mix(in srgb, var(--info) 30%, #fff);
+  background: color-mix(in srgb, var(--info) 6%, #fff);
+  border-radius: var(--r-sm); animation: row-in 5s ease-out 1;
+}
+
+/* ---------- いま(/now) — 環のいまと生の帯。動きは到着(row-in)と灯(is-lit)だけ ---------- */
+.loop {
+  display: flex; align-items: stretch; gap: 0;
+  margin: 18px 0 6px;
+}
+.loop-stage {
+  flex: 1 1 0; min-width: 0; font: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 12px 14px; background: #fff;
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+}
+.loop-stage:hover { border-color: var(--ink); }
+.loop-stage__name { font-family: var(--serif); font-size: 15px; font-weight: 600; }
+.loop-stage__sub { font-size: 11.5px; color: var(--muted); }
+.loop-stage__n {
+  font-size: 22px; font-weight: 650; line-height: 1.2; margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.loop-stage--you { border-color: color-mix(in srgb, var(--warn) 55%, #fff); }
+.loop-stage--you .loop-stage__n { color: var(--warn); }
+.loop-stage.is-lit { animation: stage-lit 1.6s ease-out 1; }
+@keyframes stage-lit {
+  0% { border-color: var(--beat); box-shadow: 0 0 0 3px color-mix(in srgb, var(--beat) 35%, transparent); }
+  100% { border-color: var(--line-strong); box-shadow: 0 0 0 0 transparent; }
+}
+.loop-link { flex: none; width: 22px; align-self: center; border-top: 1.5px dashed var(--line-hard); }
+.loop-note {
+  margin: 10px 0 0; padding: 10px 14px; font-size: 13.5px; max-width: 76ch;
+  background: var(--tint); border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.now-cols { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 26px; margin-top: 24px; }
+.now-col__head {
+  font-size: 11px; font-weight: 650; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted-strong); border-bottom: 1px solid var(--ink);
+  padding-bottom: 6px; margin: 0 0 10px;
+}
+.now-working__item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px;
+}
+.now-working__item a { text-decoration: none; }
+.now-working__dot {
+  flex: none; width: 7px; height: 7px; border-radius: 50%; margin-left: auto;
+  background: var(--info); animation: working-blink 1.4s ease-in-out infinite;
+}
+@keyframes working-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+.now-evt {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+}
+.now-evt__at { color: var(--muted); font-size: 12px; }
+.now-evt__what { color: var(--muted-strong); }
+.now-evt__head { text-decoration: none; font-weight: 550; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.row-in { animation: row-in 5s ease-out 1; }
+@keyframes row-in {
+  0% { opacity: 0; transform: translateY(-8px); background: color-mix(in srgb, var(--beat) 14%, #fff); }
+  10% { opacity: 1; transform: none; }
+  80% { background: color-mix(in srgb, var(--beat) 14%, #fff); }
+  100% { background: transparent; }
+}
+.now-waiting { display: flex; align-items: baseline; gap: 10px; padding: 6px 0 2px; }
+.now-waiting__n { font-size: 40px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.now-waiting--some .now-waiting__n { color: var(--warn); }
+.now-waiting--some { animation: waiting-beat 3.2s ease-out infinite; }
+@keyframes waiting-beat {
+  0% { text-shadow: none; } 55% { text-shadow: 0 0 14px color-mix(in srgb, var(--warn) 45%, transparent); }
+  100% { text-shadow: none; }
+}
+@media (max-width: 900px) {
+  .loop { flex-direction: column; gap: 8px; }
+  .loop-link { width: 0; height: 14px; border-top: 0; border-left: 1.5px dashed var(--line-hard); margin-left: 24px; }
+  .now-cols { display: block; }
+  .now-col { margin-bottom: 22px; }
 }
 
 /* 節の札 — 原稿の署名要素: 小さな大文字+インクの下線(PREFILLED FROM A DRAFT の型) */

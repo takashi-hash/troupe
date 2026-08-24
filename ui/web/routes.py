@@ -12,7 +12,15 @@ from ui.web.frame import _頁
 from ui.web.guide import _リンク, _写し, _案内, 往復を読む
 from ui.web.hands import 手
 from ui.web.hands import 手を開く
+
+import json as _json
+import time as _time
+from html import escape as _esc
+from fastapi.responses import StreamingResponse
 from ui.web.how import _説明
+from ui.web.now import _いま
+from ui.web.activity import _誰 as _who
+from ui.words import 出来事 as _event_word
 from ui.web.inbox import _今日
 from ui.web.inbox import _帯
 from ui.web.patients import _患者
@@ -68,7 +76,55 @@ def make_app(
 
     @app.get("/", response_class=HTMLResponse)
     def _根() -> Any:
-        return RedirectResponse("/day", status_code=303)
+        return RedirectResponse("/now", status_code=303)
+
+    @app.get("/now", response_class=HTMLResponse)
+    def _いまの頁(troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+        return 見せる("now", lambda h: _いま(h.now(), h.history_fetch(0)[:12]),
+                    席=troupe_seat)
+
+    @app.get("/events")
+    def _生の帯(troupe_seat: str | None = Cookie(default=None)) -> Any:
+        """生の帯(SSE)——器が同じ読みを繰り返すだけの、開きっぱなしの導出。
+
+        予告は流さない——起きた事実だけ。語は app が写した英語のまま運ぶ。
+        10分で閉じる——EventSource が黙って繋ぎ直す。
+        """
+        座 = _席名(troupe_seat)
+
+        def 流れ() -> Any:
+            前: set[tuple[str, str, str]] = set()
+            初回 = True
+            for _ in range(150):
+                手たち = 開く(座)
+                try:
+                    v = 手たち.now()
+                    行 = 手たち.history_fetch(0)[:12]
+                    旗 = 手たち.billing_flags()
+                finally:
+                    手たち.close()
+                鍵 = {(r.at, r.job_id, r.what) for r in 行}
+                新 = [] if 初回 else [r for r in 行 if (r.at, r.job_id, r.what) not in 前]
+                前, 初回 = 鍵, False
+                # innerHTML に入る欄はここで無害化する(語も見出しもサーバー発)
+                payload = _json.dumps({
+                    "queued": v.queued,
+                    "working": [[_esc(i), _esc(h)] for i, h in v.working],
+                    "checking": v.checking, "waiting": v.waiting,
+                    "beat_at": v.beat_at, "flags": 旗,
+                    "events": [
+                        {"at": _esc(r.at), "by_kind": _esc(r.by_kind),
+                         "who_html": _who(r.by, r.by_kind),
+                         "what": _esc(_event_word(r.what)), "job_id": _esc(r.job_id),
+                         "head": _esc(r.head)}
+                        for r in 新
+                    ],
+                })
+                yield f"data: {payload}\n\n"
+                _time.sleep(4)
+
+        return StreamingResponse(流れ(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache"})
 
     # 古い道は新しい道へ——貼られたリンクを死なせない
     @app.get("/today")
@@ -100,10 +156,11 @@ def make_app(
         return {"status": "ok"}
 
     @app.get("/inbox", response_class=HTMLResponse)
-    def _今日の頁(refused: str | None = None, troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
+    def _今日の頁(refused: str | None = None, acted: str | None = None,
+               troupe_seat: str | None = Cookie(default=None)) -> HTMLResponse:
         def 描く(h: 手) -> str:
             rows = h.fetch()
-            return _帯(rows, len(h.upcoming())) + _今日(rows)
+            return _帯(rows, len(h.upcoming())) + _今日(rows, acted)
 
         return 見せる("inbox", 描く, refused, troupe_seat)
 
@@ -459,7 +516,9 @@ def make_app(
         finally:
             手たち.close()
         つなぎ = "&" if "?" in back else "?"
-        戻り = back if 断り is None else f"{back}{つなぎ}refused={断り}"
+        # 成功にも一言返す——押して何も起きないのが一番わるい(受信箱が緑の一行にする)
+        戻り = (f"{back}{つなぎ}acted={what}" if 断り is None
+              else f"{back}{つなぎ}refused={断り}")
         return RedirectResponse(戻り, status_code=303)
 
     return app

@@ -10,6 +10,7 @@ from app.dto.schedule_row import ScheduleRow
 from app.dto.search_row import SearchRow
 from app.dto.staff_row import StaffRow
 from app.dto.patient_row import PatientRow
+from app.dto.now_view import NowView
 from app.dto.pattern_row import PatternRow
 from app.dto.visit_view import VisitView
 from app.dto.route_stop import RouteStop
@@ -126,6 +127,10 @@ class 案内の手(Protocol):
         ...
 
 
+class 今の手(Protocol):
+    def __call__(self) -> "NowView": ...
+
+
 class 手(NamedTuple):
     """器に注がれる手。**中身は知らない**——読む・押す、それだけ。
 
@@ -161,6 +166,7 @@ class 手(NamedTuple):
     billing_flags: 旗の数の手
     billing_act: 会計を押す手
     guide: 案内の手
+    now: 今の手
     close: Callable[[], None]
 
 

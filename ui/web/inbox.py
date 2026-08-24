@@ -98,10 +98,44 @@ def _参照名(r: TodayRow) -> tuple[str, str, str | None]:
     return "Request", (r.request_head or "Request"), None
 
 
-def _今日(rows: tuple[TodayRow, ...]) -> str:
+#: 押した操作 → 済んだことの言い方。帳簿に積まれた事実だけを言う。
+_済んだ語 = {
+    "approve": "Approved", "send_back": "Sent back", "answer": "Answered",
+    "abandon": "Abandoned",
+}
+
+
+def _済んだ一行(acted: str | None) -> str:
+    if not acted or acted not in _済んだ語:
+        return ""
+    return (f"<p class='banner banner--acted'>{_済んだ語[acted]} — appended to the "
+            "ledger. <a href='/activity'>See it there →</a></p>")
+
+
+def _到着のノック(rendered: int) -> str:
+    """生の帯から届く静かな一行——数が増えたときだけ。差し替えはしない(読んでいる最中の列を動かさない)。"""
+    return (
+        f"<p id='inbox-knock' class='inbox-knock' hidden data-rendered='{rendered}'></p>"
+        "<script>(function () {"
+        "var k = document.getElementById('inbox-knock');"
+        "var base = parseInt(k.dataset.rendered, 10) || 0;"
+        "document.addEventListener('troupe:live', function (ev) {"
+        "  var w = ev.detail.waiting || 0;"
+        "  if (w > base) {"
+        "    k.innerHTML = (w - base) + ' new decision' + (w - base === 1 ? '' : 's') +"
+        "      \" arrived — <a href='/inbox'>show</a>\";"
+        "    k.hidden = false;"
+        "  }"
+        "});"
+        "})();</script>"
+    )
+
+
+def _今日(rows: tuple[TodayRow, ...], acted: str | None = None) -> str:
     if not rows:
-        return _様式 + ("<p class='empty'>Nothing needs you — "
-                       "the pulse will bring the next decision here.</p>")
+        return (_様式 + _済んだ一行(acted) + _到着のノック(0)
+                + "<p class='empty'>Nothing needs you — "
+                  "the pulse will bring the next decision here.</p>")
     out = []
     for r in rows:
         badge, 参照, code = _参照名(r)
@@ -148,4 +182,5 @@ def _今日(rows: tuple[TodayRow, ...]) -> str:
             f"<div class='inbox-card__body'>{中身}{詳細}</div>"
             f"<div class='card-actions inbox-card__actions'>{操作}</div></article>"
         )
-    return _様式 + f"<div class='inbox-queue'>{''.join(out)}</div>"
+    return (_様式 + _済んだ一行(acted) + _到着のノック(len(rows))
+            + f"<div class='inbox-queue'>{''.join(out)}</div>")
