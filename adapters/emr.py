@@ -139,9 +139,11 @@ class PostgresPatients:
             (code,),
         ).fetchall()
         drafts = conn.execute(
-            "SELECT (delivered_at AT TIME ZONE 'Asia/Tokyo')::text, body, based_on_job,"
-                " used_at IS NOT NULL FROM note_drafts"
-            " WHERE patient = %s ORDER BY delivered_at DESC",
+            "SELECT (d.delivered_at AT TIME ZONE 'Asia/Tokyo')::text, d.body,"
+            " d.visit_date::text, d.based_on_job,"
+            " EXISTS (SELECT 1 FROM clinical_notes n JOIN visits v ON v.id = n.visit_id"
+            "   WHERE v.patient = d.patient AND v.visit_date = d.visit_date)"
+            " FROM note_drafts d WHERE d.patient = %s ORDER BY d.visit_date DESC",
             (code,),
         ).fetchall()
         notes = conn.execute(
@@ -157,8 +159,9 @@ class PostgresPatients:
             meds=tuple(m[0] for m in meds),
             events=tuple(e[0] for e in events),
             drafts=tuple(
-                PatientDraft(delivered_at=str(at), body=str(b), job_id=str(j), used=bool(u))
-                for at, b, j, u in drafts
+                PatientDraft(delivered_at=str(at), body=str(b), visit_date=str(vd),
+                             job_id=str(j), used=bool(u))
+                for at, b, vd, j, u in drafts
             ),
             notes=tuple(
                 PatientNote(
@@ -174,8 +177,8 @@ class EmrDrafts:
     """下書き受け — `EmrDraftPort` の実装。**置けるのは draft だけ。**
 
     署名済み（clinical_notes）に触る SQL はこのクラスに1行も無い——
-    書けない口であることが、読めば分かる形。
-    冪等は診療録の一意の鍵（based_on_job UNIQUE）が決める。
+    書けない口であることが、読めば分かる形。冪等は診療録の一意の鍵が決める——
+    (患者, 訪問日) は「1訪問1下書き」、based_on_job は「1仕事1配達」。
     """
 
     def __init__(self, dsn: str | None, connect: Any = None) -> None:
@@ -186,11 +189,12 @@ class EmrDrafts:
         assert self._dsn is not None
         return _connect(self._dsn, self._connect)
 
-    def deposit(self, job_id: str, patient_code: str, body: str) -> bool:
-        """受けに在る状態にできたら True。**届かなければ False**——次の脈がまた来る。
+    def deposit(self, job_id: str, patient_code: str, visit_date: str, body: str) -> bool:
+        """やることが残っていなければ True。**一時故障だけ False**——次の脈がまた来る。
 
-        既に在った（一意の鍵に弾かれた）も True——望んだ姿には既に成っている。
-        例外は漏らさない: 診療録が落ちていても、時計の脈は死なない。
+        既に在った（どちらかの一意の鍵に弾かれた）も、宛先が消えていた（居ない患者）も
+        True——この配達にやり直せることは無い。例外は漏らさない:
+        診療録が落ちていても、時計の脈は死なない。
         """
         if self._dsn is None:
             return False  # 診療録が居ないなら、配達は静かに見送る
@@ -200,13 +204,14 @@ class EmrDrafts:
             return False
         try:
             conn.execute(
-                "INSERT INTO note_drafts(patient, body, based_on_job)"
-                " VALUES (%s, %s, %s) ON CONFLICT (based_on_job) DO NOTHING",
-                (patient_code, body, job_id),
+                "INSERT INTO note_drafts(patient, visit_date, body, based_on_job)"
+                " VALUES (%s, %s::date, %s, %s) ON CONFLICT DO NOTHING",
+                (patient_code, visit_date, body, job_id),
             )
             return True
-        except Exception:
-            return False  # FK 違反（居ない患者）や一時故障——刻ませない
+        except Exception as なぜ:
+            # 宛先が消えた（FK 違反）ならやることは残っていない——一時故障だけ刻ませない
+            return "ForeignKey" in type(なぜ).__name__
         finally:
             conn.close()
 
@@ -314,7 +319,7 @@ class PostgresSchedule:
     """予定づくりの口 — `EmrSchedulePort` の実装。**取り決め由来の予定だけを作る。**
 
     1つの INSERT が読み（有効な取り決め×日付）と書きを兼ねる——
-    一意の鍵（取り決め×日付）に既にあれば何もしない（冪等）。
+    一意の鍵（取り決め×日付、そして患者×日の定期は一度）に既にあれば何もしない（冪等）。
     臨時（pattern_id が空）・中止・署名済みに触る SQL はここに1行も無い。
     """
 
@@ -340,7 +345,7 @@ class PostgresSchedule:
                   AND d::date >= p.active_from
                   AND (p.active_to IS NULL OR d::date <= p.active_to)
                   AND (((d::date - p.active_from) / 7) %% p.interval_weeks) = 0
-                ON CONFLICT (pattern_id, visit_date) DO NOTHING
+                ON CONFLICT DO NOTHING
                 RETURNING patient, visit_date::text
                 """,
                 (days_ahead,),
@@ -379,7 +384,8 @@ class PostgresRoute:
                          WHEN EXISTS (SELECT 1 FROM clinical_notes n WHERE n.visit_id = v.id)
                            THEN 'signed'
                          WHEN EXISTS (SELECT 1 FROM note_drafts d
-                                       WHERE d.patient = v.patient AND d.used_at IS NULL)
+                                       WHERE d.patient = v.patient
+                                         AND d.visit_date = v.visit_date)
                            THEN 'draft'
                          ELSE 'none'
                        END
@@ -413,8 +419,8 @@ def _席の役(conn: Any, name: str) -> str | None:
 class EmrVisits:
     """訪問の終わり — `EmrVisitPort` の実装。**人の操作だけが呼ぶ。**
 
-    署名は1トランザクション: 記録を積む・訪問を実施済みへ・下書きに使用の印。
-    守りは診療録の側に3層——status='scheduled' のガード付き UPDATE、
+    署名は1トランザクション: 記録を積む・訪問を実施済みへ。下書きには書かない——
+    使われたかは (患者, 訪問日) が結ぶ記録の存在から導出。守りは診療録の側に3層——status='scheduled' のガード付き UPDATE、
     1訪問1記録の一意鍵、署名済みの不変トリガ。**書き換える口はこのクラスに無い。**
     """
 
@@ -424,7 +430,7 @@ class EmrVisits:
 
     def sign(
         self, visit_id: str, signer: str,
-        s: str, o: str, a: str, p: str, draft_id: str | None,
+        s: str, o: str, a: str, p: str,
     ) -> str | None:
         if self._dsn is None:
             return "The EMR is not wired (ICHIZA_EMR_DSN is empty)"
@@ -446,22 +452,13 @@ class EmrVisits:
                 )
                 if not done.rowcount:
                     return "This visit is no longer scheduled (already done or cancelled)"
-                row = conn.execute(
+                conn.execute(
                     "INSERT INTO clinical_notes"
                     "(patient, visit_id, note_date, clinician, s, o, a, p, signed_at)"
                     " SELECT v.patient, v.id, v.visit_date, %s, %s, %s, %s, %s, now()"
-                    " FROM visits v WHERE v.id = %s::bigint"
-                    " RETURNING id",
+                    " FROM visits v WHERE v.id = %s::bigint",
                     (signer, s, o, a, p, visit_id),
-                ).fetchone()
-                if draft_id:
-                    used = conn.execute(
-                        "UPDATE note_drafts SET used_at = now(), used_by_note = %s"
-                        " WHERE id = %s::bigint AND used_at IS NULL",
-                        (row[0], draft_id),
-                    )
-                    if not used.rowcount:
-                        return "That draft has already been used — reload the page"
+                )
             return None
         except Exception as なぜ:
             名 = type(なぜ).__name__
@@ -534,10 +531,12 @@ class PostgresVisit:
             return None
         vid, 日, 担当, 目的, 状態, code, age, living, addr, dx, expires = v[0]
         drafts = conn.execute(
-            "SELECT id, body, (delivered_at AT TIME ZONE 'Asia/Tokyo')::text"
-            " FROM note_drafts WHERE patient = %s AND used_at IS NULL"
-            " ORDER BY delivered_at DESC",
-            (code,),
+            "SELECT d.body, (d.delivered_at AT TIME ZONE 'Asia/Tokyo')::text"
+            " FROM note_drafts d WHERE d.patient = %s AND d.visit_date = %s::date"
+            " AND NOT EXISTS (SELECT 1 FROM clinical_notes n JOIN visits v2"
+            "   ON v2.id = n.visit_id"
+            "   WHERE v2.patient = d.patient AND v2.visit_date = d.visit_date)",
+            (code, 日),
         ).fetchall()
         notes = conn.execute(
             "SELECT note_date, clinician, s, o, a, p,"
@@ -562,10 +561,8 @@ class PostgresVisit:
                 diagnosis=str(dx) if dx is not None else "—",
                 next_visit=None, order_expires=expires,
             ),
-            drafts=tuple(
-                UnusedDraft(id=str(i), body=str(b), delivered_at=str(at)[:16])
-                for i, b, at in drafts
-            ),
+            draft=(UnusedDraft(body=str(drafts[0][0]), delivered_at=str(drafts[0][1])[:16])
+                   if drafts else None),
             notes=tuple(
                 PatientNote(at=str(at), clinician=str(cl), s=str(ss), o=str(oo),
                             a=str(aa), p=str(pp), signed_at=str(sg))
@@ -1158,7 +1155,11 @@ class PostgresBilling:
 
 
 class PostgresStaff:
-    """職員の登記簿の読み — `StaffReader` の実装。読むだけ。"""
+    """席の一覧の読み — `StaffReader` の実装。読むだけ。
+
+    staff（事務の登記簿）と現役の医師名簿の**和**——席に座れる名の全部。
+    力の門は別々のまま: 臨床は clinicians(active)、事務は staff の行が正本。
+    """
 
     def __init__(self, dsn: str | None, connect: Any = None) -> None:
         self._dsn = dsn
@@ -1173,7 +1174,9 @@ class PostgresStaff:
             return ()
         try:
             rows = conn.execute(
-                "SELECT name, role FROM staff ORDER BY role, name"
+                "SELECT name, role FROM staff"
+                " UNION SELECT code, 'clinician' FROM clinicians WHERE active"
+                " ORDER BY role, name"
             ).fetchall()
             return tuple(StaffRow(name=str(n), role=str(r)) for n, r in rows)
         except Exception:
@@ -1185,9 +1188,9 @@ class PostgresStaff:
 class PostgresScheduledVisits:
     """予定の訪問の読み — `ScheduledVisitReader` の実装。読むだけ。
 
-    穴あきの源を持つ版の展開の材料（筋道 §1 `create`）。期間内かは `reconcile` が判じる
-    ので、ここは**予定のままの訪問を文字のまま**写すだけ。読めなければ空——
-    予定が見えない朝に、展開だけが走ることはない。
+    穴あきの源を持つ版の展開の材料（筋道 §1 `create`）。リード内かは `reconcile` が判じる
+    ので、ここは**予定のままの定期訪問を文字のまま**写すだけ。往診（urgent）は出ない——
+    約束の外。読めなければ空——予定が見えない朝に、展開だけが走ることはない。
     """
 
     def __init__(self, dsn: str | None, connect: Any = None) -> None:
@@ -1203,7 +1206,8 @@ class PostgresScheduledVisits:
             return ()
         try:
             rows = conn.execute(
-                "SELECT patient, visit_date FROM visits WHERE status = 'scheduled'"
+                "SELECT patient, visit_date FROM visits"
+                " WHERE status = 'scheduled' AND kind = 'regular'"
                 " ORDER BY visit_date, patient"
             ).fetchall()
             return tuple((str(p), str(d)) for p, d in rows)

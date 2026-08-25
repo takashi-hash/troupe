@@ -23,7 +23,6 @@ from domain.aggregates.job import assess as 見立て
 from domain.aggregates.job import hand_over as 回す
 from domain.aggregates.job.job import Job
 from domain.aggregates.job.life import Failed, FinishedPendingRecheck, InProgress
-from domain.repositories.assessment_store import AssessmentStore
 from domain.repositories.job_repository import JobRepository
 from domain.services.should_assess import should_assess
 from domain.services.stuck import is_stuck
@@ -46,7 +45,6 @@ def patrol(
     jobs: JobRepository,
     states: JobStateReader,
     work: WorkReader,
-    assessments: AssessmentStore,
     llm: LlmPort,
     clock: ClockPort,
     by: Agent,
@@ -75,7 +73,6 @@ def patrol(
             else "根拠の在りかが空のまま終わっている（確かめ待ち）。"
         ) + _fact_reason(job, material)
         assessment = _read(llm, 状況, material, fallback_reason=_fact_reason(job, material))
-        assessments.put(id, assessment)
         same_job, written = 見立て.assess(job, assessment, by=by, now=clock.now())
         jobs.save(same_job, (written,))
         acted.append(id)
@@ -91,7 +88,6 @@ def patrol(
         last = material.fall_reasons[-1] if material.fall_reasons else "（記録なし）"
         状況 = f"実行中だが自力では進めない（直近の止まった理由: {last}）。" + _fact_reason(job, material)
         assessment = _read(llm, 状況, material, fallback_reason=_fact_reason(job, material))
-        assessments.put(id, assessment)
         failed_job, written, fell = 回す.hand_over(job, assessment, by=by, now=clock.now())
         jobs.save(failed_job, (written, fell))
         acted.append(id)

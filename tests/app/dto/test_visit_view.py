@@ -16,7 +16,7 @@ def _訪問(**over: object) -> VisitView:
         "purpose": "weekly visit", "status": "scheduled",
         "patient": PatientRow(code="P-003", age="76", living="x", diagnosis="PD",
                               next_visit=None, order_expires=None),
-        "drafts": (UnusedDraft(id="3", body="draft body", delivered_at="2026-08-24 09:00"),),
+        "draft": UnusedDraft(body="draft body", delivered_at="2026-08-24 09:00"),
         "notes": (PatientNote(at="2026-08-11", clinician="Dr-A", s="s", o="o", a="a",
                               p="p", signed_at="2026-08-11 16:05"),),
         "clinicians": ("Dr-A", "Dr-B", "Dr-C"),
@@ -26,7 +26,7 @@ def _訪問(**over: object) -> VisitView:
 
 def test_当日入力の材料が丸ごと入る() -> None:
     v = _訪問()
-    assert v.drafts[0].id == "3" and v.clinicians[0] == "Dr-A"
+    assert v.draft is not None and v.draft.body == "draft body" and v.clinicians[0] == "Dr-A"
 
 
 def test_押せることの欄はそもそも無い() -> None:

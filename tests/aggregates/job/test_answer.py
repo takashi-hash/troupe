@@ -17,7 +17,7 @@ from tests.aggregates.job.conftest import make_job, いま, 座長
 
 
 def _答え待ち() -> Job[AwaitingAnswer]:
-    return make_job(AwaitingAnswer(assignee=一号, question_at="question://1"))
+    return make_job(AwaitingAnswer(assignee=一号))
 
 
 def test_答え待ちから着手できるへ_出来事が必ず一緒に返る() -> None:

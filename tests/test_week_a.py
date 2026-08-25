@@ -34,9 +34,7 @@ from adapters.ledger.reading import (
 )
 from adapters.ledger.rules import SqliteRules
 from adapters.ledger.stores import (
-    SqliteAssessments,
     SqliteEvidence,
-    SqliteQuestions,
     SqliteResults,
 )
 from app.dto.version_form import VersionForm
@@ -171,7 +169,6 @@ def test_週Aが本物の帳簿で最後まで通る(帳簿: Ledger) -> None:
     conn = 帳簿
     jobs, rules = SqliteJobs(conn), SqliteRules(conn)
     results, evidences = SqliteResults(conn), SqliteEvidence(conn)
-    questions, assessments = SqliteQuestions(conn), SqliteAssessments(conn)
     states, origins = SqliteJobStates(conn), SqliteOrigins(conn)
     active, work, today = SqliteActiveRules(conn), SqliteWork(conn), SqliteToday(conn)
     時計 = 進む時計(時(16, 18, 0))
@@ -219,13 +216,13 @@ def test_週Aが本物の帳簿で最後まで通る(帳簿: Ledger) -> None:
 
     # 月09:02 詰まる → 人に尋ねる（判断は求めない。材料の不足だけ）
     時計.set(時(17, 9, 2))
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
+    assert consult(jobs, work, 源, llm, results, evidences, 時計, id, by=一号) is None
     行 = gather_today(today, 時計, viewer="座長")
     assert [r for r in 行 if r.id == id.text and "answer" in r.actions], "答えるが今日に出る"
 
     # 月09:31 座長が答える → 着手できるへ戻る
     時計.set(時(17, 9, 31))
-    assert answer(jobs, questions, 時計, id.text, by="座長", body="手元の依存です") is None
+    assert answer(jobs, 時計, id.text, by="座長", body="手元の依存です") is None
 
     # 月09:33 AI が取り直す
     時計.set(時(17, 9, 33))
@@ -233,7 +230,7 @@ def test_週Aが本物の帳簿で最後まで通る(帳簿: Ledger) -> None:
 
     # 月09:35 成果を出す（根拠は源から——AI の言葉は根拠にならない）
     時計.set(時(17, 9, 35))
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
+    assert consult(jobs, work, 源, llm, results, evidences, 時計, id, by=一号) is None
 
     # 月09:36 機械が検査する → 通る（担当が受け持ちの人へ移る）
     時計.set(時(17, 9, 36))

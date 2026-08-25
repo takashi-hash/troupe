@@ -65,7 +65,7 @@ def test_有効な版が無ければ何も作らない() -> None:
 
 
 def _穴あきの版(number: int = 1) -> dict[str, object]:
-    """源に `{患者}` の穴・基準にも `{患者}`——展開される版の姿。"""
+    """源に `{患者}` の穴・基準には `{訪問日}` も——展開される版の姿。"""
     base = make_rule().versions[0]
     return {
         "versions": (
@@ -73,7 +73,9 @@ def _穴あきの版(number: int = 1) -> dict[str, object]:
                 update={
                     "number": number,
                     "source": Source(location="db:chart/{患者}"),
-                    "criteria": AcceptanceCriteria(required_terms=("{対象期間}", "{患者}")),
+                    "criteria": AcceptanceCriteria(
+                        required_terms=("{対象期間}", "{患者}", "{訪問日}")
+                    ),
                 }
             ),
         ),
@@ -81,8 +83,8 @@ def _穴あきの版(number: int = 1) -> dict[str, object]:
     }
 
 
-def test_穴あきの版は期間内に予定のある患者ごとに1つ作り_穴は開かれて写る() -> None:
-    """筋道 §1 `create`——源と基準の穴は患者記号で、鍵には患者が入る。"""
+def test_穴あきの版はリード内の訪問ごとに1つ作り_穴は開かれて写る() -> None:
+    """筋道 §1 `create`——源の穴は患者記号で、鍵は（規則・患者・訪問日）。"""
     帳簿, 規則帳簿 = _組み立て(**_穴あきの版())
     作られた = create(
         帳簿, 規則帳簿, 有効版の読みの偽物(規則帳簿), 作成元の読みの偽物(帳簿),
@@ -93,8 +95,10 @@ def test_穴あきの版は期間内に予定のある患者ごとに1つ作り_
     期間 = Period.of(いま, Cycle.WEEKLY)
     仕事たち = sorted(帳簿.jobs.values(), key=lambda j: j.source.location)
     assert [j.source.location for j in 仕事たち] == ["db:chart/P-001", "db:chart/P-004"]
-    assert 仕事たち[0].criteria.required_terms == (期間.text, "P-001")
-    assert 仕事たち[0].origin.key.endswith(f"/{期間.text}/P-001")
+    assert 仕事たち[0].criteria.required_terms == (期間.text, "P-001", "2026-08-18")
+    assert 仕事たち[0].origin.key == "rule:週次の依存の棚卸し/P-001/2026-08-18"
+    assert 仕事たち[0].visit_date == "2026-08-18"
+    assert 仕事たち[0].due.at.isoformat() == "2026-08-18T00:00:00+09:00"
 
 
 def test_穴あきの版で予定が無ければ何も作らない() -> None:

@@ -304,7 +304,6 @@ def make_app(
         o: str = Form(""),
         a: str = Form(""),
         p: str = Form(""),
-        draft_id: str = Form(""),
         reason: str = Form(""),
         code: str = Form(""),
         qty: str = Form("1"),
@@ -315,7 +314,7 @@ def make_app(
             断り = 手たち.visit_act(
                 what,
                 {"id": id, "signer": signer, "s": s, "o": o, "a": a, "p": p,
-                 "draft_id": draft_id, "reason": reason, "code": code, "qty": qty},
+                 "reason": reason, "code": code, "qty": qty},
             )
         finally:
             手たち.close()

@@ -1,14 +1,14 @@
 """作る — 時計が始めるもの。
 
 設計: 設計/仕事が回る筋道.md §1「時計が始めるもの」・§2・§3。
-| 作る | `create` | 有効な版といまから、まだ無い仕事を作る。**源に `{患者}` の穴を持つ版は、
-対象期間に予定の訪問がある患者ごとに1つ**——写すときに穴を患者記号で開き、
-作成元の鍵に患者が入る | 作成元が一意（I3） |
+| 作る | `create` | 有効な版といまから、まだ無い仕事を作る。**源に穴を持つ版は、
+リード（版の日数）以内に迫った予定の定期訪問ごとに1つ**——写すときに穴を
+患者記号と訪問日で開き、作成元の鍵は（規則・患者・訪問日）。版と期間は鍵に入れない | 作成元が一意（I3） |
 
 **誰も呼ばなくても回る。何度回しても同じ結果**——作成元が一意（I3）だから、
 既にある鍵のものは `reconcile` が二度出さない。
 **`reconcile` が対象期間も決める**——業務の判断なので domain に置いてある。
-版は `RuleRepository` から引き、`copy_for(period, patient)` の束を写す——版そのものは渡さない。
+版は `RuleRepository` から引き、`copy_for(period, patient, visit_date)` の束を写す——版そのものは渡さない。
 識別子は `IdPort` が振る——**立てた者が振る**（採番はファクトリの外）。
 """
 
@@ -38,7 +38,7 @@ def create(
     """作るべきをぜんぶ作り、作った識別子を返す。二度目は空になる——何度回しても同じ。"""
     now = clock.now()
     created: list[JobId] = []
-    for rule_name, version_number, period, patient in reconcile(
+    for rule_name, version_number, period, patient, visit_date in reconcile(
         active_rules.read_all(), origins.keys(), visits.read_scheduled(), now
     ):
         rule = rules.load(rule_name)
@@ -50,7 +50,7 @@ def create(
         id = JobId(text=ids.new_id())
         job, event = 生成.create(
             id, rule_name, version_number, period,
-            version.copy_for(period, patient), now, patient,
+            version.copy_for(period, patient, visit_date), now, patient, visit_date,
         )
         jobs.save(job, (event,))
         created.append(id)

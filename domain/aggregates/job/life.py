@@ -43,16 +43,10 @@ class InProgress(Value):
 
 
 class AwaitingAnswer(Value):
-    """答え待ち — 担当と質問の在りかを必ず持つ。"""
+    """答え待ち — 担当を必ず持つ。質問の本文は出来事 `QuestionAsked` が正本。"""
 
     name: Literal["AwaitingAnswer"] = "AwaitingAnswer"
     assignee: Assignee
-    question_at: str
-
-    @model_validator(mode="after")
-    def _obligations(self) -> Self:
-        not_blank(self.question_at, "質問の在りか")
-        return self
 
 
 class Submitted(Value):

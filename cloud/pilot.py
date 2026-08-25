@@ -84,17 +84,15 @@ def sign_ready_visits() -> int:
             for field in ("s", "o", "a", "p"):
                 m = re.search(rf"<textarea[^>]*name='{field}'[^>]*>(.*?)</textarea>", page, re.S)
                 soap[field] = html.unescape(m.group(1)).strip() if m else ""
-            draft = re.search(r"name='draft_id' value='([^']*)'", page)
             # 署名者は席そのもの——フォームの hidden が席の名を持つ
             m = re.search(r"name='signer' value='([^']*)'", page)
             signer = html.unescape(m.group(1)).strip() if m and m.group(1) else None
-            if not (draft and draft.group(1) and signer and any(soap.values())):
-                print(f"sign skipped (no draft/signer): {visit_id}")
+            if not (signer and any(soap.values())):
+                print(f"sign skipped (no prefill/signer): {visit_id}")
                 continue
             _post("/visit/act", {
                 "what": "sign_note", "id": visit_id,
-                "signer": signer,
-                "draft_id": draft.group(1), "reason": "", **soap,
+                "signer": signer, "reason": "", **soap,
             })
             done += 1
             print(f"sign: {visit_id} by {signer}")

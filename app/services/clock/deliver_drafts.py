@@ -1,12 +1,14 @@
 """下書きを配達する — 時計が始めるもの。
 
 設計: 設計/仕事が回る筋道.md §1「時計が始めるもの」。
-| 下書きを配達する | `deliver_drafts` | 承認の済んだカルテの下書きを診療録へ
-**draft としてだけ**置く。置けたら **`DraftDelivered` を刻む**——配達は帳簿に残る事実（F4）
+| 下書きを配達する | `deliver_drafts` | 承認の済んだカルテの下書きを**その訪問
+（患者・訪問日）宛て**に診療録へ **draft としてだけ**置く。置けたら
+**`DraftDelivered` を刻む**——配達は帳簿に残る事実（F4）
 | 承認は済んでいる。運ぶだけ——**印の無いものだけ運ぶ**（診療録の一意の鍵は二重の守り） |
 
 配達するのは**カルテの下書きの仕事だけ**——源がカルテ抽出（`db:chart/<患者記号>`）の
-仕事。どの患者かは源の在りかが知っている（仕事が生まれたとき版から写したもの）。
+仕事。どの患者かは源の在りかが、どの訪問宛てかは仕事の訪問日が知っている
+（どちらも仕事が生まれたとき写したもの）。訪問日の無い仕事は宛先が無い——運ばない。
 
 **印が正本。** 帳簿が配達を覚えているから、毎分の脈は印の無いものしか見ないし、
 診療録の種を入れ直しても二度目は運ばれない。届かなかったら刻まない——次の脈がまた来る。
@@ -47,13 +49,16 @@ def deliver_drafts(
             job = jobs.load(id)
             if job is None or not job.source.location.startswith(_CHART):
                 continue  # カルテの下書きの仕事ではない
+            if job.visit_date is None:
+                continue  # 宛先の訪問が無い——旧い形の仕事。運ばない
             対 = 配達.deliver_drafts(job, now)
             if 対 is None:
                 continue  # 承認を経ていない・成果が無い——配達の事実になれない
             result = results.get(job.result_at) if job.result_at else None
             if result is None:
                 continue
-            if not drafts.deposit(id.text, job.source.location.removeprefix(_CHART), result.body):
+            if not drafts.deposit(id.text, job.source.location.removeprefix(_CHART),
+                                  job.visit_date, result.body):
                 continue  # 診療録に届かなかった——刻まず、次の脈がまた来る
             next_job, event = 対
             try:

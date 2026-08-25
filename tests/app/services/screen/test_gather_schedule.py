@@ -27,10 +27,10 @@ class 一覧の偽物:
 
 
 class 有効の偽物:
-    def __init__(self, *rows: tuple[RuleName, int, Cycle, Source]) -> None:
+    def __init__(self, *rows: tuple[RuleName, int, Cycle, Source, int]) -> None:
         self._rows = rows
 
-    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source], ...]:
+    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source, int], ...]:
         return self._rows
 
 
@@ -53,7 +53,7 @@ def _line(active: int | None = 1) -> RuleLine:
 
 def test_未作成のものが見える() -> None:
     (行,) = gather_schedule(
-        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, 源)), 鍵の偽物(),
+        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, 源, 3)), 鍵の偽物(),
         予定の読みの偽物(), 固定時計(),
     )
     assert 行.next_period == "2026-W34（未作成）"
@@ -63,7 +63,7 @@ def test_未作成のものが見える() -> None:
 def test_作られたものは作られたと出る() -> None:
     鍵 = Origin.from_rule(名, 1, Period.of(いま, Cycle.WEEKLY)).key
     (行,) = gather_schedule(
-        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, 源)), 鍵の偽物(鍵),
+        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, 源, 3)), 鍵の偽物(鍵),
         予定の読みの偽物(), 固定時計(),
     )
     assert 行.next_period == "2026-W34（作られた）"
@@ -77,14 +77,13 @@ def test_止まっている業務ルールに次の対象期間は無い() -> No
     assert 行.actions == ("add_version", "activate")  # 止めるは有効なときだけ
 
 
-def test_穴あきの版は残りの患者数が見える() -> None:
-    """展開のうち半分だけ作られた週——「作られた」と嘘をつかない。"""
+def test_穴あきの版は残りの訪問数が見える() -> None:
+    """展開のうち半分だけ作られたリード——「作られた」と嘘をつかない。"""
     カルテ = Source(location="db:chart/{患者}")
-    期間 = Period.of(いま, Cycle.WEEKLY)
     予定 = 予定の読みの偽物((("P-001", "2026-08-18"), ("P-004", "2026-08-19"), ("P-009", "2026-08-20")))
-    鍵 = Origin.from_rule(名, 1, 期間, "P-001").key
+    鍵 = Origin.from_visit(名, "P-001", "2026-08-18").key
     (行,) = gather_schedule(
-        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, カルテ)), 鍵の偽物(鍵), 予定, 固定時計()
+        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, カルテ, 3)), 鍵の偽物(鍵), 予定, 固定時計()
     )
     assert 行.next_period == "2026-W34（未作成 2件）"
 
@@ -107,12 +106,11 @@ def test_来ている仕事の列が語と見出しで出る() -> None:
     assert rows[0].instruction
 
 
-def test_穴あきの版が全員分作られたら作られたと出る() -> None:
+def test_穴あきの版が全訪問分作られたら作られたと出る() -> None:
     カルテ = Source(location="db:chart/{患者}")
-    期間 = Period.of(いま, Cycle.WEEKLY)
     予定 = 予定の読みの偽物((("P-001", "2026-08-18"),))
-    鍵 = Origin.from_rule(名, 1, 期間, "P-001").key
+    鍵 = Origin.from_visit(名, "P-001", "2026-08-18").key
     (行,) = gather_schedule(
-        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, カルテ)), 鍵の偽物(鍵), 予定, 固定時計()
+        一覧の偽物(_line()), 有効の偽物((名, 1, Cycle.WEEKLY, カルテ, 3)), 鍵の偽物(鍵), 予定, 固定時計()
     )
     assert 行.next_period == "2026-W34（作られた）"

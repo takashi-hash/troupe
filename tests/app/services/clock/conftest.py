@@ -72,13 +72,13 @@ class 有効版の読みの偽物:
     def __init__(self, rules: 規則帳簿の偽物) -> None:
         self._rules = rules
 
-    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source], ...]:
-        out: list[tuple[RuleName, int, Cycle, Source]] = []
+    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source, int], ...]:
+        out: list[tuple[RuleName, int, Cycle, Source, int]] = []
         for rule in self._rules.rules.values():
             if rule.active is None:
                 continue
             version = next(v for v in rule.versions if v.number == rule.active)
-            out.append((rule.name, version.number, version.cycle, version.source))
+            out.append((rule.name, version.number, version.cycle, version.source, version.days))
         return tuple(out)
 
 

@@ -7,11 +7,8 @@ from __future__ import annotations
 
 from app.ports.source_port import Quote, Unreadable
 from app.ports.work_reader import WorkMaterial
-from domain.value_objects.job.answer import Answer
-from domain.value_objects.job.assessment import Assessment
 from domain.value_objects.job.evidence import Evidence
 from domain.value_objects.job.job_id import JobId
-from domain.value_objects.job.question import Question
 from domain.value_objects.job.reply import Reply
 from domain.value_objects.job.result import Result
 from domain.value_objects.people.agent import Agent
@@ -63,23 +60,6 @@ class 源の偽物:
         return outcome
 
 
-class 質問置き場の偽物:
-    def __init__(self) -> None:
-        self.rows: dict[str, tuple[Question, Answer | None]] = {}
-
-    def put_question(self, q: Question) -> str:
-        at = f"q://{len(self.rows) + 1}"
-        self.rows[at] = (q, None)
-        return at
-
-    def put_answer(self, question_at: str, a: Answer) -> None:
-        q, _ = self.rows[question_at]
-        self.rows[question_at] = (q, a)
-
-    def get(self, at: str) -> tuple[Question, Answer | None] | None:
-        return self.rows.get(at)
-
-
 class 成果置き場の偽物:
     def __init__(self) -> None:
         self.rows: dict[str, Result] = {}
@@ -104,18 +84,6 @@ class 根拠置き場の偽物:
 
     def get(self, at: str) -> Evidence | None:
         return self.rows.get(at)
-
-
-class 見立て置き場の偽物:
-    def __init__(self) -> None:
-        self.rows: list[tuple[JobId, Assessment]] = []
-
-    def put(self, job: JobId, a: Assessment) -> str:
-        self.rows.append((job, a))
-        return f"assessment://{len(self.rows)}"
-
-    def list_for(self, job: JobId) -> tuple[Assessment, ...]:
-        return tuple(a for j, a in self.rows if j == job)
 
 
 class 状態読みの偽物:

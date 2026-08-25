@@ -37,12 +37,12 @@ def gather_schedule(
     """業務ルールの一覧を予定の行にして返す。読むだけ。"""
     now = clock.now()
     未作成: dict[tuple[str, int], int] = {}
-    for name, number, _period, _patient in reconcile(
+    for name, number, _period, _patient, _visit_date in reconcile(
         active.read_all(), origins.keys(), visits.read_scheduled(), now
     ):
         未作成[(name.text, number)] = 未作成.get((name.text, number), 0) + 1
     次の期間: dict[str, str] = {}
-    for name, _number, cycle, _source in active.read_all():
+    for name, _number, cycle, _source, _days in active.read_all():
         次の期間[name.text] = Period.of(now, cycle).text
 
     rows: list[ScheduleRow] = []

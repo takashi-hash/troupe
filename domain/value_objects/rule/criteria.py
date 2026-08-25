@@ -35,6 +35,9 @@ PERIOD_PLACEHOLDER: Final = "{対象期間}"
 #: 患者ごとに展開する版だけが書ける穴 — 写すときに患者記号で開く（筋道 §1 `create`）。
 PATIENT_PLACEHOLDER: Final = "{患者}"
 
+#: 訪問ごとに展開する版だけが書ける穴 — 写すときに訪問日で開く（筋道 §1 `create`）。
+VISIT_DATE_PLACEHOLDER: Final = "{訪問日}"
+
 
 class AcceptanceCriteria(Value):
     """受け入れ基準 — **機械が見る語**と、**人と AI が読む文**の2つ。"""
@@ -53,12 +56,18 @@ class AcceptanceCriteria(Value):
         """
         return not any("{" in term for term in self.required_terms)
 
-    def expand(self, period: Period, patient: str | None = None) -> AcceptanceCriteria:
-        """`{対象期間}`（と、あれば `{患者}`）を開く。**版から写すときに1度だけ通る。**"""
+    def expand(
+        self, period: Period, patient: str | None = None, visit_date: str | None = None
+    ) -> AcceptanceCriteria:
+        """`{対象期間}`（と、あれば `{患者}`・`{訪問日}`）を開く。**版から写すときに1度だけ通る。**"""
 
         def 開く(term: str) -> str:
             term = term.replace(PERIOD_PLACEHOLDER, period.text)
-            return term.replace(PATIENT_PLACEHOLDER, patient) if patient is not None else term
+            if patient is not None:
+                term = term.replace(PATIENT_PLACEHOLDER, patient)
+            if visit_date is not None:
+                term = term.replace(VISIT_DATE_PLACEHOLDER, visit_date)
+            return term
 
         return AcceptanceCriteria(
             required_terms=tuple(開く(term) for term in self.required_terms),

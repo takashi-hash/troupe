@@ -68,26 +68,6 @@ class 連番の識別子:
         return f"ID-{self.count:04d}"
 
 
-class 質問置き場の偽物:
-    """メモリの上の QuestionStore。積むと在りかが返る形は本物と同じ。"""
-
-    def __init__(self) -> None:
-        self.questions: dict[str, Question] = {}
-        self.answers: dict[str, Answer] = {}
-
-    def put_question(self, q: Question) -> str:
-        at = f"question://{len(self.questions) + 1}"
-        self.questions[at] = q
-        return at
-
-    def put_answer(self, question_at: str, a: Answer) -> None:
-        self.answers[question_at] = a
-
-    def get(self, at: str) -> tuple[Question, Answer | None] | None:
-        q = self.questions.get(at)
-        return None if q is None else (q, self.answers.get(at))
-
-
 class 題材の偽物:
     """メモリの上の TopicPort。渡された束を初期値としてそのまま返す。"""
 

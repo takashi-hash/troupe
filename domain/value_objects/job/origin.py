@@ -47,6 +47,17 @@ class Origin(Value):
         not_blank(patient, "患者記号")
         return cls(key=f"{key}/{patient}")
 
+    @classmethod
+    def from_visit(cls, rule_name: RuleName, patient: str, visit_date: str) -> Self:
+        """穴あり版の訪問仕事 — 業務ルールの識別子＋患者記号＋訪問日から。
+
+        **版と期間は鍵に入れない**——委嘱の同一性は「この規則が・この患者の・
+        この日の訪問へ」であり、版替えで同じ訪問に二重に作らない（筋道 §1 create）。
+        """
+        not_blank(patient, "患者記号")
+        not_blank(visit_date, "訪問日")
+        return cls(key=f"rule:{rule_name.text}/{patient}/{visit_date}")
+
     @model_validator(mode="after")
     def _obligations(self) -> Self:
         not_blank(self.key, "作成元の鍵")

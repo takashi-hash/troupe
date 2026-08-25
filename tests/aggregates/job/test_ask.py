@@ -24,12 +24,9 @@ def _質問() -> Question:
 
 def test_実行中から答え待ちへ_出来事が必ず一緒に返る() -> None:
     """I1 が型になる——返りは（次の姿, 出来事）の対で、片方だけが返せない。"""
-    仕事, 出来事 = ask(
-        make_job(InProgress(assignee=一号)), _質問(), question_at="question://1", now=いま
-    )
+    仕事, 出来事 = ask(make_job(InProgress(assignee=一号)), _質問(), now=いま)
     assert isinstance(仕事.state, AwaitingAnswer)
     assert 仕事.state.assignee == 一号
-    assert 仕事.state.question_at == "question://1"
     assert isinstance(出来事, QuestionAsked)
     assert 出来事.body == _質問().body and 出来事.by == 一号 and 出来事.at == いま
 
@@ -38,13 +35,13 @@ def test_相手が仕事の受け持ちの人でなければ尋ねられない()
     """相手は仕事の受け持ちの人——AI が選ばない。"""
     よその人 = Question(body="源の鍵はどちらを使いますか", to=Owner(person=Human(name="よその人")))
     with pytest.raises(ValueError, match="受け持ちの人"):
-        ask(make_job(InProgress(assignee=一号)), よその人, question_at="question://1", now=いま)
+        ask(make_job(InProgress(assignee=一号)), よその人, now=いま)
 
 
-def test_空の在りかでは答え待ちになれない() -> None:
-    """答え待ちが質問の在りかを必ず持つ——質問の無い答え待ちが書けない。"""
+def test_空の質問では尋ねられない() -> None:
+    """質問の無い答え待ちが書けない——尋ねるは空でない質問（値）を必ず受ける。"""
     with pytest.raises(ValidationError):
-        ask(make_job(InProgress(assignee=一号)), _質問(), question_at="", now=いま)
+        Question(body="  ", to=Owner(person=座長))
 
 
 def test_着手できるを渡して尋ねる行は型で赤() -> None:
@@ -55,6 +52,6 @@ def test_着手できるを渡して尋ねる行は型で赤() -> None:
     """
 
     def 書けない行(着手できる: Job[Ready]) -> None:
-        ask(着手できる, _質問(), question_at="question://1", now=いま)  # type: ignore[arg-type]  # pyright: reportArgumentType が赤にする
+        ask(着手できる, _質問(), now=いま)  # type: ignore[arg-type]  # pyright: reportArgumentType が赤にする
 
     assert callable(書けない行)  # 呼ばない

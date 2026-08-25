@@ -50,8 +50,8 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 PGPASSWORD=$PW psql -q -h 127.0.0.1 -p 9471 -U postgres -d emr -v ON_ERROR_STOP=1 <<'SQL'
 INSERT INTO staff(name, role) VALUES ('Sim-Director', 'director')
   ON CONFLICT (name) DO UPDATE SET role = 'director';
-INSERT INTO clinicians(code, name, active)
-  VALUES ('Sim-Director', 'Simulated director (demo)', true)
+INSERT INTO clinicians(code, active)
+  VALUES ('Sim-Director', true)
   ON CONFLICT (code) DO UPDATE SET active = true;
 SQL
 echo "  載せた"

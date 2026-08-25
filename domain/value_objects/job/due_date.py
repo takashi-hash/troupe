@@ -35,6 +35,19 @@ class DueDate(Value):
         return self
 
     @classmethod
+    def on_visit_day(cls, visit_date: str, days: int) -> Self:
+        """訪問仕事の期日 — **訪問日の 00:00 JST**（SLA の締切そのもの）。
+
+        起点は約束の窓が開く時刻（訪問日−日数 の 00:00 JST）——遅れて足された
+        訪問は生まれつき期日超過になり、赤い印が遅れの可視化になる（筋道 §1）。
+        """
+        from datetime import date, timezone
+        jst = timezone(timedelta(hours=9))
+        d = date.fromisoformat(visit_date)
+        at = datetime(d.year, d.month, d.day, tzinfo=jst)
+        return cls(start=at - timedelta(days=days), at=at)
+
+    @classmethod
     def from_start(cls, start: datetime, days: int) -> Self:
         """**起点の時刻 ＋ 版の日数** から組む。
 

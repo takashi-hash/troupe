@@ -55,11 +55,11 @@ def test_落ちた診療録でも詳細はNoneに倒れる() -> None:
 
 def test_落ちた診療録でも配達は偽に倒れる() -> None:
     """脈は死なない——次の脈がまた来る。"""
-    assert EmrDrafts(_落ちた口).deposit("J-1", "P-001", "draft") is False
+    assert EmrDrafts(_落ちた口).deposit("J-1", "P-001", "2026-08-25", "draft") is False
 
 
 def test_繋がっていない配達は偽() -> None:
-    assert EmrDrafts(None).deposit("J-1", "P-001", "draft") is False
+    assert EmrDrafts(None).deposit("J-1", "P-001", "2026-08-25", "draft") is False
 
 
 # --- 取り決め・予定づくり・道順——新しい口も**実行して**確かめる ---
@@ -159,16 +159,15 @@ def _次の予定の訪問(dsn: str) -> str:
 
 
 def test_署名の一周_記録が積まれ訪問は実施済み_二度目は断り() -> None:
-    """R1 の核心。署名 → 記録・done・（あれば）下書き使用済み、が1トランザクション。"""
+    """R1 の核心。署名 → 記録・done、が1トランザクション。下書きには書かない。"""
     import psycopg
 
     dsn = _dsn()
     vid = _次の予定の訪問(dsn)
     view = PostgresVisit(dsn).read_one(vid)
     assert view is not None and view.status == "scheduled"
-    draft = view.drafts[0].id if view.drafts else None
 
-    assert EmrVisits(dsn).sign(vid, "Dr-A", "S text", "O text", "A text", "P text", draft) is None
+    assert EmrVisits(dsn).sign(vid, "Dr-A", "S text", "O text", "A text", "P text") is None
     with psycopg.connect(dsn) as conn:
         try:
             状態行 = conn.execute("SELECT status FROM visits WHERE id=%s::bigint", (vid,)).fetchone()
@@ -178,24 +177,20 @@ def test_署名の一周_記録が積まれ訪問は実施済み_二度目は断
                 "SELECT clinician, s FROM clinical_notes WHERE visit_id=%s::bigint", (vid,)
             ).fetchone()
             assert 状態 == "done" and 記録 == ("Dr-A", "S text")
-            if draft:
-                使用 = conn.execute(
-                    "SELECT used_at IS NOT NULL, used_by_note IS NOT NULL"
-                    " FROM note_drafts WHERE id=%s::bigint", (draft,)
-                ).fetchone()
-                assert 使用 == (True, True)
+            # 使用済みは導出——署名のあと、この訪問宛ての未消費の下書きは消えて見える
+            署名後 = PostgresVisit(dsn).read_one(vid)
+            assert 署名後 is not None and 署名後.draft is None
             # 二度目の署名は断り（実施済みには署名できない）
-            assert EmrVisits(dsn).sign(vid, "Dr-A", "s", "o", "a", "p", None) is not None
+            assert EmrVisits(dsn).sign(vid, "Dr-A", "s", "o", "a", "p") is not None
             # 名簿に無い署名者も断り
             vid2 = conn.execute(
                 "SELECT id FROM visits WHERE status='scheduled' ORDER BY visit_date LIMIT 1"
             ).fetchone()
             if vid2:
-                assert EmrVisits(dsn).sign(str(vid2[0]), "Dr-Z", "s", "o", "a", "p", None) is not None
+                assert EmrVisits(dsn).sign(str(vid2[0]), "Dr-Z", "s", "o", "a", "p") is not None
         finally:
             # 後片づけ: 署名した記録と done を種の姿へ戻す（トリガがあるので素の DELETE は不可）
             conn.execute("ALTER TABLE clinical_notes DISABLE TRIGGER clinical_notes_no_update")
-            conn.execute("UPDATE note_drafts SET used_at=NULL, used_by_note=NULL WHERE used_by_note IN (SELECT id FROM clinical_notes WHERE visit_id=%s::bigint)", (vid,))
             conn.execute("DELETE FROM clinical_notes WHERE visit_id=%s::bigint", (vid,))
             conn.execute("ALTER TABLE clinical_notes ENABLE TRIGGER clinical_notes_no_update")
             conn.execute("UPDATE visits SET status='scheduled' WHERE id=%s::bigint", (vid,))

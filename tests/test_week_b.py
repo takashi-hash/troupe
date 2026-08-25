@@ -30,9 +30,7 @@ from adapters.ledger.reading import (
 )
 from adapters.ledger.rules import SqliteRules
 from adapters.ledger.stores import (
-    SqliteAssessments,
     SqliteEvidence,
-    SqliteQuestions,
     SqliteResults,
 )
 from app.dto.version_form import VersionForm
@@ -130,7 +128,6 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
     conn = open_ledger(tmp_path / "ichiza.db")
     jobs, rules = SqliteJobs(conn), SqliteRules(conn)
     results, evidences = SqliteResults(conn), SqliteEvidence(conn)
-    questions, assessments = SqliteQuestions(conn), SqliteAssessments(conn)
     states, origins = SqliteJobStates(conn), SqliteOrigins(conn)
     active, work, today = SqliteActiveRules(conn), SqliteWork(conn), SqliteToday(conn)
     時計 = 進む時計(時(16, 18, 0))
@@ -164,7 +161,7 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:05 源が読めない → 落ちる（進める LLM は呼ばれない）
     時計.set(時(17, 9, 5))
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
+    assert consult(jobs, work, 源, llm, results, evidences, 時計, id, by=一号) is None
     落ちた = jobs.load(id)
     assert 落ちた is not None and type(落ちた.state).__name__ == "Failed"
 
@@ -178,7 +175,7 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
     # 月09:12 AI が取り直す → また読めない → 落ちる（やり直しが尽きた）
     時計.set(時(17, 9, 12))
     assert start(jobs, states, 時計, by=一号) == id
-    assert consult(jobs, work, 源, llm, questions, results, evidences, assessments, 時計, id, by=一号) is None
+    assert consult(jobs, work, 源, llm, results, evidences, 時計, id, by=一号) is None
 
     # 月09:15 仕分け → 残す（何度見ても残る）
     時計.set(時(17, 9, 15))
@@ -187,8 +184,8 @@ def test_週Bが本物の帳簿で最後まで通る(tmp_path: Path) -> None:
 
     # 月09:20 巡回が見立てを書く。二度目の巡回は書かない（F6——同じ見立てを二度書かない）
     時計.set(時(17, 9, 20))
-    assert patrol(jobs, states, work, assessments, llm, 時計, by=一号) == (id,)
-    assert patrol(jobs, states, work, assessments, llm, 時計, by=一号) == ()
+    assert patrol(jobs, states, work, llm, 時計, by=一号) == (id,)
+    assert patrol(jobs, states, work, llm, 時計, by=一号) == ()
 
     # 月09:30 座長が今日を開く——見立てと「尽きた」が読め、差し戻す・打ち切るが押せる
     時計.set(時(17, 9, 30))
