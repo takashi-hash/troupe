@@ -145,7 +145,8 @@ class PostgresPatients:
             (code,),
         ).fetchall()
         notes = conn.execute(
-            "SELECT note_date, clinician, s, o, a, p, signed_at::text FROM clinical_notes"
+            "SELECT note_date, clinician, s, o, a, p,"
+            " (signed_at AT TIME ZONE 'Asia/Tokyo')::text FROM clinical_notes"
             " WHERE patient = %s ORDER BY note_date DESC",
             (code,),
         ).fetchall()
@@ -539,7 +540,8 @@ class PostgresVisit:
             (code,),
         ).fetchall()
         notes = conn.execute(
-            "SELECT note_date, clinician, s, o, a, p, signed_at::text FROM clinical_notes"
+            "SELECT note_date, clinician, s, o, a, p,"
+            " (signed_at AT TIME ZONE 'Asia/Tokyo')::text FROM clinical_notes"
             " WHERE patient = %s ORDER BY note_date DESC LIMIT 5",
             (code,),
         ).fetchall()

@@ -257,6 +257,17 @@ class SqliteToday:
         )
 
 
+def _読める時刻(at: object) -> str:
+    """帳簿の時刻(UTC)を Asia/Tokyo の分精度に——暦の正本(算定・訪問)と同じ時間で読む。"""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        return datetime.fromisoformat(str(at)).astimezone(
+            ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return str(at)[:16].replace("T", " ")
+
+
 class SqliteDetail:
     """`DetailReader` — 出来事の列と問答の対だけ。成果・根拠・見立ては今日の材料が運ぶ。"""
 
@@ -270,7 +281,7 @@ class SqliteDetail:
             (id.text,),
         ).fetchall():
             events.append(
-                (str(at)[:16].replace("T", " "), str(kind), str(name) if name else None, str(ev_name))
+                (_読める時刻(at), str(kind), str(name) if name else None, str(ev_name))
             )
         questions: list[tuple[str, str | None]] = []
         asked: list[str] = []
@@ -301,7 +312,7 @@ class SqliteHistory:
         ).fetchall():
             out.append(
                 HistoryEntry(
-                    at=str(at)[:16].replace("T", " "),
+                    at=_読める時刻(at),
                     by_kind=str(kind),
                     by_name=str(name) if name else None,
                     name=str(ev_name),

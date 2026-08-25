@@ -57,8 +57,8 @@ def _段(鍵: str, 名: str, 副: str, 数: int, 数の印: str, 帯色: str = "
 def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
     """いまの画面。環の図がヒーロー——数は全部本物、動きは出来事が起こす。"""
     合計 = v.queued + len(v.working) + v.checking + v.waiting
-    脈 = (f"last pulse <span class='num' data-now='beat'>{escape(v.beat_at[-5:])}</span>"
-          if v.beat_at else "<span data-now='beat'>no pulse yet</span>")
+    脈 = (f"clock last wrote <span class='num' data-now='beat'>{escape(v.beat_at[-5:])}</span>"
+          if v.beat_at else "<span data-now='beat'>nothing written yet</span>")
     作業中 = "".join(
         f"<div class='now-working__item'><a href='/detail?id={escape(id)}'>{escape(head)}</a>"
         "<span class='now-working__dot'></span></div>"

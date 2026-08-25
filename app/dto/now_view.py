@@ -26,5 +26,5 @@ class NowView(BaseModel):
     checking: int
     #: 人待ち — 承認待ち・答え待ち。
     waiting: int
-    #: 最後の脈の時刻 — 時計の出来事の最新。まだ無ければ空。
+    #: 時計が最後に書いた時刻 — 静かな時間は書くことが無い(脈は毎分打っている)。まだ無ければ空。
     beat_at: str | None
