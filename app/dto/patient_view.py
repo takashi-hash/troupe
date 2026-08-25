@@ -33,9 +33,11 @@ class PatientDraft(BaseModel):
 
     delivered_at: str
     body: str
+    #: どの訪問宛てか——下書きは (患者, 訪問日) に一度。
+    visit_date: str
     #: どの仕事から来たか——帳簿の側の一生（承認の出来事）に辿れる。
     job_id: str
-    #: 使用済みか——署名が消費した下書きは USED の印で残る（消さない）。
+    #: 消費済みか——その訪問の署名済みの記録の存在から**導出**（下書きに印は無い）。
     used: bool
 
 

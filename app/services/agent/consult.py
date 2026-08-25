@@ -26,10 +26,8 @@ from domain.aggregates.job import fail as 落ちる
 from domain.aggregates.job import spend as 積む
 from domain.aggregates.job import submit as 出す
 from domain.aggregates.job.life import InProgress
-from domain.repositories.assessment_store import AssessmentStore
 from domain.repositories.evidence_store import EvidenceStore
 from domain.repositories.job_repository import JobRepository
-from domain.repositories.question_store import QuestionStore
 from domain.repositories.result_store import ResultStore
 from domain.services.verify_reply import verify
 from domain.value_objects.job.assessment import Assessment
@@ -45,10 +43,8 @@ def consult(
     work: WorkReader,
     source: SourcePort,
     llm: LlmPort,
-    questions: QuestionStore,
     results: ResultStore,
     evidences: EvidenceStore,
-    assessments: AssessmentStore,
     clock: ClockPort,
     id: JobId,
     by: Agent,
@@ -100,8 +96,7 @@ def consult(
     mark = verify(reply, job.criteria)
     if mark is Mark.QUESTION:
         question = Question(body=reply.body, to=job.owner)
-        question_at = questions.put_question(question)
-        next_job, asked = 尋ねる.ask(job, question, question_at, now=clock.now())
+        next_job, asked = 尋ねる.ask(job, question, now=clock.now())
         jobs.save(next_job, (asked,))
         return None
     if mark is Mark.RESULT:
@@ -119,7 +114,6 @@ def consult(
             else "印が成果でも質問でもなかった"
         ),
     )
-    assessments.put(job.id, assessment)
     same_job, written = 見立て.assess(job, assessment, by=assignee, now=clock.now())
     jobs.save(same_job, (written,))
     return None

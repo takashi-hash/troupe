@@ -158,7 +158,7 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
             + f"<div class='visit-main'><p class='sub'>This visit is {escape(view.status)}"
             " — read-only.</p>" + 済み + "</div></div>"
         )
-    draft = view.drafts[0] if view.drafts else None
+    draft = view.draft
     分解 = _soap分解(draft.body) if draft else None
     下書きパネル = ""
     if draft:
@@ -205,7 +205,6 @@ def _訪問(view: VisitView | None, 断り: str | None = None,
         f"<form class='note-editor' method='post' action='/visit/act'>"
         f"<input type='hidden' name='what' value='sign_note'>"
         f"<input type='hidden' name='id' value='{escape(view.id)}'>"
-        + (f"<input type='hidden' name='draft_id' value='{escape(draft.id)}'>" if draft else "")
         + 欄("S", "Subjective", "s") + 欄("O", "Objective", "o")
         + 欄("A", "Assessment", "a") + 欄("P", "Plan", "p")
         + "<div class='sign-bar'><span class='sign-bar__meta'>"

@@ -3,7 +3,8 @@
   "source": "db:chart/{患者}",
   "required_terms": [
     "{対象期間}",
-    "{患者}"
+    "{患者}",
+    "{訪問日}"
   ],
   "description": "SOAP form for the visit in the reporting period; trends across the given notes are stated with numbers where possible; Objective has no invented measurements.",
   "cycle": "weekly",

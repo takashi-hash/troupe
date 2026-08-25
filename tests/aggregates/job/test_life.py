@@ -27,9 +27,9 @@ def test_担当の無い実行中が書けない() -> None:
         InProgress()  # type: ignore[call-arg]
 
 
-def test_質問の無い答え待ちが書けない() -> None:
+def test_担当の無い答え待ちが書けない() -> None:
     with pytest.raises(ValidationError):
-        AwaitingAnswer(assignee=Agent(name="一号"), question_at="")
+        AwaitingAnswer()  # type: ignore[call-arg]
 
 
 def test_承認なしの承認済みが書けない() -> None:

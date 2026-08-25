@@ -34,14 +34,21 @@ def create(
     copied: Copied,
     now: datetime,
     patient: str | None = None,
+    visit_date: str | None = None,
 ) -> tuple[Job[Created], JobCreated]:
     """仕事を生む。返るのは（作られた仕事, 仕事が作られた）の対——I1 が型になる。
 
-    患者ごとに展開する版（源に穴を持つ）は患者記号が鍵に入る——束の源は開かれて届く。
+    穴を持つ版の訪問仕事は鍵が（規則・患者・訪問日）——版と期間は鍵に入れない。
+    期日は訪問日の 00:00 JST（SLA の締切そのもの）。
     """
     job = Job[Created](
         id=id,
-        origin=Origin.from_rule(rule, version, period, patient),
+        origin=(
+            Origin.from_visit(rule, patient, visit_date)
+            if visit_date is not None and patient is not None
+            else Origin.from_rule(rule, version, period, patient)
+        ),
+        visit_date=visit_date,
         born_of=rule,
         born_version=version,
         period=period,
@@ -52,7 +59,8 @@ def create(
         source=copied.source,
         cycle=copied.cycle,
         max_retries=copied.max_retries,
-        due=DueDate.from_start(now, copied.days),
+        due=(DueDate.on_visit_day(visit_date, copied.days)
+             if visit_date is not None else DueDate.from_start(now, copied.days)),
         spent=Spent(calls=0, seconds=0),
         retried=0,
         result_at=None,

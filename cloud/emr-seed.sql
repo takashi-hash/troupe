@@ -26,7 +26,7 @@
 -- rewrites and signs elsewhere. Troupe has no path that writes a signed note.
 
 DROP TABLE IF EXISTS staff, charges, claims, visit_services, fee_schedule,
-  note_drafts, clinical_notes, visit_notes, condition_events,
+  note_drafts, clinical_notes, condition_events,
   visits, visit_patterns, physician_orders, medications, patient_conditions,
   patients, clinicians, clinic CASCADE;
 DROP FUNCTION IF EXISTS clinical_notes_immutable() CASCADE;
@@ -38,20 +38,18 @@ DROP FUNCTION IF EXISTS services_frozen_by_signing() CASCADE;
 
 CREATE TABLE clinic(               -- the practice's home base (route origin)
   name TEXT NOT NULL,
-  address TEXT NOT NULL,
   lat DOUBLE PRECISION NOT NULL,
   lng DOUBLE PRECISION NOT NULL
 );
 
-CREATE TABLE staff(                  -- the register of seats: name -> role
-  name TEXT PRIMARY KEY,
-  role TEXT NOT NULL CHECK (role IN ('director','clinician'))
+CREATE TABLE staff(                  -- the register of CLERICAL seats: name -> role.
+  name TEXT PRIMARY KEY,             -- clinical power is gated by clinicians(active) alone;
+  role TEXT NOT NULL CHECK (role IN ('director','clerk'))   -- the seat picker unions both.
 );
 
 CREATE TABLE clinicians(
-  code TEXT PRIMARY KEY,            -- 'Dr-A' : the v4 free strings survive unchanged as keys
-  name TEXT,                        -- display name; NULL = show the code
-  active BOOLEAN NOT NULL DEFAULT true
+  code TEXT PRIMARY KEY,            -- 'Dr-A' : the free strings survive unchanged as keys
+  active BOOLEAN NOT NULL DEFAULT true   -- display is always the code
 );
 
 CREATE TABLE patients(
@@ -140,21 +138,23 @@ CREATE TABLE clinical_notes(          -- SIGNED notes only. Append-only. Immutab
   signed_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE note_drafts(             -- the draft inbox. The pulse writes here; a human uses it.
-  id BIGSERIAL PRIMARY KEY,
+CREATE TABLE note_drafts(             -- the draft inbox. Append-only: the deposit INSERT
+  id BIGSERIAL PRIMARY KEY,           -- is the ONLY writer; signing never touches this table.
   patient TEXT NOT NULL REFERENCES patients(code),
-  body TEXT NOT NULL,                 -- immutable: the mark of use lives in the pair below
+  visit_date DATE NOT NULL,           -- which visit this draft is addressed to
+  body TEXT NOT NULL,
   based_on_job TEXT NOT NULL UNIQUE,  -- idempotency: one deposit per approved job
   delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  used_at TIMESTAMPTZ,                -- when a signing consumed it
-  used_by_note BIGINT UNIQUE REFERENCES clinical_notes(id),
-  CHECK ((used_at IS NULL) = (used_by_note IS NULL))
+  UNIQUE (patient, visit_date)        -- one draft per visit; 'used' is derived from the signed note
 );
 
+-- the natural key: one live regular visit per patient per day — this is what
+-- lets drafts (and the Origin key) address a visit as (patient, visit_date)
+CREATE UNIQUE INDEX visits_one_regular_per_day ON visits(patient, visit_date)
+  WHERE kind = 'regular' AND status <> 'cancelled';
 CREATE INDEX idx_visits_day ON visits(visit_date, status);
 CREATE INDEX idx_visits_patient ON visits(patient, visit_date DESC);
 CREATE INDEX idx_notes_patient ON clinical_notes(patient, note_date DESC);
-CREATE INDEX idx_drafts_patient ON note_drafts(patient) WHERE used_at IS NULL;
 
 -- ========== billing (Nagisa Schedule - entirely fictional) ==========
 
@@ -221,15 +221,13 @@ CREATE TABLE condition_events(
 
 -- ========== seed: master ==========
 
-INSERT INTO clinicians(code, name) VALUES
- ('Dr-A', 'Dr. Asada'), ('Dr-B', 'Dr. Baba'), ('Dr-C', 'Dr. Chiba');
+INSERT INTO clinicians(code) VALUES ('Dr-A'), ('Dr-B'), ('Dr-C');
 
 INSERT INTO staff(name, role) VALUES
- ('Director', 'director'),
- ('Dr-A', 'clinician'), ('Dr-B', 'clinician'), ('Dr-C', 'clinician');
+ ('Director', 'director');
 
 INSERT INTO clinic VALUES
- ('Riverbend Home Medical Clinic', 'near Sangenjaya Sta. (public landmark)', 35.6433, 139.6690);
+ ('Riverbend Home Medical Clinic', 35.6433, 139.6690);
 
 INSERT INTO patients VALUES
  ('P-001', 82, 'lives alone, daughter visits weekends', 'Setagaya City Hall (public landmark stand-in)', 35.6432, 139.6532, 1, NULL, false),

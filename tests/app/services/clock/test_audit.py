@@ -18,10 +18,10 @@ from tests.app.services.clock.conftest import 予定の読みの偽物
 
 
 class 有効の偽物:
-    def __init__(self, *rows: tuple[RuleName, int, Cycle, Source]) -> None:
+    def __init__(self, *rows: tuple[RuleName, int, Cycle, Source, int]) -> None:
         self.rows = rows
 
-    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source], ...]:
+    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source, int], ...]:
         return self.rows
 
 
@@ -39,15 +39,15 @@ class 固定時計:
 
 
 def test_仕事が無ければ赤く数え上がる() -> None:
-    欠け = audit(有効の偽物((名, 1, Cycle.WEEKLY, 源)), 鍵の偽物(), 予定の読みの偽物(), 固定時計())
-    assert 欠け == ((名, 1, Period.of(いま, Cycle.WEEKLY), None),)
+    欠け = audit(有効の偽物((名, 1, Cycle.WEEKLY, 源, 3)), 鍵の偽物(), 予定の読みの偽物(), 固定時計())
+    assert 欠け == ((名, 1, Period.of(いま, Cycle.WEEKLY), None, None),)
 
 
 def test_仕事が在れば空() -> None:
     期間 = Period.of(いま, Cycle.WEEKLY)
     鍵 = Origin.from_rule(名, 1, 期間).key
     assert audit(
-        有効の偽物((名, 1, Cycle.WEEKLY, 源)), 鍵の偽物(鍵), 予定の読みの偽物(), 固定時計()
+        有効の偽物((名, 1, Cycle.WEEKLY, 源, 3)), 鍵の偽物(鍵), 予定の読みの偽物(), 固定時計()
     ) == ()
 
 
@@ -56,11 +56,11 @@ def test_有効が無ければ空() -> None:
     assert audit(有効の偽物(), 鍵の偽物(), 予定の読みの偽物(), 固定時計()) == ()
 
 
-def test_穴あきの版は患者ごとに欠けが数え上がる() -> None:
-    """I8 は展開後の1つ1つを守る——半分だけ作られた週が緑にならない。"""
+def test_穴あきの版は訪問ごとに欠けが数え上がる() -> None:
+    """I8 は展開後の1つ1つを守る——半分だけ作られたリードが緑にならない。"""
     カルテ = Source(location="db:chart/{患者}")
     期間 = Period.of(いま, Cycle.WEEKLY)
     予定 = 予定の読みの偽物((("P-001", "2026-08-18"), ("P-004", "2026-08-19")))
-    鍵 = Origin.from_rule(名, 1, 期間, "P-001").key
-    欠け = audit(有効の偽物((名, 1, Cycle.WEEKLY, カルテ)), 鍵の偽物(鍵), 予定, 固定時計())
-    assert 欠け == ((名, 1, 期間, "P-004"),)
+    鍵 = Origin.from_visit(名, "P-001", "2026-08-18").key
+    欠け = audit(有効の偽物((名, 1, Cycle.WEEKLY, カルテ, 3)), 鍵の偽物(鍵), 予定, 固定時計())
+    assert 欠け == ((名, 1, 期間, "P-004", "2026-08-19"),)

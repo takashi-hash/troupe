@@ -9,8 +9,7 @@ class 訪問の終わりの偽物:
     def __init__(self) -> None:
         self.休んだ: list[tuple[str, str]] = []
 
-    def sign(self, visit_id: str, signer: str, s: str, o: str, a: str, p: str,
-             draft_id: str | None) -> str | None:
+    def sign(self, visit_id: str, signer: str, s: str, o: str, a: str, p: str) -> str | None:
         return None
 
     def cancel(self, visit_id: str, reason: str, by: str) -> str | None:

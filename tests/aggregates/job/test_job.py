@@ -37,6 +37,22 @@ def test_作成元が生まれた版と食い違うと作れない() -> None:
         make_job(Ready(), origin=Origin(key="rule:別のルール/v9/2026-W01"))
 
 
+def test_訪問仕事の作成元は規則と患者と訪問日の形でしか作れない() -> None:
+    """訪問日を持つ仕事の鍵は rule:<規則名>/<患者>/<訪問日>——版と期間は入らない。"""
+    from domain.value_objects.job.origin import Origin
+
+    良い鍵 = Origin(key="rule:週次の依存の棚卸し/P-001/2026-08-18")
+    make_job(Ready(), origin=良い鍵, visit_date="2026-08-18")  # 通る形
+    for 悪い鍵 in (
+        "rule:週次の依存の棚卸し/v1/2026-W34/P-001/2026-08-18",  # 版と期間が混ざる(中に/)
+        "rule:週次の依存の棚卸し//2026-08-18",                   # 患者が空
+        "rule:別のルール/P-001/2026-08-18",                      # 規則が違う
+        "rule:週次の依存の棚卸し/P-001/2026-08-19",              # 訪問日が違う
+    ):
+        with pytest.raises(ValidationError):
+            make_job(Ready(), origin=Origin(key=悪い鍵), visit_date="2026-08-18")
+
+
 def test_開かれていない差し込みを持つ仕事は作れない() -> None:
     from domain.value_objects.rule.criteria import AcceptanceCriteria
 

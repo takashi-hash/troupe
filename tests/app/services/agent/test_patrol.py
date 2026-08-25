@@ -21,16 +21,13 @@ from tests.app.services.agent.conftest import (
     働き手,
     材料読みの偽物,
     状態読みの偽物,
-    見立て置き場の偽物,
 )
 
 
 def _見回る(
     帳簿: 帳簿の偽物, 状態読み: 状態読みの偽物, 材料読み: 材料読みの偽物
-) -> tuple[tuple[JobId, ...], 見立て置き場の偽物]:
-    見立て = 見立て置き場の偽物()
-    動いた = patrol(帳簿, 状態読み, 材料読み, 見立て, 状況読みの偽物(), 固定時計(), by=働き手)
-    return 動いた, 見立て
+) -> tuple[JobId, ...]:
+    return patrol(帳簿, 状態読み, 材料読み, 状況読みの偽物(), 固定時計(), by=働き手)
 
 
 class 状況読みの偽物:
@@ -78,11 +75,11 @@ def test_尽きた仕事に見立てが付く() -> None:
             sibling_states=(),
         )
     )
-    動いた, 見立て = _見回る(帳簿, 状態読みの偽物({"Failed": (仕事.id,)}), 材料読み)
+    動いた = _見回る(帳簿, 状態読みの偽物({"Failed": (仕事.id,)}), 材料読み)
     assert 動いた == (仕事.id,)
-    (行,) = 見立て.rows
-    assert 行[0] == 仕事.id and 行[1].finding == "源の在りかが変わった可能性が高い"
-    assert 行[1].reason == "止まった理由が全部同じ"  # LLM の読んだ言葉がそのまま届く
+    書かれた = next(e for e in 帳簿.events if isinstance(e, AssessmentWritten))
+    assert 書かれた.assessment.finding == "源の在りかが変わった可能性が高い"
+    assert 書かれた.assessment.reason == "止まった理由が全部同じ"  # LLM の言葉がそのまま届く
     後 = 帳簿.jobs[仕事.id]
     assert isinstance(後.state, Failed)  # 状態は変わらない
     assert [type(e) for e in 帳簿.events] == [AssessmentWritten]
@@ -102,8 +99,8 @@ def test_見立てが既に在れば書かない() -> None:
             sibling_states=(),
         )
     )
-    動いた, 見立て = _見回る(帳簿, 状態読みの偽物({"Failed": (仕事.id,)}), 材料読み)
-    assert 動いた == () and not 見立て.rows and not 帳簿.events
+    動いた = _見回る(帳簿, 状態読みの偽物({"Failed": (仕事.id,)}), 材料読み)
+    assert 動いた == () and not 帳簿.events
 
 
 def test_根拠なしで終わった仕事に見立てが付く() -> None:
@@ -117,12 +114,12 @@ def test_根拠なしで終わった仕事に見立てが付く() -> None:
         spent=Spent(calls=20, seconds=0),  # 上限（calls=20）に触れている
     )
     帳簿.jobs[仕事.id] = 仕事
-    動いた, 見立て = _見回る(
+    動いた = _見回る(
         帳簿, 状態読みの偽物({"FinishedPendingRecheck": (仕事.id,)}), 材料読みの偽物()
     )
     assert 動いた == (仕事.id,)
-    (行,) = 見立て.rows
-    assert 行[1].finding == "源の在りかが変わった可能性が高い"  # 本文は LLM の言葉
+    書かれた = next(e for e in 帳簿.events if isinstance(e, AssessmentWritten))
+    assert 書かれた.assessment.finding == "源の在りかが変わった可能性が高い"  # 本文は LLM の言葉
     assert isinstance(帳簿.jobs[仕事.id].state, FinishedPendingRecheck)  # 状態は変わらない
     assert [type(e) for e in 帳簿.events] == [AssessmentWritten]
 
@@ -141,11 +138,11 @@ def test_実行中で行き詰まったら人へ回す() -> None:
             sibling_states=(),
         )
     )
-    動いた, 見立て = _見回る(帳簿, 状態読みの偽物({"InProgress": (仕事.id,)}), 材料読み)
+    動いた = _見回る(帳簿, 状態読みの偽物({"InProgress": (仕事.id,)}), 材料読み)
     assert 動いた == (仕事.id,)
-    (行,) = 見立て.rows
+    書かれた = next(e for e in 帳簿.events if isinstance(e, AssessmentWritten))
     後 = 帳簿.jobs[仕事.id]
-    assert isinstance(後.state, Failed) and 後.state.fallen == 行[1].finding  # 落ちた中身＝見立ての本文
+    assert isinstance(後.state, Failed) and 後.state.fallen == 書かれた.assessment.finding  # 落ちた中身＝見立ての本文
     assert [type(e) for e in 帳簿.events] == [AssessmentWritten, JobFailed]
 
 
@@ -153,6 +150,6 @@ def test_行き詰まっていなければ触らない() -> None:
     帳簿 = 帳簿の偽物()
     仕事 = make_job(InProgress(assignee=働き手))
     帳簿.jobs[仕事.id] = 仕事
-    動いた, 見立て = _見回る(帳簿, 状態読みの偽物({"InProgress": (仕事.id,)}), 材料読みの偽物())
-    assert 動いた == () and not 見立て.rows and not 帳簿.events
+    動いた = _見回る(帳簿, 状態読みの偽物({"InProgress": (仕事.id,)}), 材料読みの偽物())
+    assert 動いた == () and not 帳簿.events
     assert 帳簿.jobs[仕事.id] == 仕事

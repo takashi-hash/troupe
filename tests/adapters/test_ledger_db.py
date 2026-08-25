@@ -65,9 +65,10 @@ def test_表の形は採番のところだけが器で変わる() -> None:
     雲 = _TABLES.replace("{採番}", "BIGSERIAL PRIMARY KEY")
     assert "{採番}" not in 手元 and "{採番}" not in 雲
     assert len(_文ごと(手元)) == len(_文ごと(雲))
-    # 差は assessments の1文だけ——形が2枚に分かれていない証拠
+    # 差は採番の2文（成果・根拠）だけ——形が2枚に分かれていない証拠
     違う = [甲 for 甲, 乙 in zip(_文ごと(手元), _文ごと(雲)) if 甲 != 乙]
-    assert len(違う) == 1 and "assessments" in 違う[0]
+    assert len(違う) == 2
+    assert "results" in 違う[0] and "evidence" in 違う[1]
 
 
 def test_表の形は1文ずつに割れる() -> None:

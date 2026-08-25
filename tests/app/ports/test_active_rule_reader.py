@@ -12,7 +12,7 @@ from domain.value_objects.rule.source import Source
 
 
 def test_返すのは有効な版の識別子と番号と周期と源の列() -> None:
-    """`reconcile` の材料と同じ形——詰め替えなしでそのまま渡る。源は穴の有無を運ぶ。"""
+    """`reconcile` の材料と同じ形——詰め替えなしでそのまま渡る。源は穴の有無を、日数はリードを運ぶ。"""
     hints = get_type_hints(ActiveRuleReader.read_all)
-    assert hints["return"] == tuple[tuple[RuleName, int, Cycle, Source], ...]
+    assert hints["return"] == tuple[tuple[RuleName, int, Cycle, Source, int], ...]
     assert list(inspect.signature(ActiveRuleReader.read_all).parameters) == ["self"]

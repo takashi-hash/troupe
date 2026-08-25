@@ -23,6 +23,6 @@ def audit(
     origins: OriginReader,
     visits: ScheduledVisitReader,
     clock: ClockPort,
-) -> tuple[tuple[RuleName, int, Period, str | None], ...]:
-    """有効なのに仕事の無い（識別子・版・対象期間・患者）の列。空なら I8 は守られている。"""
+) -> tuple[tuple[RuleName, int, Period, str | None, str | None], ...]:
+    """有効なのに仕事の無い（識別子・版・対象期間・患者・訪問日）の列。空なら I8 は守られている。"""
     return reconcile(active_rules.read_all(), origins.keys(), visits.read_scheduled(), clock.now())

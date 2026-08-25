@@ -62,9 +62,7 @@ from adapters.ledger.reading import (
 )
 from adapters.ledger.rules import SqliteRules
 from adapters.ledger.stores import (
-    SqliteAssessments,
     SqliteEvidence,
-    SqliteQuestions,
     SqliteResults,
 )
 from adapters.topic import FolderTopic
@@ -153,8 +151,6 @@ class Ichiza:
         self.rules = SqliteRules(self.conn)
         self.results = SqliteResults(self.conn)
         self.evidences = SqliteEvidence(self.conn)
-        self.questions = SqliteQuestions(self.conn)
-        self.assessments = SqliteAssessments(self.conn)
         self.states = SqliteJobStates(self.conn)
         self.origins = SqliteOrigins(self.conn)
         self.active = SqliteActiveRules(self.conn)
@@ -213,7 +209,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
 
     def 押す(what: str, id: str, text: str) -> str | None:
         if what == "answer":
-            断り = answer(za.jobs, za.questions, za.clock, id, viewer, text)
+            断り = answer(za.jobs, za.clock, id, viewer, text)
         elif what == "approve":
             断り = approve(za.jobs, za.clock, id, viewer)
         elif what == "send_back":
@@ -298,8 +294,7 @@ def _手(za: Ichiza, viewer: str) -> 手:
                 za.visits_port,
                 fields.get("id", ""), fields.get("signer", ""),
                 fields.get("s", ""), fields.get("o", ""),
-                fields.get("a", ""), fields.get("p", ""),
-                fields.get("draft_id", ""), by=viewer,
+                fields.get("a", ""), fields.get("p", ""), by=viewer,
             )
         elif what == "cancel_visit":
             断り = cancel_visit(za.visits_port, fields.get("id", ""), fields.get("reason", ""), by=viewer)
@@ -398,8 +393,8 @@ def _tick(za: Ichiza) -> None:
         za.jobs, za.states, za.results, za.delivered_marks, za.drafts, za.clock
     )
     欠け = audit(za.active, za.origins, za.scheduled_visits, za.clock)
-    for 名前, 版, 期間, 患者 in 欠け:
-        誰の = f" {患者}" if 患者 else ""
+    for 名前, 版, 期間, 患者, 訪問日 in 欠け:
+        誰の = f" {患者} {訪問日}" if 患者 and 訪問日 else f" {患者}" if 患者 else ""
         print(f"! I8 active rule with no job — {名前.text} v{版} {期間.text}{誰の}")
     # 出すのは §1 の操作の識別子そのまま——ログもまた読む人のもの
     for 名, 列 in (
@@ -427,10 +422,8 @@ def _agent(za: Ichiza, name: str) -> None:
             za.work,
             za.source,
             za.llm,
-            za.questions,
             za.results,
             za.evidences,
-            za.assessments,
             za.clock,
             took,
             by=ai,
@@ -441,7 +434,7 @@ def _agent(za: Ichiza, name: str) -> None:
             else f"refused: {outcome.reason}"
         )
     visited = patrol(
-        za.jobs, za.states, za.work, za.assessments, za.llm, za.clock, by=ai
+        za.jobs, za.states, za.work, za.llm, za.clock, by=ai
     )
     if visited:
         print(f"assess: {', '.join(j.text for j in visited)}")
@@ -595,7 +588,7 @@ def main() -> None:
         elif args.what == "send-back":
             断り = send_back(za.jobs, za.clock, args.id, args.by, args.text)
         elif args.what == "answer":
-            断り = answer(za.jobs, za.questions, za.clock, args.id, args.by, args.text)
+            断り = answer(za.jobs, za.clock, args.id, args.by, args.text)
         else:
             断り = abandon(za.jobs, za.clock, args.id, args.by, args.text)
         print(f"{args.what}: ok" if 断り is None else f"refused: {断り.reason}")

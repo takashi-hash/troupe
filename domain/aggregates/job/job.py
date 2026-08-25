@@ -61,6 +61,9 @@ class Job(Value, Generic[S]):
     #: 対象期間 — 業務ルール発のみ。
     period: Period | None
 
+    #: 訪問日 — 穴あり版の訪問仕事だけが持つ（yyyy-mm-dd）。それ以外は空。
+    visit_date: str | None = None
+
     #: 版から写したもの。**写すのであって、指すのではない。**
     instruction: Instruction
     criteria: AcceptanceCriteria
@@ -92,12 +95,22 @@ class Job(Value, Generic[S]):
         if any(x is not None for x in born) and not all(x is not None for x in born):
             raise ValueError("生まれた版と対象期間は、業務ルール発なら三つ揃い、依頼発なら三つとも空です")
         if self.born_of is not None and self.born_version is not None and self.period is not None:
-            素の鍵 = Origin.from_rule(self.born_of, self.born_version, self.period).key
-            # 患者ごとに展開する版は鍵に患者記号が続く(筋道 §1 create)——空の患者は続けない
-            if self.origin.key != 素の鍵 and not (
-                self.origin.key.startswith(素の鍵 + "/") and len(self.origin.key) > len(素の鍵) + 1
-            ):
-                raise ValueError("作成元が生まれた版と食い違っています（I3 の鍵が嘘になる）")
+            if self.visit_date is not None:
+                # 訪問仕事の鍵は rule:<規則名>/<患者>/<訪問日>——版と期間は入らない(筋道 §1 create)
+                頭 = f"rule:{self.born_of.text}/"
+                尻 = f"/{self.visit_date}"
+                中 = self.origin.key[len(頭):-len(尻)] if (
+                    self.origin.key.startswith(頭) and self.origin.key.endswith(尻)
+                ) else ""
+                if not 中 or "/" in 中:
+                    raise ValueError("訪問仕事の作成元が（規則・患者・訪問日）の形ではありません")
+            else:
+                素の鍵 = Origin.from_rule(self.born_of, self.born_version, self.period).key
+                # 患者ごとに展開する版は鍵に患者記号が続く(筋道 §1 create)——空の患者は続けない
+                if self.origin.key != 素の鍵 and not (
+                    self.origin.key.startswith(素の鍵 + "/") and len(self.origin.key) > len(素の鍵) + 1
+                ):
+                    raise ValueError("作成元が生まれた版と食い違っています（I3 の鍵が嘘になる）")
         if not self.criteria.opened:
             raise ValueError(
                 "開かれていない差し込みが残っています"

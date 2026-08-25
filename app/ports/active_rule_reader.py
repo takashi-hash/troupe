@@ -19,6 +19,6 @@ from domain.value_objects.rule.source import Source
 
 
 class ActiveRuleReader(Protocol):
-    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source], ...]:
-        """有効な版の（識別子・番号・周期・源）の列。有効な版の無い業務ルールは出ない。"""
+    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source, int], ...]:
+        """有効な版の（識別子・番号・周期・源・日数）の列。有効な版の無い業務ルールは出ない。"""
         ...

@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Protocol, Sequence
 
 #: 帳簿の形の番号。形を変えたら上げる——合わなければ開かない（I10）。
-SHAPE = 1
+SHAPE = 2
 
 _TABLES = """
 CREATE TABLE IF NOT EXISTS shape(number INTEGER NOT NULL);
@@ -68,24 +68,12 @@ CREATE TABLE IF NOT EXISTS rule_events(
 );
 
 CREATE TABLE IF NOT EXISTS results(
-    at TEXT PRIMARY KEY,
+    at {採番},
     body TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS evidence(
-    at TEXT PRIMARY KEY,
-    body TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS questions(
-    at TEXT PRIMARY KEY,
-    question TEXT NOT NULL,
-    answer TEXT
-);
-
-CREATE TABLE IF NOT EXISTS assessments(
     at {採番},
-    job_id TEXT NOT NULL,
     body TEXT NOT NULL
 );
 """

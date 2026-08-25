@@ -90,3 +90,18 @@ def test_空の患者記号では鍵が作れない() -> None:
     for 患者 in ("", "   "):
         with pytest.raises(ValueError):
             Origin.from_rule(月次, 1, 八月, 患者)
+
+
+def test_訪問の鍵は規則と患者と訪問日から_版と期間は入らない() -> None:
+    """業務の同一性は（規則・患者・訪問日）——版替えで同じ訪問に二重に作らない。"""
+    鍵 = Origin.from_visit(月次, "P-001", "2026-08-18")
+    assert 鍵.key == "rule:月次突合/P-001/2026-08-18"
+    assert 鍵 == Origin.from_visit(月次, "P-001", "2026-08-18")
+    assert 鍵 != Origin.from_visit(月次, "P-001", "2026-08-19")
+
+
+def test_空の患者や訪問日では訪問の鍵が作れない() -> None:
+    """鍵のどの節も空にできない——I3 の鍵が曖昧になる。"""
+    for 患者, 日 in (("", "2026-08-18"), ("   ", "2026-08-18"), ("P-001", ""), ("P-001", "  ")):
+        with pytest.raises(ValueError):
+            Origin.from_visit(月次, 患者, 日)

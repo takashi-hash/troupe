@@ -12,6 +12,7 @@ from typing import Any
 
 from adapters.ledger.db import Ledger
 from adapters.ledger.jobs import load_job, read_events
+from adapters.ledger.stores import _番号
 from domain.aggregates.job.life import TERMINAL
 from app.ports.detail_reader import DetailMaterial
 from app.ports.history_reader import HistoryEntry
@@ -67,13 +68,13 @@ class SqliteOrigins:
 
 
 class SqliteActiveRules:
-    """`ActiveRuleReader` — 有効な版の（識別子・番号・周期・源）。"""
+    """`ActiveRuleReader` — 有効な版の（識別子・番号・周期・源・日数）。"""
 
     def __init__(self, conn: Ledger) -> None:
         self._conn = conn
 
-    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source], ...]:
-        out: list[tuple[RuleName, int, Cycle, Source]] = []
+    def read_all(self) -> tuple[tuple[RuleName, int, Cycle, Source, int], ...]:
+        out: list[tuple[RuleName, int, Cycle, Source, int]] = []
         for (body,) in self._conn.execute("SELECT body FROM rules").fetchall():
             rule = json.loads(body)
             active = rule.get("active")
@@ -86,6 +87,7 @@ class SqliteActiveRules:
                     int(active),
                     Cycle(version["cycle"]),
                     Source(location=version["source"]["location"]),
+                    int(version["days"]),
                 )
             )
         return tuple(out)
@@ -104,6 +106,7 @@ class SqliteWork:
         asked: list[str] = []
         answered: list[tuple[str, str]] = []
         falls: list[str] = []
+        見立て: list[Assessment] = []
         for name, body in read_events(self._conn, id):
             data = json.loads(body)
             if name == "QuestionAsked":
@@ -114,6 +117,8 @@ class SqliteWork:
                 falls.append(str(data["fallen"]))
             elif name == "CheckStopped":
                 falls.append(str(data["reason"]))
+            elif name == "AssessmentWritten":
+                見立て.append(Assessment.model_validate(data["assessment"]))
         row = self._conn.execute(
             "SELECT body, rule_name, period FROM jobs WHERE id = ?", (id.text,)
         ).fetchone()
@@ -124,7 +129,7 @@ class SqliteWork:
             at = job.get("result_at")
             if at:
                 got = self._conn.execute(
-                    "SELECT body FROM results WHERE at = ?", (at,)
+                    "SELECT body FROM results WHERE at = ?", (_番号(at),)
                 ).fetchone()
                 previous = json.loads(got[0])["body"] if got else None
             if row[1] and row[2]:
@@ -136,14 +141,11 @@ class SqliteWork:
                         (row[1], row[2], id.text),
                     ).fetchall()
                 )
-        rows = self._conn.execute(
-            "SELECT body FROM assessments WHERE job_id = ? ORDER BY at", (id.text,)
-        ).fetchall()
         return WorkMaterial(
             answered_questions=tuple(answered),
             previous_result=previous,
             fall_reasons=tuple(falls),
-            assessments=tuple(Assessment.model_validate_json(r[0]) for r in rows),
+            assessments=tuple(見立て),
             sibling_states=siblings,
         )
 
@@ -205,6 +207,7 @@ class SqliteToday:
         question_body: str | None = None
         answer_body: str | None = None
         request_head: str | None = None
+        見立て: list[Assessment] = []
         for name, ev in read_events(self._conn, id):
             data = json.loads(ev)
             if name == "QuestionAsked":
@@ -213,24 +216,21 @@ class SqliteToday:
                 answer_body = str(data["body"])
             elif name == "JobRequested":
                 request_head = str(data["body"]).splitlines()[0]
+            elif name == "AssessmentWritten":
+                見立て.append(Assessment.model_validate(data["assessment"]))
         result_body: str | None = None
         if job.result_at:
             got = self._conn.execute(
-                "SELECT body FROM results WHERE at = ?", (job.result_at,)
+                "SELECT body FROM results WHERE at = ?", (_番号(job.result_at),)
             ).fetchone()
             result_body = json.loads(got[0])["body"] if got else None
         evidence_quote: str | None = None
         if job.evidence_at:
             got = self._conn.execute(
-                "SELECT body FROM evidence WHERE at = ?", (job.evidence_at,)
+                "SELECT body FROM evidence WHERE at = ?", (_番号(job.evidence_at),)
             ).fetchone()
             evidence_quote = json.loads(got[0])["quote"] if got else None
-        assessments = tuple(
-            Assessment.model_validate_json(r[0])
-            for r in self._conn.execute(
-                "SELECT body FROM assessments WHERE job_id = ? ORDER BY at", (id.text,)
-            ).fetchall()
-        )
+        assessments = tuple(見立て)
         recheck = getattr(state, "recheck", None)
         return TodayMaterial(
             id=job.id,
