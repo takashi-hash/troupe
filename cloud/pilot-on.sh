@@ -13,7 +13,7 @@ PROJECT="${PROJECT:-ichiza-agentic}"
 REGION="${REGION:-asia-northeast1}"
 INSTANCE="${INSTANCE:-troupe-ledger}"
 SA="troupe-runtime@${PROJECT}.iam.gserviceaccount.com"
-NOTICE="Live demo: while judging is under way, human decisions here are simulated by a scripted pilot named Sim-Director. Every press is recorded under that name in Activity — see /now. Real judgment stays human: questions wait for a person."
+NOTICE="Live demo: while judging is under way, human decisions here are simulated by a scripted pilot named Sim-Director. Every press is recorded under that name in Activity - see /now. Real judgment stays human: questions wait for a person."
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
@@ -57,8 +57,10 @@ SQL
 echo "  載せた"
 
 say "開示バナーを点ける"
+# 断り書きには読点が入る——gcloud は既定でそこを環境変数の切れ目と読む。
+# `^@^` で区切り文字を変えて、1つの値として渡す（ここを素で書くとフラグ解釈で落ちる）。
 gcloud run services update troupe-window --region="$REGION" --project="$PROJECT" \
-  --update-env-vars="ICHIZA_PILOT_NOTICE=${NOTICE}" --quiet >/dev/null
+  --update-env-vars="^@^ICHIZA_PILOT_NOTICE=${NOTICE}" --quiet >/dev/null
 echo "  点けた"
 
 say "代役の心拍（2時間ごと）"
