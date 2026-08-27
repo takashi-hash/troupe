@@ -35,8 +35,19 @@ export ICHIZA_LEDGER_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/troupe"
 export ICHIZA_EMR_DSN="postgresql://postgres:${PW}@127.0.0.1:9471/emr"
 
 say "受け持ち＝Sim-Director の版を積んで有効化"
+# **既に Sim-Director が受け持ちなら積まない。** 作成元の鍵は ルール名＋版番号＋期間
+# ——期の途中で版を替えると、同じ期の仕事がもう1件生まれる(実際に全ルール2件ずつになった)。
+# 流し直しは deploy.sh のたびに起きるので、この門が無いと毎回二重になる。
+export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 for name in "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
             "Visit Note Draft" "Weekly Visit Prep"; do
+  owner=$(PGPASSWORD=$PW psql -tA -h 127.0.0.1 -p 9471 -U postgres -d troupe -c \
+    "SELECT body->'versions'->((body->>'active')::int - 1)->'owner'->'person'->>'name' \
+     FROM rules WHERE name='$name' AND (body->>'active') IS NOT NULL" 2>/dev/null || true)
+  if [ "$owner" = "Sim-Director" ]; then
+    echo "  $name: 既に Sim-Director の版が有効——積まない"
+    continue
+  fi
   out=$(uv run python main.py rule-add --name "$name" --by Director --owner Sim-Director)
   ver=$(printf '%s' "$out" | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p')
   if [ -z "$ver" ]; then echo "  $name: $out" >&2; exit 1; fi
