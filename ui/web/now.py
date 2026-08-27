@@ -1,7 +1,8 @@
 """いま — この座はいま動いているのか？（人に見えるもの §1）
 
 環のいま——説明(/how §01)の環の図が、生きた数で動く。
-段を押すと説明の文がその場に出る。**予告はしない——起きた事実だけ。**
+説明は**左端(時計)が開いた状態で始まり**、段を押すと押した段のものに切り替わる
+——押さないと何も出ない仕掛けは、押せると気づかれない。**予告はしない——起きた事実だけ。**
 生の帯は /events(SSE)が運ぶ——器が同じ読みを繰り返すだけ。
 """
 
@@ -42,11 +43,13 @@ def _帯の行(r: HistoryRow) -> str:
     )
 
 
-def _段(鍵: str, 名: str, 副: str, 数: int, 数の印: str, 帯色: str = "") -> str:
+def _段(鍵: str, 名: str, 副: str, 数: int, 数の印: str, 帯色: str = "", 開く: bool = False) -> str:
     # 中身のある段は生きて見える(busy)——数が0なら静か。嘘の点滅はしない
     busy = " is-busy" if 数 else ""
+    開き = " is-open" if 開く else ""
     return (
-        f"<button type='button' class='loop-stage{帯色}{busy}' data-stage='{鍵}'>"
+        f"<button type='button' class='loop-stage{帯色}{busy}{開き}' data-stage='{鍵}'"
+        f" aria-pressed='{'true' if 開く else 'false'}' aria-controls='stage-note'>"
         f"<span class='loop-stage__name'>{escape(名)}</span>"
         f"<span class='loop-stage__sub'><span class='loop-stage__pip'></span>"
         f"{escape(副)}</span>"
@@ -66,6 +69,7 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
     ) or ("<p class='sub' data-now-empty>Nothing is being worked on this second — "
           "the next pulse may change that.</p>")
     説明 = json.dumps({k: {"name": n, "text": t} for k, (n, t) in _段の文.items()})
+    初名, 初文 = _段の文["clock"]
     return (
         "<div class='page-head'><h1 class='page-title'>Now</h1>"
         f"<span class='count-pill'><strong data-now='total'>{合計}</strong> in flight</span>"
@@ -75,7 +79,7 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
 
         # ---- 環(ヒーロー) — /how §01 の図が生きた数で動く ----
         "<section class='loop' aria-label='The loop, live'>"
-        + _段("clock", "The clock", "creates & hands out", v.queued, "queued")
+        + _段("clock", "The clock", "creates & hands out", v.queued, "queued", 開く=True)
         + f"<span class='loop-link{' has-flow' if v.queued else ''}' data-link='queued' aria-hidden='true'></span>"
         + _段("ai", "The AI — Nomi",
               "consulting Gemini…" if v.working else "reads the source · asks Gemini",
@@ -85,7 +89,8 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
         + f"<span class='loop-link{' has-flow' if v.checking else ''}' data-link='checking' aria-hidden='true'></span>"
         + _段("you", "You", "approve · answer · sign", v.waiting, "waiting", " loop-stage--you")
         + "</section>"
-        "<p class='loop-note' id='stage-note' hidden></p>"
+        # 説明は隠さない——左端(時計)が開いた状態で始まる(押さないと出ない説明は読まれない)
+        f"<p class='loop-note' id='stage-note'><strong>{escape(初名)}.</strong> {escape(初文)}</p>"
 
         # ---- 下段: 作業中 | 生の帯 | 人待ち ----
         "<div class='now-cols'>"
@@ -136,7 +141,10 @@ document.querySelectorAll('.loop-stage').forEach(function (b) {
   b.addEventListener('click', function () {
     var t = TEXTS[b.dataset.stage];
     note.innerHTML = '<strong>' + t.name + '.</strong> ' + t.text;
-    note.hidden = false;
+    document.querySelectorAll('.loop-stage').forEach(function (x) {
+      x.classList.toggle('is-open', x === b);
+      x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+    });
   });
 });
 function setNum(el, v) {

@@ -451,10 +451,17 @@ tbody tr:hover { background: var(--faint); }
 .loop-stage {
   flex: 1 1 0; min-width: 0; font: inherit; text-align: left; cursor: pointer;
   display: flex; flex-direction: column; gap: 3px;
-  padding: 12px 14px; background: #fff;
+  padding: 12px 14px; background: #fff; position: relative;
   border: 1px solid var(--line-strong); border-radius: var(--r-sm);
 }
 .loop-stage:hover { border-color: var(--ink); }
+/* 押せる合図——全段の隅に▾。開いている段は濃く、地の色が下の説明(loop-note)と繋がる */
+.loop-stage::after {
+  content: '▾'; position: absolute; right: 11px; bottom: 8px;
+  font-size: 10px; color: var(--muted); opacity: .55;
+}
+.loop-stage:hover::after, .loop-stage.is-open::after { color: var(--ink); opacity: 1; }
+.loop-stage.is-open { border-color: var(--ink); background: var(--tint); }
 .loop-stage__name { font-family: var(--serif); font-size: 15px; font-weight: 600; }
 .loop-stage__sub { font-size: 11.5px; color: var(--muted); }
 .loop-stage__n {
