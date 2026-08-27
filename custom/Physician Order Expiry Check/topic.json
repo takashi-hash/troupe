@@ -1,5 +1,5 @@
 {
-  "instruction": "Read the physician order register in the source. List every order that has already expired, and every order that expires within the reporting period named in the acceptance criteria. For each one write: patient code, ordering practice, date signed, expiry date, and days remaining. Put the already-expired ones first. A visit made under an expired order cannot be billed, so a miss here is a direct revenue loss for the agency.",
+  "instruction": "Read the physician order register in the source. List every order that has already expired, and every order that expires within the reporting period named in the acceptance criteria. Use the first day of the reporting period as the reference date - both for deciding 'already expired' and for computing days remaining. For each one write: patient code, ordering practice, date signed, expiry date, and days remaining. Put the already-expired ones first. A visit made under an expired order cannot be billed, so a miss here is a direct revenue loss for the agency.",
   "source": "db:physician-orders",
   "required_terms": [
     "{対象期間}",
