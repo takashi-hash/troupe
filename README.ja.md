@@ -6,7 +6,7 @@ AI が仕事を回し、**判断は人間**が持つ仕事場——舞台は在�
 
 **いま Google Cloud で動いている:** https://troupe-window-834978405023.asia-northeast1.run.app
 
-5分ごとの脈が2本、Cloud SQL の帳簿を打ち続けている（間隔は `cloud/deploy.sh` の1行。**設計は数を決めていない**——主張は「AI は呼ばれずに来る」であって「毎分来る」ではない）。画面に出ているものは全部、エージェントが座長の判断のために置いたもの——手で並べたものは1つも無い。迷ったら**案内**に日本語で訊けばいい。「今日、私が要るのはどれ？」
+5分ごとの脈が2本、Cloud SQL の帳簿を打ち続けている（間隔は `cloud/deploy.sh` の1行。**設計は数を決めていない**——主張は「AI は呼ばれずに来る」であって、何分おきに来るかではない）。画面に出ているものは全部、エージェントが座長の判断のために置いたもの——手で並べたものは1つも無い。迷ったら**案内**に日本語で訊けばいい。「今日、私が要るのはどれ？」
 
 ## 仕事はこう回る
 
@@ -74,7 +74,7 @@ uv run python main.py serve --viewer 座長   # 同じ窓を localhost で
 uv run pytest -q                    # 902本（＋21本は本物の Postgres が要る）
 uv run pyright                      # domain・app は strict
 uv run lint-imports                 # 依存は内向きのみ・ui は domain を知らない
-uv run python tests/break_check.py  # 義務68個を1つずつ壊して、全部が赤くなるか
+uv run python tests/break_check.py  # 義務70個を1つずつ壊して、全部が赤くなるか
 ```
 
 ## 設計——5枚が正本

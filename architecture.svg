@@ -48,12 +48,13 @@
   <text x="296" y="222" class="mono">troupe-agent</text>
 
   <!-- tick job -->
-  <rect x="280" y="246" width="240" height="112" rx="10" class="box"/>
+  <rect x="280" y="246" width="240" height="130" rx="10" class="box"/>
   <text x="296" y="270" class="h2">Cloud Run Job</text>
   <text x="296" y="292" class="mono">troupe-tick</text>
   <text x="296" y="314" class="sm">create · hand out · check ·</text>
-  <text x="296" y="332" class="sm">confirm · mark overdue · audit ·</text>
-  <text x="296" y="350" class="sm">plan visits · deliver drafts</text>
+  <text x="296" y="332" class="sm">sort failures · confirm · audit ·</text>
+  <text x="296" y="350" class="sm">mark overdue · plan visits ·</text>
+  <text x="296" y="368" class="sm">derive charges · deliver drafts</text>
 
   <!-- Vertex -->
   <rect x="544" y="176" width="188" height="128" rx="10" class="swap"/>
@@ -74,19 +75,20 @@
   <text x="96" y="438" class="h2">Cloud Run Service</text>
   <text x="262" y="438" class="mono">troupe-window</text>
   <text x="556" y="438" class="sm" fill="#c2410c">replaced the desktop app</text>
-  <text x="96" y="464" class="sm"><tspan font-weight="650">CARE</tspan><tspan dx="14">my day (map + routes) · patients</tspan></text>
-  <text x="96" y="484" class="sm"><tspan font-weight="650">BACK OFFICE</tspan><tspan dx="14">inbox · agreements · automations · activity · search</tspan></text>
-  <text x="96" y="504" class="sm"><tspan font-weight="650">HELP</tspan><tspan dx="14">guide · how</tspan><tspan dx="14">— the guide chats with read-only tools: no path from talk to action</tspan></text>
+  <text x="96" y="464" class="sm"><tspan font-weight="650">flat nav</tspan><tspan dx="14">now (the loop, live) · my day (map + routes) · inbox</tspan></text>
+  <text x="96" y="484" class="sm">patients (incl. agreements) · billing (claims + fee schedule) · automations</text>
+  <text x="96" y="504" class="sm">ledger (activity + search) · “Ask the guide” on every page — no path from talk to action</text>
 
   <!-- Cloud SQL -->
-  <rect x="80" y="546" width="652" height="168" rx="10" class="swap"/>
+  <rect x="80" y="546" width="652" height="184" rx="10" class="swap"/>
   <text x="96" y="572" class="h2">Cloud SQL for PostgreSQL — two databases, one boundary</text>
   <text x="96" y="596" class="sm"><tspan class="mono">troupe</tspan><tspan dx="8">— the ledger, append-only: jobs · job_events · rules · rule_events ·</tspan></text>
   <text x="150" y="614" class="sm">results · evidence · questions · assessments</text>
   <text x="96" y="636" class="sm"><tspan class="mono">emr</tspan><tspan dx="8">— the synthetic EMR: patients · clinicians · visit_patterns · visits ·</tspan></text>
-  <text x="150" y="654" class="sm">clinical_notes — signed = immutable by a DB trigger · note_drafts</text>
-  <text x="96" y="676" class="sm">automation may write only the drafts inbox and agreement-derived visits — nothing else</text>
-  <text x="96" y="698" class="sm" fill="#c2410c">replaced a local SQLite file · nothing is overwritten or deleted</text>
+  <text x="150" y="654" class="sm">clinical_notes (signed = immutable by a DB trigger) · note_drafts · fee_schedule ·</text>
+  <text x="150" y="672" class="sm">visit_services · charges · claims (confirmed = immutable)</text>
+  <text x="96" y="694" class="sm">automation writes only: drafts inbox · agreement-derived visits · derived charges</text>
+  <text x="96" y="712" class="sm" fill="#c2410c">replaced a local SQLite file · nothing is overwritten or deleted</text>
 
   <!-- Secret Manager -->
   <rect x="80" y="738" width="304" height="118" rx="10" class="box"/>
@@ -101,7 +103,7 @@
   <text x="545" y="764" class="mono">troupe-pilot</text>
   <text x="420" y="790" class="sm">a scripted stand-in during judging —</text>
   <text x="420" y="808" class="sm">presses the same public forms,</text>
-  <text x="420" y="826" class="sm">approve + sign only · labeled in Activity</text>
+  <text x="420" y="826" class="sm">approve · sign · confirm claims — in the Ledger</text>
   <text x="420" y="844" class="sm">a banner on every page says it is running</text>
 
   <!-- arrows inside GCP -->
@@ -128,8 +130,8 @@
   <text x="920" y="440" class="h2">domain</text>
   <text x="920" y="464" class="sm">value objects · aggregates · invariants</text>
   <text x="920" y="484" class="sm">specifications · domain events · the state machine</text>
-  <text x="920" y="510" class="sm">No clock, no randomness, no storage,</text>
-  <text x="920" y="528" class="sm">no screens, no outside tools. "Now" arrives as an argument.</text>
+  <text x="920" y="510" class="sm">No clock, no randomness, no storage, no screens,</text>
+  <text x="920" y="528" class="sm">no outside tools — “now” arrives as an argument.</text>
 
   <path class="flow" d="M1092 262 V290"/>
   <path class="flow" d="M1092 380 V408"/>
@@ -137,14 +139,14 @@
   <rect x="824" y="590" width="536" height="140" rx="10" class="box"/>
   <text x="840" y="618" class="h2">Enforced, not agreed</text>
   <text x="840" y="644" class="sm">import-linter — 6 dependency contracts, checked every run</text>
-  <text x="840" y="664" class="sm">reconciliation tests — the design tables and the code are compared line by line</text>
-  <text x="840" y="684" class="sm">break_check — each of the 66 domain obligations is removed in turn; every one must go red</text>
-  <text x="840" y="704" class="sm">pytest — 815 tests · pyright — strict on domain and app</text>
+  <text x="840" y="664" class="sm">reconciliation tests — design tables vs code, line by line</text>
+  <text x="840" y="684" class="sm">break_check — 70 obligations broken in turn; each goes red</text>
+  <text x="840" y="704" class="sm">pytest — 902 tests · pyright — strict on domain and app</text>
 
   <rect x="824" y="760" width="536" height="96" rx="10" class="box"/>
   <text x="840" y="788" class="h2">custom — the rules are data</text>
-  <text x="840" y="812" class="sm">the seven care workflows are JSON (plus one text source) — swapping the whole</text>
-  <text x="840" y="830" class="sm">field of work, dependency reviews to home care, took no code change</text>
+  <text x="840" y="812" class="sm">the seven care workflows are JSON (plus one text source) —</text>
+  <text x="840" y="830" class="sm">swapping the whole field of work took no code change</text>
 
   <!-- ============ the cycle ============ -->
   <rect x="56" y="912" width="1328" height="166" rx="14" class="box"/>
@@ -155,15 +157,16 @@
   <text x="80" y="1058" class="sm">The model's word is never evidence. A result is finished only when a quote can be pulled from the source that backs it — and a human's answer does not count either.</text>
 
   <!-- human -->
-  <rect x="56" y="1102" width="740" height="128" rx="14" class="human"/>
+  <rect x="56" y="1102" width="740" height="152" rx="14" class="human"/>
   <text x="80" y="1132" class="h2">What is left for the person</text>
   <text x="80" y="1158" class="t">APPROVE · SEND BACK · ANSWER · ABANDON</text>
   <text x="80" y="1182" class="t">AGREE / END A VISIT PATTERN · CANCEL A VISIT · SIGN THE RECORD</text>
-  <text x="80" y="1206" class="sm">signing is one EMR transaction (note stored → visit done → draft stamped) — signed notes cannot be edited</text>
+  <text x="80" y="1206" class="t">RULE ON A FLAGGED CHARGE · CONFIRM THE MONTH’S CLAIM</text>
+  <text x="80" y="1230" class="sm">one EMR transaction: note stored → visit done (the draft is never written to) · signed notes cannot be edited</text>
 
   <!-- claim -->
-  <rect x="824" y="1102" width="560" height="128" rx="14" class="swap"/>
+  <rect x="824" y="1102" width="560" height="152" rx="14" class="swap"/>
   <text x="848" y="1132" class="h2">What this submission demonstrates</text>
   <text x="848" y="1158" class="t">Three pillars swapped — model, ledger, scheduler.</text>
-  <text x="848" y="1186" class="mono">git diff --stat baseline..pillars-swapped -- domain app  →  empty</text>
+  <text x="848" y="1186" class="mono">git diff baseline..pillars-swapped -- domain app → empty</text>
 </svg>

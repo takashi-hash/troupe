@@ -8,7 +8,7 @@ Troupe watches for them, does the work, and stops at exactly the point where a h
 
 **Live, running on Google Cloud right now:** https://troupe-window-834978405023.asia-northeast1.run.app
 
-Two pulses beat every five minutes against a Cloud SQL ledger — the cadence is one line in `cloud/deploy.sh`, and the design names no number: what it claims is that the AI arrives **uncalled**, not that it arrives every minute. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide. If you are not sure where to look, open **Guide** in the sidebar and ask it, in any language: *"What needs me today?"* The guide reads the same pages you see, answers with links, and holds no writing tools at all — it can point, never press.
+Two pulses beat every five minutes against a Cloud SQL ledger — the cadence is one line in `cloud/deploy.sh`, and the design names no number: what it claims is that the AI arrives **uncalled**, not that it arrives on any particular clock. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide. If you are not sure where to look, open **Guide** in the sidebar and ask it, in any language: *"What needs me today?"* The guide reads the same pages you see, answers with links, and holds no writing tools at all — it can point, never press.
 
 ```
 a recurring visit agreement, a business rule, the calendar
@@ -35,7 +35,7 @@ a recurring visit agreement, a business rule, the calendar
   and the signed note becomes next week's source material
 ```
 
-Every one of those steps is an event appended to a ledger. Nothing is overwritten and nothing is deleted, so "what happened, and who decided it" is always answerable — the **Activity** page shows every event with a Human / AI / Clock chip on the actor.
+Every one of those steps is an event appended to a ledger. Nothing is overwritten and nothing is deleted, so "what happened, and who decided it" is always answerable — the **Ledger** page shows every event with a Human / AI / Clock chip on the actor.
 
 ---
 
@@ -92,10 +92,10 @@ The same thing in text, for a terminal:
 
  Cloud Run Service  troupe-window ────────┐     Vertex AI · Gemini 3.5 Flash
    flat nav, "now" → "record":            │      (no API key — workload identity)
-   my day · inbox · patients (incl.       │
-   agreements) · billing (claims + fee    │
-   schedule) · automations (rules, one-   │
-   off requests) · ledger · guide · how   │
+   now (the loop, live) · my day · inbox ·│
+   patients (incl. agreements) · billing  │
+   (claims + fee schedule) · automations ·│
+   ledger — "Ask the guide" on every page │
                                           ▼
         Cloud SQL for PostgreSQL — two databases, one boundary
           troupe: jobs · job_events · rules · rule_events ·
@@ -127,7 +127,7 @@ Inside the container, dependencies point inward only:
 |---|---|---|
 | **Gemini 3.5 or newer**, through the Gemini API or Vertex AI | `gemini-3.5-flash` on **Vertex AI**, reached with the workload's own identity — **no API key exists anywhere** | [`adapters/acl/llm.py`](adapters/acl/llm.py) · `MODEL_ENV` in [`cloud/deploy.sh`](cloud/deploy.sh) |
 | **A Google agent framework** (ADK, GenAI SDK, Antigravity SDK, GenKit) | The **Google GenAI SDK** (`google-genai`) — the only model dependency the project has | [`pyproject.toml`](pyproject.toml) · [`adapters/acl/llm.py`](adapters/acl/llm.py) |
-| **At least one Google Cloud infrastructure service** | **Cloud Run Jobs** (the two 60-second pulses) · **Cloud Run service** (the window) · **Cloud SQL for PostgreSQL** (two databases, one boundary) · **Cloud Scheduler** · **Secret Manager** · **Artifact Registry** · **Cloud Build** | [`cloud/deploy.sh`](cloud/deploy.sh) |
+| **At least one Google Cloud infrastructure service** | **Cloud Run Jobs** (the two five-minute pulses) · **Cloud Run service** (the window) · **Cloud SQL for PostgreSQL** (two databases, one boundary) · **Cloud Scheduler** · **Secret Manager** · **Artifact Registry** · **Cloud Build** | [`cloud/deploy.sh`](cloud/deploy.sh) |
 | **A hosted URL to judge and test** | https://troupe-window-834978405023.asia-northeast1.run.app — running now, with the demo pilot keeping it moving | the banner on every page says the pilot is on |
 | **An architecture diagram** | [`architecture.svg`](architecture.svg) | above |
 | **Spin-up instructions** | one script, safe to run again | [Running it](#running-it) |
@@ -154,7 +154,7 @@ Inside the container, dependencies point inward only:
 
 ## A note on the demo pilot
 
-While judging is under way, this deployment keeps itself moving: a scripted stand-in named **Sim-Director** presses the human buttons — it approves finished work, signs delivered drafts, and once a month has ended and holds no flagged charges, confirms its claims — on a two-hour beat. It is not hidden and it is not intelligent: it drives the same public forms a person would, every press is recorded under its own name in Activity, and a banner on every page says it is running. It never answers questions, never sends work back, never abandons a job, and never rules on a flagged charge — the operations that need actual judgment wait for an actual human, and you will find them waiting in the Inbox and on the Billing page.
+While judging is under way, this deployment keeps itself moving: a scripted stand-in named **Sim-Director** presses the human buttons — it approves finished work, signs delivered drafts, and once a month has ended and holds no flagged charges, confirms its claims — on a two-hour beat. It is not hidden and it is not intelligent: it drives the same public forms a person would, every press is recorded under its own name in the Ledger, and a banner on every page says it is running. It never answers questions, never sends work back, never abandons a job, and never rules on a flagged charge — the operations that need actual judgment wait for an actual human, and you will find them waiting in the Inbox and on the Billing page.
 
 Synthetic patients, synthetic director — and both say so.
 
@@ -176,7 +176,7 @@ A full English translation of all five lives in [`design/`](design/) — [what m
 
 Edit one row of a table in a design document and the suite goes red. Edit the code without the document and it goes red too. There is no way to let them drift quietly.
 
-On top of that, `tests/break_check.py` removes each of the **68 obligations** in the domain one at a time and asserts the suite goes red for every single one — a check that the safety net is actually attached, not just present.
+On top of that, `tests/break_check.py` removes each of the **70 obligations** in the domain one at a time and asserts the suite goes red for every single one — a check that the safety net is actually attached, not just present.
 
 ```bash
 uv run pytest -q            # 902 tests (21 more run only against a live Postgres)
