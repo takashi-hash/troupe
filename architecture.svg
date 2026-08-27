@@ -36,8 +36,8 @@
   <!-- Scheduler -->
   <rect x="80" y="176" width="176" height="182" rx="10" class="swap"/>
   <text x="96" y="202" class="h2">Cloud Scheduler</text>
-  <text x="96" y="224" class="sm">two beats, every 60s</text>
-  <text x="96" y="248" class="mono">* * * * *</text>
+  <text x="96" y="224" class="sm">two beats, every 5 min</text>
+  <text x="96" y="248" class="mono">*/5 * * * *</text>
   <text x="96" y="276" class="sm" fill="#c2410c">replaced macOS launchd</text>
   <text x="96" y="308" class="sm">+ a 2-hourly beat</text>
   <text x="96" y="326" class="sm">for the demo pilot</text>

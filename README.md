@@ -8,7 +8,7 @@ Troupe watches for them, does the work, and stops at exactly the point where a h
 
 **Live, running on Google Cloud right now:** https://troupe-window-834978405023.asia-northeast1.run.app
 
-Two pulses beat every 60 seconds against a Cloud SQL ledger. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide. If you are not sure where to look, open **Guide** in the sidebar and ask it, in any language: *"What needs me today?"* The guide reads the same pages you see, answers with links, and holds no writing tools at all — it can point, never press.
+Two pulses beat every five minutes against a Cloud SQL ledger — the cadence is one line in `cloud/deploy.sh`, and the design names no number: what it claims is that the AI arrives **uncalled**, not that it arrives every minute. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide. If you are not sure where to look, open **Guide** in the sidebar and ask it, in any language: *"What needs me today?"* The guide reads the same pages you see, answers with links, and holds no writing tools at all — it can point, never press.
 
 ```
 a recurring visit agreement, a business rule, the calendar
@@ -83,11 +83,11 @@ Troupe's ledger is not the medical record. The agency's EMR is a **second bounde
 The same thing in text, for a terminal:
 
 ```
- Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-tick
+ Cloud Scheduler ──(every 5 min)──→ Cloud Run Job  troupe-tick
    create · hand out · check · sort failures · confirm · mark overdue · audit
    · plan visits from agreements · derive charges from signed visits · deliver drafts
 
- Cloud Scheduler ──(every 60s)──→ Cloud Run Job  troupe-agent
+ Cloud Scheduler ──(every 5 min)──→ Cloud Run Job  troupe-agent
    start → consult Gemini → submit / ask / fail → patrol and assess
 
  Cloud Run Service  troupe-window ────────┐     Vertex AI · Gemini 3.5 Flash
@@ -179,7 +179,7 @@ Edit one row of a table in a design document and the suite goes red. Edit the co
 On top of that, `tests/break_check.py` removes each of the **68 obligations** in the domain one at a time and asserts the suite goes red for every single one — a check that the safety net is actually attached, not just present.
 
 ```bash
-uv run pytest -q            # 887 tests (21 more run only against a live Postgres)
+uv run pytest -q            # 902 tests (21 more run only against a live Postgres)
 uv run pyright              # domain and app are strict
 uv run lint-imports         # 6 dependency contracts
 uv run python tests/break_check.py

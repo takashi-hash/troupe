@@ -61,7 +61,7 @@ def _頁(
         "<a class='brand' href='/day'>Troupe</a>"
         "<span class='topbar__clinic'>Riverbend Home Medical Clinic · synthetic data throughout</span>"
         "<span class='cadence' aria-hidden='true'><span class='cadence__fill'></span></span>"
-        "<span class='topbar__beat'>two pulses · every 60s</span>"
+        "<span class='topbar__beat'>two pulses · every 5 min</span>"
         f"{_席の札(viewer, 席たち)}"
         "</div></header>"
         "<div class='navbar'><div class='bar-inner'>"

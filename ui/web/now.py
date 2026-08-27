@@ -69,7 +69,7 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
     return (
         "<div class='page-head'><h1 class='page-title'>Now</h1>"
         f"<span class='count-pill'><strong data-now='total'>{合計}</strong> in flight</span>"
-        f"<span class='page-head__aside'>{脈} · two pulses every 60s</span></div>"
+        f"<span class='page-head__aside'>{脈} · two pulses every 5 min</span></div>"
         "<p class='page-sub'>The loop, live — every number is read from the ledger this "
         "second. Press a stage to see what it is allowed to do.</p>"
 
@@ -120,7 +120,7 @@ def _いま(v: NowView, 帯: tuple[HistoryRow, ...]) -> str:
         "<strong>Confirm</strong> — the heaviest human judgments. Green means signed or "
         "passed, amber means a human is needed, red is destructive or expired, blue is "
         "information, gray is inert.</p>"
-        "<p>Cloud Scheduler fires two Cloud Run Jobs every 60 seconds; this window is a "
+        "<p>Cloud Scheduler fires two Cloud Run Jobs every five minutes; this window is a "
         "Cloud Run service; the ledger and the synthetic EMR are Cloud SQL for PostgreSQL; "
         "the model is Gemini via Vertex AI, reached with the workload's own identity — "
         "no API key exists anywhere. Every patient, address and clinician is invented; "

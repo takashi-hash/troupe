@@ -1,8 +1,8 @@
 #!/bin/sh
 # クラウドの配線。**launchd/install.sh の対**——買った仕組みの設定であって、コードではない。
 #
-#   Cloud Scheduler (60秒) ─→ Cloud Run Job  troupe-tick    時計のひと回り
-#   Cloud Scheduler (60秒) ─→ Cloud Run Job  troupe-agent   AI のひと回り
+#   Cloud Scheduler (5分) ─→ Cloud Run Job  troupe-tick    時計のひと回り
+#   Cloud Scheduler (5分) ─→ Cloud Run Job  troupe-agent   AI のひと回り
 #                             Cloud Run Svc  troupe-window  窓（web）
 #                                  └─→ Cloud SQL (Postgres)  帳簿
 #
@@ -113,7 +113,7 @@ gcloud run jobs deploy troupe-pilot \
   --max-retries=0 --task-timeout=600s --quiet >/dev/null
 echo "  troupe-pilot（deploy.sh を流し直したら pilot-on.sh も流し直す——席とバナーが戻るため）"
 
-say "心拍 — 60秒ごとに脈を起こす（**時計の表に「AI を起こす」は増えない**）"
+say "心拍 — 5分ごとに脈を起こす（**時計の表に「AI を起こす」は増えない**）"
 for role in tick agent; do
   URL="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT}/jobs/troupe-${role}:run"
   if gcloud scheduler jobs describe "troupe-${role}-beat" --location="$REGION" \
@@ -124,10 +124,10 @@ for role in tick agent; do
   fi
   gcloud scheduler jobs "$verb" http "troupe-${role}-beat" \
     --location="$REGION" --project="$PROJECT" \
-    --schedule="* * * * *" --time-zone="Asia/Tokyo" \
+    --schedule="*/5 * * * *" --time-zone="Asia/Tokyo" \
     --uri="$URL" --http-method=POST \
     --oauth-service-account-email="$SA" --quiet >/dev/null
-  echo "  troupe-${role}-beat（毎分）"
+  echo "  troupe-${role}-beat（5分ごと）"
 done
 
 say "配線した"
