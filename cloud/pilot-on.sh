@@ -42,8 +42,8 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 for name in "Care Plan Review" "Physician Order Expiry Check" "Survey Readiness Check" \
             "Visit Note Draft" "Weekly Visit Prep"; do
   owner=$(PGPASSWORD=$PW psql -tA -h 127.0.0.1 -p 9471 -U postgres -d troupe -c \
-    "SELECT body->'versions'->((body->>'active')::int - 1)->'owner'->'person'->>'name' \
-     FROM rules WHERE name='$name' AND (body->>'active') IS NOT NULL" 2>/dev/null || true)
+    "SELECT (body::jsonb)->'versions'->(((body::jsonb)->>'active')::int - 1)->'owner'->'person'->>'name' \
+     FROM rules WHERE name='$name' AND ((body::jsonb)->>'active') IS NOT NULL" 2>/dev/null || true)
   if [ "$owner" = "Sim-Director" ]; then
     echo "  $name: 既に Sim-Director の版が有効——積まない"
     continue
