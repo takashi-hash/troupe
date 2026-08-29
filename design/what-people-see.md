@@ -5,7 +5,7 @@
 
 > **This file is a translation.** The source of truth is [`設計/人に見えるもの.md`](../設計/人に見えるもの.md). The reconciliation tests read the Japanese file, not this one — where the two disagree, the Japanese is right.
 >
-> *Translator's note on names:* the design names the screens; the web window labels them slightly differently. Today = **Inbox**, Schedule = **Automations**, History = **Activity**, Route = **My Day**, Visit = the visit screen opened from a stop, How = **How Troupe works**.
+> *Translator's note on names:* the design names the screens; the web window labels them slightly differently. Today = **Inbox**, Schedule = **Automations**, History = **Ledger**, Route = **My Day**, Visit = the visit screen opened from a stop, Now = the **Now** page (the former How screen is dissolved into it).
 
 ---
 
@@ -20,10 +20,10 @@
 | **Search** | Where is that job? | Pulls it up, finished ones included | F1 |
 | **Patients** | Who is this person, and what is going on? | A copy from the medical record (**another bounded context**) plus **the list of agreements and put on / end** (an agreement is a fact about a patient — it does not get a page of its own). A reference for reading the chart before approving — **not translated into our words** | F4 |
 | **Route** | Today, who goes where and in what order? | That day's visits per clinician, nearest-from-base first. A map and distances — **a patient's home is stood in for by a public place** (not one real residence is ever pointed at) | F1 |
-| **Visit** | What do I record on this visit, right now? | Opened from a stop on the route. S/O/A/P **prefilled from the draft**, and the signature — signing marks the visit done and the draft used, and **the record becomes next week's material for the AI** | F4 |
+| **Visit** | What do I record on this visit, right now? | Opened from a stop on the route. S/O/A/P **prefilled from the draft addressed to this visit (patient · date)**, and the signature — signing marks the visit done, and **the record becomes next week's material for the AI** (whether the draft was used is derived from the record's existence — nothing is written to the draft) | F4 |
 | **Billing** | This month, who owes what, and what is snagged? | **Two faces** — the claim face (month × patient claim cards · ruling on flags · confirmation · the submission file · the invoice) and the **fee-schedule face** (a copy of the master). **Both the points and the payer are entirely fictional** | F1 |
 | **Guide** | What should I do, and where? | The text of an answer to a question, and **whitelisted links to screens only** (an invitation to anywhere outside stays plain text). The LLM composes the answer — **the person does the pressing**. Nothing is written to the ledger | F6 |
-| **How** | What is this thing and how does it work? | The diagram of the loop · the cast · the colour vocabulary · **what the AI cannot do**. Static — **there is no gathering operation** | F6 |
+| **Now** | Is this troupe moving right now — and how does the thing work? | **The loop, live** — the count per stage (queued · working · checking · waiting) · the jobs being worked on · the raw feed of events (a derivation left open — arriving over SSE) · when the clock last wrote (displayed in Asia/Tokyo, same as the calendar's canon). **No forecasts — only facts that happened.** The explanations dissolve into the parts: press a stage for its sentence, the who-chip's title introduces the cast, the fine print at the foot holds "what the AI cannot do", the colour grammar and where this runs. **There is no separate How page** | F6 |
 
 **Only "Today" pushes.** The rest are drawers you pull open. That split is what prevents F6 (stops being read).
 
@@ -37,7 +37,7 @@
 
 | Value | What is in it |
 |---|---|
-| Today's row (**the canonical one**) | Job id · `RuleName` and the version number it was born from · **the period** (for a requested job, the head of the request body) · **the instruction** (copied at birth — **without the original text there is no way to approve**) · the state's name · due date · the assignee's name · recheck date · **the body of the result** · **the quote that is the evidence** · **the body of the question** · **the body of the answer** · **the body of the assessment and its reason** · **whether retries are exhausted** · **the amount spent and the budget** · the owner · **what can be pressed** |
+| Today's row (**the canonical one**) | Job id · `RuleName` and the version number it was born from · **the period** (for a requested job, the head of the request body) · **the instruction** (copied at birth — **without the original text there is no way to approve**) · **the source's location** (for a chart job, the patient can be read from it) · the state's name · due date · the assignee's name · recheck date · **the body of the result** · **the quote that is the evidence** · **the body of the question** · **the body of the answer** · **the body of the assessment and its reason** · **whether retries are exhausted** · **the amount spent and the budget** · the owner · **what can be pressed** |
 | └ The bodies go in as they are. **They are not shortened, and not only on the pushing screen.** **The owner is the same person as the viewer** (§3), so the screen does not show it |
 | Event row | Time · **who** (the name; failing that **the word for the actor** — there is one bridge) · what happened |
 | Schedule row | Rule name · instruction · version number · the active version · the next period · what can be pressed |
@@ -54,6 +54,7 @@
 | Charge row | Id · patient · date · **visit id** (a monthly row has none) · code · name · quantity · points · state (derived / flagged / ruled through / struck) · the reason for the flag · the reason for the ruling |
 | Claim copy | Patient · month · state (draft / confirmed) · total points · the co-payment ratio · the amount owed · the column of charge rows · who confirmed it and when |
 | Seat-and-role row | The seat's name · the role (director / clinician) |
+| Now view | The count per stage (queued · working · checking · waiting) · the column of (job id · heading) being worked on · when the clock last wrote (empty if never). The raw feed reuses the history row |
 | Guide answer | The text of the question · the text of the answer · the recent exchanges (**the screen carries them around — they are not put in the ledger**) |
 
 **They have no behaviour.** They are containers, nothing more.

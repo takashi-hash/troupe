@@ -13,7 +13,7 @@ PROJECT="${PROJECT:-ichiza-agentic}"
 REGION="${REGION:-asia-northeast1}"
 INSTANCE="${INSTANCE:-troupe-ledger}"
 SA="troupe-runtime@${PROJECT}.iam.gserviceaccount.com"
-NOTICE="Live demo: while judging is under way, human decisions here are simulated by a scripted pilot named Sim-Director. Every press is recorded under that name in Activity - see /now. Real judgment stays human: questions wait for a person."
+NOTICE="Live demo: while judging is under way, human decisions here are simulated by a scripted pilot named Sim-Director. Every press is recorded under that name in the Ledger - see /now. Real judgment stays human: questions wait for a person."
 
 say() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 

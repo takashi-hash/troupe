@@ -136,7 +136,7 @@ Without the split, the second one ends up outside. It actually did, and then the
 | `Instruction` | **Not empty.** A sentence from which the AI can tell what to do | Red if it can be built empty |
 | `AcceptanceCriteria` | **Splits in two.** ① the column of **required terms** (not empty; **the machine looks at it**) ② the explanatory sentence (**people and the AI read it**). ① may contain `{対象期間}` — **it is opened out with `Period` at copy time**, so by the time it reaches the check it is a fixed string | Red if it can be built with ① empty / red if an unopened `{` reaches the check |
 | `Source` | The location is not empty | Red if it can be built empty |
-| `Origin` | For a requested job, the request's id; for a rule-born job, `RuleName` + version number + `Period`. **Same contents, same key string** | Red if it can be built empty / red if the same contents yield different keys |
+| `Origin` | For a requested job, the request's id; for a rule-born job, `RuleName` + version number + `Period` (**a version that expands per patient adds the patient code too**). **Same contents, same key string** | Red if it can be built empty / red if the same contents yield different keys |
 | `Request` | Carries who asked, when, and the body | Red if it can be built with any of them missing |
 | `Result` | **The body is not empty.** Cannot be swapped out once submitted. **Carries no location** — the Store that appended it returns that, and the job holds it | Red if it can be built with an empty body / red if it has a location field |
 | `Evidence` | **The quote read from the source is not empty.** Carries **which source it was read from** (not where it was appended). **It is not clipped** — the moment you select, a judgment called selection enters. Folding it is the screen's presentation job | Red if evidence with an empty quote can be built |
@@ -245,7 +245,7 @@ The ledger outlives the tooling.
 | **作られた** `Created` | — | Assignee |
 | **着手できる** `Ready` | — | Assignee, approval |
 | **実行中** `InProgress` | Assignee | Approval |
-| **答え待ち** `AwaitingAnswer` | Assignee, **the question's location** | Approval |
+| **答え待ち** `AwaitingAnswer` | Assignee (the question's body is canonical in the event `QuestionAsked`) | Approval |
 | **提出済み** `Submitted` | Assignee. **The result's location is not empty** | Approval, the check's outcome |
 | **承認待ち** `AwaitingApproval` | **The assignee is an `Owner`** (I6), the result's location | Approval |
 | **承認済み** `Cleared` | **Approval**, the result's location | — |
@@ -327,7 +327,7 @@ Spent going 0 → 3 stays "InProgress." **These do not go in the transition tabl
 | Cleared with no approval | Cleared always carries an `Approval` |
 | An ending with neither evidence nor a recheck date | There are only two kinds of ending |
 | InProgress with no assignee | InProgress always carries an assignee |
-| AwaitingAnswer with no question | AwaitingAnswer always carries the question's location |
+| AwaitingAnswer with no question | Asking always takes a non-empty question (a value) and always stamps `QuestionAsked` (I2) |
 | Going back to Ready still carrying an approval | The Ready type carries no approval |
 | A rule whose versions shrank | The write reconciles against the previous column of versions |
 | An "urgent" flag | **There is no such field.** Urgency is expressed as "the due date is today" |

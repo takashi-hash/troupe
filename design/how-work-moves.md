@@ -27,7 +27,7 @@ Only the human's share is judgment; neither the AI's share nor the clock's is.
 | Deactivate | `deactivate` | Decides to **stop** giving birth to jobs from this version. The active version number goes back to empty — **the column of versions is untouched** (append-only) |
 | Agree a recurring visit | `add_pattern` | Puts the recurring-visit agreement arranged with the patient (weekday, **interval in weeks**, clinician) into the medical record. **The agreement is the judgment** — everything downstream of it is machinery |
 | End a recurring visit | `end_pattern` | Puts an end date on the agreement and **drops the not-yet-arrived visits it produced to cancelled** (bookkeeping the judgment — unwinding the expansion). **The column is never deleted** |
-| Sign and end the visit | `sign_note` | Appends the S/O/A/P the person wrote on top of the draft into the medical record as a **signed record**, drops the visit to done, and stamps the used draft (**one transaction in the medical record**). **The signer is the seat that pressed it** — there is no path by which the seat and the signer differ. **Making this record a fact is the judgment** — it is not written to the ledger (the chart's canonical home is the medical record) |
+| Sign and end the visit | `sign_note` | Appends the S/O/A/P the person wrote on top of the draft into the medical record as a **signed record** and drops the visit to done (**one transaction in the medical record**). Nothing is written to the draft — **whether it was used is derived from the existence of the record that (patient, visit date) binds**. **The signer is the seat that pressed it** — there is no path by which the seat and the signer differ. **Making this record a fact is the judgment** — it is not written to the ledger (the chart's canonical home is the medical record) |
 | Skip this visit once | `cancel_visit` | Drops only that one planned visit to cancelled, with a reason. The agreement stays alive — **deciding with the patient not to go this time is the judgment** (the one-off form of `end_pattern`; a done visit cannot be dropped) |
 | Add a service | `add_service` | Puts the services and drugs performed that day (rows of the fee schedule) and their quantity onto a visit that is not yet signed. **Signing freezes it** — there is one gate for facts |
 | Remove a service | `remove_service` | Removes one service row from a visit that is not yet signed |
@@ -79,6 +79,7 @@ Without the second, **fallen jobs get no assessment**. "Wake the AI" is not put 
 | Gather the billing | `gather_billing` | Gathers the copy of month × patient charge rows, flags and claims | Read-only. Counts and points are copied, not computed |
 | Gather the fee schedule | `gather_fees` | A copy of the fee-schedule master | Same |
 | Answer on the guide | `ask_guide` | Hands the person's question and **the copies the screens already gathered** to the LLM and receives the text of an answer. Nothing is written to the ledger | **The LLM composes the answer. It only guides — the person presses** (it receives no tool that reaches execution) |
+| Gather now | `gather_now` | A copy of the ledger's now — the count per stage (queued · working · checking · waiting), the jobs being worked on, when the clock last wrote. The raw feed (SSE) is just the shell repeating the same read — a derivation left open | Read-only. **No forecasts — only the fact of the last beat** |
 
 **Do not put these on the clock.** Doing so needs somewhere to put the outcome, and that means **storing a decision that is not stored**.
 Screens are always derived — they look at the ledger at the moment they were opened.
@@ -89,17 +90,19 @@ Screens are always derived — they look at the ledger at the moment they were o
 
 | Operation | Identifier | What it does | Why running it again is the same |
 |---|---|---|---|
-| Create | `create` | From the active versions and now, creates the jobs that do not exist yet | Origin is unique (I3) |
+| Create | `create` | From the active versions and now, creates the jobs that do not exist yet. **A version whose source carries a `{患者}` (patient) hole gets one job per planned recurring visit within the lead (the version's days)** — the `{患者}` and `{訪問日}` (visit date) holes are opened at copy time, and the origin key takes the patient and the visit date (**the version and the period stay out of the key** — a version change never creates a second job for the same visit) | Origin is unique (I3) |
 | Hand out | `hand_out` | Moves created jobs to Ready | It does not touch what has already been handed out |
 | Return the timed-out | `return_timed_out` | Drops assignments that ran past their limit | It does not touch what has not run out |
 | Run the check | `run_check` | Looks at the result body against the acceptance criteria. **If it passes, moves the assignment to the owner** | **The same result gives the same outcome whenever it runs** (`{対象期間}` was already opened out at copy time) |
 | Sort the failures | `sort_failures` | **If the retry count has not reached the limit and the amount spent has not reached the budget**, retry. If either has, leave it | Only comparisons. **The job carries all four** — the Store is never asked |
 | Confirm | `confirm` | **If the evidence's location is not empty**, finish. If it is empty, read the source again; if a quote comes, append it and finish. If not, **push the recheck date forward** | Appended evidence is always complete (the obligation on `Evidence`). **It reads the source, so this is the one place the outcome can change** |
 | Mark overdue | `mark_overdue` | Leaves a mark, once, on a job past its due date | Only a comparison of dates |
-| Audit | `audit` | For each active version, counts whether a job exists for the current period (**the cyclic reconciliation of I8**) | **Read-only.** Writes nothing |
+| Audit | `audit` | For each active version, counts whether a job exists for the current period (for a holed version, **per planned visit within the lead**) (**the cyclic reconciliation of I8**) | **Read-only.** Writes nothing |
 | Plan the visits | `plan_visits` | From the active recurring agreements, creates the future visits in the medical record if they are not there yet. **Expanding an agreement is bookkeeping** — the same shape as `create` making jobs from version × calendar | Origin is unique (agreement × date — a unique key in the medical record) |
 | Derive the charges | `derive_charges` | From signed visits and the record of services, creates that day's charge rows and the monthly claim draft in the medical record **if they are not there yet** (weeks start Sunday and are counted across month boundaries; the same building counts from two people on one day; the monthly tier comes from visit count × severity × people in the building — **the values of those rules live in the fee-schedule master**). Computing points and counting visits is not judgment — **a row that touches a cap is placed as a 0-point flag** and a person rules on it. **Only machine rows may be re-placed** (rows a person touched and confirmed months are never touched) | Origin is unique (visit × service key, patient × month key) |
-| Deliver the drafts | `deliver_drafts` | Places approved chart drafts into the medical record **as drafts only**. When placed, **stamps `DraftDelivered`** — delivery is a fact that stays in the ledger (F4) | Approval is already done. It only carries — **it carries only what has no mark** (the medical record's unique key is the second guard) |
+| Deliver the drafts | `deliver_drafts` | Places approved chart drafts into the medical record **as drafts only, addressed to their visit (patient · visit date)**. When placed, **stamps `DraftDelivered`** — delivery is a fact that stays in the ledger (F4) | Approval is already done. It only carries — **it carries only what has no mark** (the (patient, visit date) unique key is the second guard) |
+
+**The draft promise (SLA)**: a recurring visit that is in the medical record by 00:00 JST two days before its date D has, **by 00:00 JST on D**, an unconsumed draft whose body carries the exact D. The staleness cap = the lead days + the visit hour. A visit added late is **born overdue** — the red mark is the delay made visible, not a malfunction. Urgent house calls are outside the promise (best effort, nothing more).
 
 ### The values received from a person
 
@@ -135,7 +138,7 @@ The application service is what writes.
 
 | What it judges | Identifier | Material | Why it is not inside an aggregate |
 |---|---|---|---|
-| What should be created now | `reconcile` | The column of (id, number, cycle) for active versions + the column of origin keys that already exist + **now** | It straddles both rule and job |
+| What should be created now | `reconcile` | The column of (id, number, cycle, source, **days**) for active versions + the column of origin keys that already exist + **the column of planned recurring visits (patient code · visit date)** + **now**. A holed version is judged not by the period but by **the visit's approach** (today JST ≤ visit date ≤ today + days) | It straddles both rule and job |
 | Which jobs need **this person's** eyes and judgment now | `judge_today` | The gathered material for today + **each one's column of pressable operations** + **now** | It belongs to no single job |
 | └ **The call order is today's material → what can be pressed → judge_today.** A row with nothing pressable is not returned |
 
@@ -196,10 +199,10 @@ If some aggregate can be the subject, make it that aggregate's operation.
 | Holding | What decides it |
 |---|---|
 | `JobId` | **Whoever raises it assigns it** (numbering lives outside the factory) |
-| `Origin` | For a rule-born job, `RuleName` + version number + `Period`; for a requested job, the request's id |
+| `Origin` | For a rule-born job, `RuleName` + version number + `Period`. **For a visit job from a holed version, `RuleName` + patient code + visit date** (the version and the period stay out of the key). For a requested job, the request's id |
 | The version it was born from | Fixed at creation |
 | What is copied from the version | **Every common holding in [what a job is §4](what-a-job-is.md)** (canonical there) |
-| `DueDate` | **The start time + the version's days** (for a requested job the request's time; for a rule-born job the time it was created) |
+| `DueDate` | **The start time + the version's days** (for a requested job the request's time; for a rule-born job the time it was created). **A visit job is due at 00:00 JST on the visit date** — the SLA's deadline itself (the overdue mark becomes the detector of a broken promise) |
 | `Spent` | `Spent(0, 0)` |
 | Initial state | Created |
 
@@ -227,14 +230,13 @@ If some aggregate can be the subject, make it that aggregate's operation.
 | `RuleReader` | Reader | The list of rules (name, version number, active version, instruction — **the instruction of the active version, or the latest if there is none**) | **app** | adapters | `gather_schedule` |
 | `ResultStore` | Store | Appends results | domain | adapters | Appends: `submit` / reads: `run_check` (**screen reads go through a Reader — one carrier only**) |
 | `EvidenceStore` | Store | Appends evidence | domain | adapters | Appends: `submit` · `confirm` / reads: `confirm` (**same**) |
-| `QuestionStore` | Store | Appends questions and answers | domain | adapters | Appends: `ask` · `answer` / **reads go through `WorkReader` and `TodayReader`** (same) |
-| `AssessmentStore` | Store | Appends assessments | domain | adapters | Appends: `assess` / **reads go through `WorkReader` and `TodayReader`** (same) |
 | `ClockPort` | Port | Gives the current time | **app** | adapters | **Every human, AI and clock operation**, plus `gather_today` · `gather_detail` · `gather_schedule` (history and search need no "now") |
 | `IdPort` | Port | Assigns a new identifier | **app** | adapters | `request` · `create` |
 | `LlmPort` | Port | Hands things to the LLM and receives **a `Reply` (with its mark) plus the calls and seconds used**. **For the patrol it has the situation read and returns the body of an assessment** — without assessments the AI can only give numbers. **The assessment call is not counted against the budget** (the safety valve exists to stop a runaway that moves work along; a runaway of assessments is stopped by F6) | **app** | adapters | `consult` · **the patrol** |
 | `SourcePort` | Port | Reads from the source. **Translates the source's words into business words** (the anti-corruption layer, ACL). There are two exits — **the quote, and the reason it could not be read**; what was read is covered by the quote (**an exit with nobody to return it is not created**) | **app** | adapters | `consult` · `submit` · **`confirm`** (taking the evidence quote) |
 | `TopicPort` | Port | Reads the topic's data (the contents of a version) | **app** | adapters | `add_version` |
-| `ActiveRuleReader` | Reader | Reads (id, number, cycle) of active versions — the same shape as `reconcile`'s material | **app** | adapters | `create` · `audit` · `gather_schedule` |
+| `ActiveRuleReader` | Reader | Reads (id, number, cycle, source, **days**) of active versions — the same shape as `reconcile`'s material | **app** | adapters | `create` · `audit` · `gather_schedule` |
+| `ScheduledVisitReader` | Reader | Copies the medical record's planned **recurring** visits (patient code · visit date, kind=regular) **as text** — the material for expanding a holed-source version. Whether one has approached is `reconcile`'s call | **app** | adapters | `create` · `audit` · `gather_schedule` |
 | `OriginReader` | Reader | Reads the origin keys of existing jobs | **app** | adapters | `create` · `audit` · `gather_schedule` |
 | `WorkReader` | Reader | **Only the material the AI needs for one job that lives outside the aggregate** — answered questions, the body of the previously submitted result, **the column of what fell over and why it stopped**, the assessments so far, **the states of jobs born from other versions with the same `RuleName` and the same `Period`** (instruction, acceptance criteria, source, amount spent and budget, recheck date are **carried by the aggregate** — do not create a second canonical home) | **app** | adapters | `consult` · `patrol` |
 | `JobStateReader` | Reader | The ids of jobs in a given state. **Can also filter by assignee** | **app** | adapters | `start` · `patrol` · `hand_out` · `return_timed_out` · `run_check` · `sort_failures` · `confirm` · `mark_overdue` (**counted by the name of whoever is injected with the declaration**) |
@@ -244,11 +246,11 @@ If some aggregate can be the subject, make it that aggregate's operation.
 | `HistoryReader` | Reader | Event rows newest first — **with the job id and the material for its heading** (`RuleName`, period, instruction). **It can also state the total** (never show a list whose size is unknowable) | **app** | adapters | `gather_history` |
 | `SearchReader` | Reader | Pulls job rows by the filter conditions (**states mapped to identifiers first**) — **finished ones included** (F1) | **app** | adapters | `gather_search` |
 | `PatientReader` | Reader | Pulls the medical record's patient rows and chart extracts **as text and IDs** — **a copy from another bounded context; not translated into our words** (a patient never becomes a Troupe aggregate — it is outside the boundary) | **app** | adapters | `gather_patients` · `gather_patient` |
-| `EmrDraftPort` | Port | Places an approved draft **into the medical record's drafts inbox only** — **there is no port that writes a signed record (final)**. Returns whether it could be got into the inbox (false if it did not arrive — the next beat comes again) | **app** | adapters | `deliver_drafts` |
+| `EmrDraftPort` | Port | Places an approved draft, as (job id · patient · visit date · body), **into the medical record's drafts inbox only** — **once per (patient, visit date)**. There is no port that writes a signed record (final). Returns whether it could be got into the inbox (false if it did not arrive — the next beat comes again) | **app** | adapters | `deliver_drafts` |
 | `EmrPatternPort` | Port | Puts a recurring agreement into the medical record, ends one, reads them. **Called only by human operations** | **app** | adapters | `add_pattern` · `end_pattern` · `gather_patterns` |
 | `EmrSchedulePort` | Port | Reads active agreements and the keys of existing plans, and creates **only agreement-derived visits** in the medical record — there is no port that writes urgent, cancelled or signed ones | **app** | adapters | `plan_visits` |
 | `RouteReader` | Reader | Pulls that day's planned visits per clinician, with the patients' coordinates and **how the draft stands** | **app** | adapters | `gather_route` |
-| `EmrVisitPort` | Port | Ends that day's visit — **appends the signed record, moves the visit to done, stamps the used draft** (one transaction in the medical record) / **cancels just this once, with a reason**. **Called only by human operations.** There is no port that rewrites or deletes an appended record | **app** | adapters | `sign_note` · `cancel_visit` |
+| `EmrVisitPort` | Port | Ends that day's visit — **appends the signed record and moves the visit to done** (one transaction in the medical record) / **cancels just this once, with a reason**. **Called only by human operations.** There is no port that rewrites or deletes an appended record | **app** | adapters | `sign_note` · `cancel_visit` |
 | `VisitReader` | Reader | Pulls one visit's bedside material (patient summary, unused draft, signed records, roster of clinicians) **as text and IDs** | **app** | adapters | `gather_visit` |
 | `DeliveredMarkReader` | Reader | The ids of jobs already marked "the draft was delivered" — the check that prevents carrying twice | **app** | adapters | `deliver_drafts` |
 | `FeeReader` | Reader | Copies the fee-schedule master rows **as text and IDs** | **app** | adapters | `gather_fees` |
@@ -271,6 +273,7 @@ If some aggregate can be the subject, make it that aggregate's operation.
 | **No interface is created with an empty requester column** | Declarations nobody calls were what grew most last time |
 | **No Store is created with an empty appender** | Its contents stay empty forever (which is what happened to evidence) |
 | **No section called "not yet placed" is created** | The reason for not placing it ("X is not in the list") can vanish unnoticed. **Four of them really did survive with their reason gone** |
+| **Questions, answers and assessments have no Store — the events are canonical** (`QuestionAsked` · `QuestionAnswered` · `AssessmentWritten` carry the full bodies; reads go through `WorkReader` and `TodayReader`) | Writing the same value into both a table and an event means one gets fixed and the other drifts |
 
 ### Dependency inversion
 
