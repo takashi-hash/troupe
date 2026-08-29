@@ -7,6 +7,7 @@ A home-care agency lives or dies by paperwork that expires. A physician order la
 Troupe watches for them, does the work, and stops at exactly the point where a human has to decide.
 
 **Live, running on Google Cloud right now:** https://troupe-window-834978405023.asia-northeast1.run.app
+**2-minute demo — watch it come alive from an empty ledger:** https://youtu.be/P_RHvPeNRQk
 
 Two pulses beat every five minutes against a Cloud SQL ledger — the cadence is one line in `cloud/deploy.sh`, and the design names no number: what it claims is that the AI arrives **uncalled**, not that it arrives on any particular clock. Nothing on that page was put there by hand — open it and you are looking at whatever the agent has left for the director to decide. If you are not sure where to look, open **Guide** in the sidebar and ask it, in any language: *"What needs me today?"* The guide reads the same pages you see, answers with links, and holds no writing tools at all — it can point, never press.
 
